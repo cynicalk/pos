@@ -26,8 +26,8 @@ const EXPECTED_TOTAL = 86;
 const EXPECTED_BY_STATUS = {
   built: 45,
   partial: 11,
-  shell: 17,
-  absent: 6,
+  shell: 13,
+  absent: 10,
   external: 4,
   'blocked-ext': 3,
 };

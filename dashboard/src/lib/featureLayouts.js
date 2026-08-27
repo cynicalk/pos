@@ -21,7 +21,6 @@
  *                   the prep confirmation that doubles as the waste log (V.5),
  *                   and staleness as a first-class state (VI.4).
  *   Market Intel  — docs/epics/search-visibility/README.md.
- *   Kitchen Watch — docs/epics/compliance/README.md; rates, never individuals.
  *   Tally         — docs/epics/payouts-reconciliation/README.md.
  */
 
@@ -315,90 +314,6 @@ const layouts = {
         'than an action.',
       columns: ['Collection', 'Platform', 'Requirement', 'You meet it', 'Enrolled', 'What to do'],
     },
-  },
-
-  // ── Kitchen Watch ────────────────────────────────────────────────────────
-
-  headgear: {
-    filters: ['Date range', 'Station', 'Shift'],
-    kpis: [
-      { label: 'Headgear rate' },
-      { label: 'Glove rate' },
-      { label: 'Observations' },
-      { label: 'Stations covered' },
-    ],
-    chart: { title: 'Daily rate', x: 'Day', y: 'Rate' },
-    table: {
-      title: 'By station and shift',
-      columns: ['Station', 'Shift', 'Observations', 'Headgear rate', 'Glove rate', 'Trend'],
-    },
-    panels: [
-      {
-        title: 'A rate, never a person',
-        body:
-          'Camera work in a kitchen is only defensible if it reports how a station performed, not who ' +
-          'was standing at it. No frame, identity or individual record would surface here or anywhere ' +
-          'else in CookLyt, and a station with too few observations to stay anonymous reports nothing ' +
-          'at all.',
-      },
-    ],
-  },
-
-  handwash: {
-    filters: ['Date range', 'Station', 'Shift'],
-    kpis: [
-      { label: 'Events per station per shift' },
-      { label: 'Agreed interval' },
-      { label: 'Longest gap' },
-      { label: 'Shifts meeting the interval' },
-    ],
-    chart: { title: 'Events by hour', x: 'Hour', y: 'Events' },
-    table: {
-      title: 'Against the interval the kitchen agreed to',
-      caption:
-        'The interval is set by the kitchen, not by us — a target nobody agreed to is not a standard.',
-      columns: ['Station', 'Shift', 'Events', 'Agreed interval', 'Longest gap', 'Met'],
-    },
-  },
-
-  spills: {
-    filters: ['Date range', 'Area', 'Type'],
-    kpis: [
-      { label: 'Open now' },
-      { label: 'Cleared this period' },
-      { label: 'Median time to clear' },
-      { label: 'Repeat locations' },
-    ],
-    table: {
-      title: 'Detections',
-      caption:
-        'Ordered by what is still on the floor, because the only useful version of this arrives before ' +
-        'the shift ends.',
-      columns: ['Detected', 'Area', 'Type', 'Severity', 'Cleared', 'Time to clear'],
-    },
-  },
-
-  'allergen-contamination': {
-    filters: ['Date range', 'Station', 'Allergen'],
-    kpis: [
-      { label: 'Alerts raised' },
-      { label: 'Acknowledged on the line' },
-      { label: 'Median time to acknowledge' },
-      { label: 'Stations involved' },
-    ],
-    table: {
-      title: 'Alerts',
-      columns: ['Raised', 'Station', 'Allergen', 'Dish at risk', 'Acknowledged', 'Action taken'],
-    },
-    panels: [
-      {
-        title: 'Declared allergens do not wait on cameras',
-        body:
-          'What a dish is declared to contain already travels to the kitchen ticket and onto the guest ' +
-          'menu card from your own recipes. This screen is the separate question of whether a shared ' +
-          'prep surface created a risk that no recipe records.',
-      },
-    ],
   },
 
   // ── Guest Menu ───────────────────────────────────────────────────────────

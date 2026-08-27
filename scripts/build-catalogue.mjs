@@ -141,10 +141,12 @@ const PATCH = {
   'sop-version-control':          ['compliance', 1, 'base', null, ''],
   'sop-drift-detection':          ['compliance', 1, 'base', null, ''],
   'shift-checklists':             ['compliance', 1, 'base', null, ''],
-  'headgear-glove-detection':     ['compliance', 3, 'pro', 'shell', 'Needs cameras + a CV model; not on the roadmap.'],
-  'handwash-monitoring':          ['compliance', 3, 'pro', 'shell', 'Needs cameras + CV.'],
-  'cross-contamination-detection':['compliance', 3, 'pro', 'shell', 'Needs cameras + CV.'],
-  'spill-pest-detection':         ['compliance', 3, 'pro', 'shell', 'Needs cameras + CV.'],
+  // Camera + CV hygiene monitoring: the shell screens were removed from the app;
+  // the capability is acknowledged as a future line on the Compliance › Hygiene tab.
+  'headgear-glove-detection':     ['compliance', 3, 'pro', 'absent', 'Needs cameras + a CV model; not built. Shell removed — surfaced as a future line on Compliance › Hygiene.'],
+  'handwash-monitoring':          ['compliance', 3, 'pro', 'absent', 'Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene.'],
+  'cross-contamination-detection':['compliance', 3, 'pro', 'absent', 'Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene.'],
+  'spill-pest-detection':         ['compliance', 3, 'pro', 'absent', 'Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene.'],
 };
 
 // Deck-only features that reconcile 77 -> 86. None present in the archived
@@ -234,10 +236,6 @@ const SHELL_SLUG = {
   'auto-reorder-suggestions':      'reorder',
   'shift-planning':                'shift-planning',
   'cost-based-scheduling':         'scheduling',
-  'headgear-glove-detection':      'headgear',
-  'handwash-monitoring':           'handwash',
-  'cross-contamination-detection': 'allergen-contamination',
-  'spill-pest-detection':          'spills',
 };
 for (const f of out) {
   if (f.status === 'shell') f.shellSlug = SHELL_SLUG[f.slug] || null;

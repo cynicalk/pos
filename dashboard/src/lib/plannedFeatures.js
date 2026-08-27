@@ -50,10 +50,6 @@ const SCRAPE_BLOCKER =
   'Needs continuous scraping of the delivery aggregators, which CookLyt deliberately does ' +
   'not run. Nothing in your own data can substitute for it.';
 
-const CAMERA_BLOCKER =
-  'Needs ceiling cameras and a trained computer-vision model in the kitchen. No camera ' +
-  'hardware is installed, and none is planned.';
-
 export const PLANNED_FEATURES = [
   // ── History-gated (9) ────────────────────────────────────────────────────
   {
@@ -143,41 +139,6 @@ export const PLANNED_FEATURES = [
     summary:
       "Aggregator collections and campaigns you qualify for but aren't enrolled in.",
     reason: REASON.NEEDS_INFRASTRUCTURE, blocker: SCRAPE_BLOCKER,
-  },
-
-  // ── Needs cameras + CV (4) ───────────────────────────────────────────────
-  {
-    slug: 'headgear', path: '/hygiene/headgear', group: 'Kitchen Watch',
-    title: 'Headgear & Glove Checks',
-    summary:
-      'Uncovered hair and bare hands at prep stations, reported as a daily rate — never as a ' +
-      'caught individual.',
-    reason: REASON.NEEDS_HARDWARE, blocker: CAMERA_BLOCKER,
-  },
-  {
-    slug: 'handwash', path: '/hygiene/handwash', group: 'Kitchen Watch',
-    title: 'Handwash Cadence',
-    summary:
-      'Handwash events per station per shift, against the interval the kitchen agreed to.',
-    reason: REASON.NEEDS_HARDWARE, blocker: CAMERA_BLOCKER,
-  },
-  {
-    slug: 'spills', path: '/hygiene/spills', group: 'Kitchen Watch',
-    title: 'Spill & Pest Detection',
-    summary:
-      'Floor spills, blocked walkways and visible pest activity, surfaced while they can ' +
-      'still be cleaned up.',
-    reason: REASON.NEEDS_HARDWARE, blocker: CAMERA_BLOCKER,
-  },
-  {
-    slug: 'allergen-contamination', path: '/hygiene/allergen-contamination', group: 'Kitchen Watch',
-    title: 'Cross-Contamination Alerts',
-    summary:
-      'A warning to the line when an allergen risk appears at a shared prep station.',
-    reason: REASON.NEEDS_HARDWARE,
-    blocker:
-      CAMERA_BLOCKER +
-      ' Declared allergens on dishes do not depend on this and already reach the kitchen ticket.',
   },
 
   // ── Needs data nobody has measured (1) ───────────────────────────────────

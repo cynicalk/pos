@@ -40,7 +40,6 @@ import {
   LineChart,
   Radar,
   Building2,
-  Camera,
   Plug,
   CircleDashed,
   Coins,
@@ -180,10 +179,6 @@ const ALL_NAV = [
     type: 'group', key: 'market', label: 'Market Intel', Icon: Radar, adminOnly: true,
     children: PLANNED_BY_GROUP['Market Intel'],
   },
-  {
-    type: 'group', key: 'kitchenwatch', label: 'Kitchen Watch', Icon: Camera, adminOnly: true,
-    children: PLANNED_BY_GROUP['Kitchen Watch'],
-  },
   // The guest-facing menu card and the one thing about it that cannot be built.
   // Grouped together on purpose: an operator setting up allergen filters should
   // see, right there, that nutrition is the part CookLyt has no data for.
@@ -215,7 +210,7 @@ const ALL_NAV = [
 //
 // DERIVED from ALL_NAV rather than listed separately. It used to be a parallel
 // hand-maintained map, which meant every group added since — Forecasting,
-// Market Intel, Kitchen Watch, Operations — and every new child (Economics,
+// Market Intel, Operations — and every new child (Economics,
 // Menu Insights, Procurement) silently failed to auto-expand. A second list of
 // the same thing only ever drifts.
 const GROUP_PATHS = Object.fromEntries(

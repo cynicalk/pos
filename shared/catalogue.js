@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 11 partial, 45 built, 17 shell, 6 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 11 partial, 45 built, 13 shell, 10 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -863,11 +863,10 @@ export const CATALOGUE = [
     "family": "Compliance & SOP",
     "phase": 3,
     "tier": "pro",
-    "status": "shell",
+    "status": "absent",
     "surface": "",
     "archivedStatus": "blocked",
-    "note": "Needs cameras + CV.",
-    "shellSlug": "allergen-contamination"
+    "note": "Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene."
   },
   {
     "slug": "cross-outlet-benchmarking",
@@ -898,11 +897,10 @@ export const CATALOGUE = [
     "family": "Compliance & SOP",
     "phase": 3,
     "tier": "pro",
-    "status": "shell",
+    "status": "absent",
     "surface": "",
     "archivedStatus": "blocked",
-    "note": "Needs cameras + CV.",
-    "shellSlug": "handwash"
+    "note": "Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene."
   },
   {
     "slug": "headgear-glove-detection",
@@ -910,11 +908,10 @@ export const CATALOGUE = [
     "family": "Compliance & SOP",
     "phase": 3,
     "tier": "pro",
-    "status": "shell",
+    "status": "absent",
     "surface": "",
     "archivedStatus": "blocked",
-    "note": "Needs cameras + a CV model; not on the roadmap.",
-    "shellSlug": "headgear"
+    "note": "Needs cameras + a CV model; not built. Shell removed — surfaced as a future line on Compliance › Hygiene."
   },
   {
     "slug": "hygiene-checklist",
@@ -989,11 +986,10 @@ export const CATALOGUE = [
     "family": "Compliance & SOP",
     "phase": 3,
     "tier": "pro",
-    "status": "shell",
+    "status": "absent",
     "surface": "",
     "archivedStatus": "blocked",
-    "note": "Needs cameras + CV.",
-    "shellSlug": "spills"
+    "note": "Needs cameras + CV; not built. Shell removed — surfaced on Compliance › Hygiene."
   },
   {
     "slug": "staff-compliance-records",

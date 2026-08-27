@@ -63,6 +63,50 @@ function Pill({ state }) {
   );
 }
 
+// Camera-based hygiene monitoring is a recognised future line, not a built
+// feature: it needs ceiling cameras and a trained CV model that no deployment
+// runs today. It used to sit in the nav as four empty "Kitchen Watch" shells;
+// those were removed, and this note keeps the intent visible where it belongs —
+// beside the hygiene checks it would one day automate — without pretending a
+// screen exists. Anything it would report is a station-level rate, never a
+// person.
+const CAMERA_MONITORS = [
+  ['Headgear & glove checks', 'Uncovered hair or bare hands at prep stations, as a daily rate.'],
+  ['Handwash cadence', 'Handwash events per station per shift against the agreed interval.'],
+  ['Spill & pest detection', 'Floor spills, blocked walkways and pest activity, while still cleanable.'],
+  ['Cross-contamination alerts', 'A warning when an allergen risk appears at a shared prep station.'],
+];
+
+function CameraMonitoringNote() {
+  return (
+    <div style={{
+      marginTop: 22, padding: '13px 15px', borderRadius: 10,
+      border: '1px dashed var(--line-2)', background: 'var(--hover)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <ShieldCheck size={14} style={{ color: 'var(--mute)' }} />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Camera hygiene monitoring</span>
+        <span style={{
+          padding: '1px 7px', borderRadius: 999, background: 'var(--paper-2)',
+          color: 'var(--mute)', fontSize: 9, fontWeight: 600,
+          textTransform: 'uppercase', letterSpacing: '.06em',
+        }}>Future</span>
+      </div>
+      <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--mute)', lineHeight: 1.5 }}>
+        Needs ceiling cameras and a trained computer-vision model in the kitchen — not installed,
+        so this stays a plan rather than a screen. It would report station-level rates, never a
+        person.
+      </p>
+      {CAMERA_MONITORS.map(([title, desc]) => (
+        <div key={title} style={{ display: 'flex', gap: 8, padding: '3px 0', fontSize: 12 }}>
+          <span style={{ color: 'var(--mute)' }}>◦</span>
+          <span><strong style={{ fontWeight: 600 }}>{title}</strong> — <span style={{ color: 'var(--mute)' }}>{desc}</span></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ChecklistForm({ items, existing, onSubmit, busy, label }) {
   const [checked, setChecked] = useState([]);
   const [signedBy, setSignedBy] = useState('');
@@ -251,6 +295,7 @@ export default function Compliance() {
               ))}
             </>
           )}
+          <CameraMonitoringNote />
         </>
       )}
 
