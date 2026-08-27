@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+
+# Authenticated app routes — no value to crawlers
+Disallow: /overview
+Disallow: /login
+Disallow: /change-password
+Disallow: /verify-email
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /set-password
+Disallow: /oauth/
+Disallow: /menu
+Disallow: /tables
+Disallow: /orders
+Disallow: /reports
+Disallow: /users
+Disallow: /settings
+Disallow: /history
+Disallow: /shift
+Disallow: /ingredients
+Disallow: /inventory
+Disallow: /recipes
+Disallow: /combos
+Disallow: /waste
+Disallow: /costing
+Disallow: /coupons
+Disallow: /loyalty
+Disallow: /reviews
+
+Sitemap: https://cooklyt.in/sitemap.xml

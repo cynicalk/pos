@@ -1,0 +1,9 @@
+Order ID,Order Date,GOV,Total Commission,TDS 194O,TCS 52,SLA Penalty,Restaurant Discount,Swiggy Funded,Refund Amount,Net Payout,Status,Item Details
+SW10001,03/08/2026,"1,200.00",264.00,12.00,6.00,0.00,100.00,50.00,0.00,818.00,Delivered,"Butter Naan x2 @ 60; Paneer Tikka, Malai x1 @ 240"
+SW10002,03/08/2026,850.00,187.00,8.50,4.25,0.00,0.00,0.00,0.00,650.25,Delivered,Dosa x1 @ 180
+SW10003,04/08/2026,"2,400.00",528.00,24.00,12.00,50.00,200.00,0.00,0.00,1586.00,Delivered,Biryani x3 @ 320
+SW10004,04/08/2026,600.00,132.00,6.00,3.00,0.00,0.00,0.00,600.00,-141.00,Cancelled,Thali x1 @ 600
+SW10005,05/08/2026,₹1500.00,"330.00",15.00,7.50,0.00,0.00,0.00,0.00,1000.00,Delivered,Pizza x2 @ 400
+SW10006,31/02/2026,900.00,198.00,9.00,4.50,0.00,0.00,0.00,0.00,688.50,Delivered,Pasta x1 @ 300
+,05/08/2026,700.00,154.00,7.00,3.50,0.00,0.00,0.00,0.00,535.50,Delivered,Soup x1 @ 150
+SW10008,05/08/2026,not-a-number,176.00,8.00,4.00,0.00,0.00,0.00,0.00,612.00,Delivered,Salad x1 @ 200

@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper:    #FAFAF9;
+  --paper-2:  #F5F4F2;
+  --ink:      #0A0A0A;
+  --ink-2:    #1A1A1A;
+  --mute:     #6B6B6B;
+  --mute-2:   #9A9A9A;
+  --line:     #E8E6E3;
+  --line-2:   #D4D0CB;
+  --hover:    rgba(10,10,10,.04);
+  --accent:   #0A0A0A;
+  --accent-on:#FAFAF9;
+
+  --ok:       #29A361;
+  --warn:     #B3781F;
+  --bad:      #B3372B;
+  --info:     #1D6FA4;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    background: var(--paper-2);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+  h1,h2,h3,h4 { margin: 0; }
+}
+
+@layer components {
+  .input {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--line-2);
+    padding: 7px 11px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .input:focus { border-color: var(--ink); }
+  .input::placeholder { color: var(--mute-2); }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--accent-on);
+    border: 1px solid var(--ink);
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: .85; }
+  .btn-primary:disabled { opacity: .45; cursor: default; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-secondary:hover { background: var(--hover); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--line-2);
+    background: transparent;
+    color: var(--mute);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .btn:hover { background: var(--hover); color: var(--ink); }
+  .btn-sm { padding: 4px 8px; font-size: 12px; }
+  .btn-ghost { border-color: transparent; }
+
+  .mono { font-family: 'Geist Mono', 'Fira Mono', monospace; }
+  .num  { font-variant-numeric: tabular-nums; }
+}

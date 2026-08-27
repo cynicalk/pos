@@ -1,0 +1,60 @@
+{
+  "name": "pos-backend",
+  "version": "1.0.0",
+  "description": "Restaurant POS backend",
+  "license": "AGPL-3.0-only",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "cross-env DATABASE_URL=postgres://pos_user:pos_password@localhost:5432/pos_dev node-pg-migrate up",
+    "migrate:test": "cross-env DATABASE_URL=postgres://pos_user:pos_password@localhost:5432/pos_test node-pg-migrate up",
+    "migrate:create": "node-pg-migrate create",
+    "seed": "cross-env DATABASE_URL=postgres://pos_user:pos_password@localhost:5432/pos_dev node seed.js",
+    "test": "cross-env DATABASE_URL=postgres://pos_user:pos_password@localhost:5432/pos_test JWT_SECRET=test-secret-do-not-use-in-prod-32chars NODE_ENV=test jest --runInBand --forceExit"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^uuid$": "<rootDir>/tests/stubs/uuid.js"
+    }
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.10.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "node-pg-migrate": "^8.0.4",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.13.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "sharp": "^0.34.5",
+    "supertest": "^7.0.0"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "sharp@0.34.5": true
+  },
+  "overrides": {
+    "uuid": ">=11.1.1"
+  }
+}

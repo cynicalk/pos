@@ -1,0 +1,22 @@
+/.vscode
+/node_modules
+/dist
+
+# Environment files anywhere in the monorepo — keep real secrets out of git.
+# .env.example templates stay tracked.
+.env
+.env.*
+!.env.example
+
+# Markdown notes/reviews/planning docs — keep local for now.
+# Only README files stay tracked (project + codebase-review index).
+*.md
+!README.md
+!**/README.md
+!CONTRIBUTING.md
+!ARCHITECTURE.md
+!.github/PULL_REQUEST_TEMPLATE.md
+!.github/ISSUE_TEMPLATE/*.md
+
+# Word docs (specs/feature notes) — keep local.
+*.docx

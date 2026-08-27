@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    
+  </defs>
+
+  
+  <rect width="1200" height="630" fill="#FAFAF8"></rect>
+
+  
+  <rect x="28" y="28" width="1144" height="574" fill="none" stroke="#0D0C0B" stroke-opacity="0.10" stroke-width="1"></rect>
+
+  
+  <g transform="translate(494 90)">
+    <svg width="28" height="28" viewBox="0 0 200 200">
+      <path d="M 154.194 25.409 A 92.2 92.2 0 1 0 154.194 174.591" fill="none" stroke="#0D0C0B" stroke-width="16" stroke-linecap="round"></path>
+      <circle cx="100" cy="100" r="12" fill="#B06A3B"></circle>
+    </svg>
+  </g>
+
+  <svg x="536" y="90" width="170" height="28" viewBox="0 0 360 64" preserveAspectRatio="xMinYMid meet">
+    <text x="0" y="49" class="serif" font-size="56" fill="#0D0C0B" letter-spacing="10.08">COOKLY</text>
+    <circle cx="294.2" cy="29.43" r="5.03" fill="#B06A3B"></circle>
+    <text x="309.33" y="49" class="serif" font-size="56" fill="#0D0C0B" letter-spacing="10.08">T</text>
+  </svg>
+
+  
+  <text x="600" y="297" text-anchor="middle" class="geist" font-weight="500" font-size="64" fill="#0D0C0B" letter-spacing="-2.24">The POS your restaurant</text>
+
+  <text x="592" y="365" text-anchor="end" class="serif" font-style="italic" font-weight="400" font-size="64" fill="#0D0C0B" letter-spacing="-0.64" textLength="217" lengthAdjust="spacingAndGlyphs">actually</text>
+  <text x="608" y="365" text-anchor="start" class="geist" font-weight="500" font-size="64" fill="#0D0C0B" letter-spacing="-2.24">deserves.</text>
+
+  
+  <rect x="375" y="376" width="217" height="2" fill="#B06A3B" fill-opacity="0.9"></rect>
+
+  
+  <text x="600" y="555" text-anchor="middle" class="mono" font-size="12" fill="#6E6D67" letter-spacing="3.84">COOKLYT.IN</text>
+
+</svg>
