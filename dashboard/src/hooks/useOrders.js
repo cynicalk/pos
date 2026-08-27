@@ -53,6 +53,7 @@ export function useActiveOrders() {
           table_session_id:        item.table_session_id     || null,
           table_number:            item.table_number,
           channel:                 item.channel               || 'dining',
+          order_ref:               item.order_ref             || null,
           customer_ref:            item.customer_ref          || null,
           loyalty_customer_id:     item.loyalty_customer_id   || null,
           loyalty_customer_name:   item.loyalty_customer_name || null,

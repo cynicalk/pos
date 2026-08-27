@@ -17,6 +17,7 @@ const getPendingItems = (restaurantId) =>
       o.table_id,
       o.table_session_id,
       o.channel,
+      o.order_ref,
       o.customer_ref,
       o.loyalty_customer_id,
       o.status       AS order_status,
