@@ -24,6 +24,7 @@ numbers in their place.
 | **Reviews & reputation** | First-party guest reviews with local-LLM theme classification, an action centre that routes complaints, and AI-drafted reply suggestions. |
 | **Guests & dine-in** | Waitlist with live wait estimation, learned table turnover, peak/dead-hour detection, stalled-table alerts, and repeat-rate / winback tracking. |
 | **Guest menu** | Public QR ordering with dietary filters, ingredient and allergen disclosure, and cached menu translation for tourists. |
+| **Guest dine-in app** | A separate reservation-first guest app runs against a dedicated `/api/guest` adapter — group recommender, shared "join the table" cart, live kitchen status, service calls, pay-at-table and receipt, all landing as real dining orders in the POS. |
 | **Compliance & SOPs** | FSSAI licence tracking, hygiene and shift checklists, staff-certification records, a testing calendar, an on-demand audit evidence pack, and SOP generation with version control and drift detection. |
 | **Multi-outlet** | A group dashboard benchmarking outlets against each other on the same metrics, with per-outlet rate averaging. |
 | **AI assistant** | A local-LLM assistant that answers operational questions grounded in live waste, stock, recipe and sales data — and only narrates the numbers, never invents them. |
@@ -146,6 +147,7 @@ Twenty-eight routers are mounted in `backend/src/app.js`:
 | `/api/waitlist` | `waitlist/` | Walk-in waitlist and notifications |
 | `/api/ai` | `ai/` | LLM-backed insights and summaries |
 | `/api/public` | `public/` | Unauthenticated endpoints for the QR menu app |
+| `/api/guest` | `guest/` | Unauthenticated adapter for the guest dine-in app (menu, recommender, shared table, order, status, pay, receipt, feedback) |
 | `/admin` | `admin/` | Super-admin panel API |
 
 Static uploads are served from `/uploads`.
@@ -387,7 +389,7 @@ Later migrations add columns to these tables (multi-tenancy, discounts, split pa
 
 ## API Reference
 
-All endpoints are prefixed with `/api` and require a valid JWT in the `Authorization: Bearer <token>` header, except `POST /api/auth/login`, `/health`, and everything under `/api/public`.
+All endpoints are prefixed with `/api` and require a valid JWT in the `Authorization: Bearer <token>` header, except `POST /api/auth/login`, `/health`, and everything under `/api/public` and `/api/guest`.
 
 > The reference below covers the original core modules. The other twenty-odd modules follow the same conventions — see [Backend Modules](#backend-modules) and the routers under `backend/src/`.
 

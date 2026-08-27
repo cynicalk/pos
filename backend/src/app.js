@@ -53,6 +53,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Public API — mounted before restricted CORS so customer phones can reach it
 app.use('/api/public', require('./public/public.router'));
 
+// Guest dine-in app surface — same reasoning as /api/public: a phone scanning
+// from any network must reach it, so it is mounted before the allowlist CORS
+// and sets its own permissive CORS internally.
+app.use('/api/guest', require('./guest/guest.router'));
+
 app.use(cors(corsOptions));
 
 // Health check
