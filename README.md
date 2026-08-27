@@ -4,6 +4,32 @@ A full restaurant management monorepo: a point-of-sale dashboard (which also ser
 
 The product is built around **waste intelligence** — alongside the usual floor, kitchen, and billing workflows, it tracks food waste per ingredient, shift, and reason, costed against live recipe data.
 
+## Features
+
+Grouped by area. This lists what is built and working; a small number of
+advanced capabilities (deeper forecasting, competitor scraping, camera-based
+hygiene) are deliberately scaffolded with honest, self-explaining empty states
+until the data or hardware they need exists — the app never shows invented
+numbers in their place.
+
+| Area | Capabilities |
+|---|---|
+| **Point of sale** | Live floor plan, order taking, kitchen display, split-tender payments (cash / card / UPI), coupons and loyalty redemption, end-of-shift cash counts. Offline-first — orders queue when the connection drops and sync when it returns. |
+| **Menu & recipes** | Menu management, recipe costing linked to live ingredient prices, live food-cost per dish, combo meals, per-dish gross-margin reporting. |
+| **Inventory & procurement** | Stock counts, an append-only inventory ledger, supplier management, usage-based purchase orders, and food-cost variance (theoretical vs. counted usage). |
+| **Waste intelligence** | Waste logged per ingredient, shift and reason, costed against live recipe data — the product's core differentiator. |
+| **Payments & reconciliation** | Aggregator settlement import, payout reconciliation against the order record, per-order leakage detection, an auditor-ready transaction log, prime cost, cost-per-order and cancellation-cost analysis. |
+| **Forecasting** | Demand forecast and an automatically-derived prep sheet (seasonal-naive baseline), with measured uncertainty bands and an explicit refusal to answer below sufficient history. |
+| **Rules & actions** | A deterministic rules engine that raises ranked, rupee-scored actions from the restaurant's own data, with staff assignment and outcome tracking. |
+| **Reviews & reputation** | First-party guest reviews with local-LLM theme classification, an action centre that routes complaints, and AI-drafted reply suggestions. |
+| **Guests & dine-in** | Waitlist with live wait estimation, learned table turnover, peak/dead-hour detection, stalled-table alerts, and repeat-rate / winback tracking. |
+| **Guest menu** | Public QR ordering with dietary filters, ingredient and allergen disclosure, and cached menu translation for tourists. |
+| **Compliance & SOPs** | FSSAI licence tracking, hygiene and shift checklists, staff-certification records, a testing calendar, an on-demand audit evidence pack, and SOP generation with version control and drift detection. |
+| **Multi-outlet** | A group dashboard benchmarking outlets against each other on the same metrics, with per-outlet rate averaging. |
+| **AI assistant** | A local-LLM assistant that answers operational questions grounded in live waste, stock, recipe and sales data — and only narrates the numbers, never invents them. |
+
+---
+
 ## Monorepo Layout
 
 | Package | Description | Dev port |
@@ -17,6 +43,7 @@ The product is built around **waste intelligence** — alongside the usual floor
 
 ## Table of Contents
 
+- [Features](#features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Backend Modules](#backend-modules)
