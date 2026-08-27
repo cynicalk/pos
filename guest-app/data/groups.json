@@ -1,0 +1,85 @@
+{
+  "groupTypes": [
+    {
+      "id": "date",
+      "label": "Date night",
+      "description": "Just the two of you",
+      "emoji": "🕯️"
+    },
+    {
+      "id": "family",
+      "label": "Family",
+      "description": "Kids, parents, everyone",
+      "emoji": "🏡"
+    },
+    {
+      "id": "friends",
+      "label": "Friends",
+      "description": "Catch-ups and celebrations",
+      "emoji": "🎉"
+    },
+    {
+      "id": "business",
+      "label": "Business",
+      "description": "Client dinners, team meals",
+      "emoji": "💼"
+    },
+    {
+      "id": "solo",
+      "label": "Solo",
+      "description": "A table for one, done right",
+      "emoji": "🎧"
+    }
+  ],
+  "reservations": [
+    { "name": "Priya Sharma", "phone": "9876543210", "partySize": 4 },
+    { "name": "Krishen Sazawal", "phone": "9000012345", "partySize": 2 },
+    { "name": "Rohan Mehta", "phone": "9811122233", "partySize": 6 }
+  ],
+  "joinableGuests": [
+    {
+      "name": "Aarav",
+      "diet": "non-vegetarian",
+      "tastes": ["spicy"],
+      "allergies": []
+    },
+    {
+      "name": "Meera",
+      "diet": "vegetarian",
+      "tastes": ["light"],
+      "allergies": ["nuts"]
+    },
+    {
+      "name": "Kabir",
+      "diet": "no-preference",
+      "tastes": ["classic"],
+      "allergies": []
+    },
+    {
+      "name": "Ishita",
+      "diet": "vegetarian",
+      "tastes": ["indulgent"],
+      "allergies": []
+    }
+  ],
+  "lastGroup": {
+    "label": "Dinner on 14 June",
+    "members": [
+      { "name": "Aarav", "diet": "non-vegetarian" },
+      { "name": "Meera", "diet": "vegetarian" },
+      { "name": "Kabir", "diet": "no-preference" }
+    ]
+  },
+  "pastOrders": [
+    {
+      "date": "2026-06-14",
+      "items": ["Butter Chicken (House Cut)", "Paneer Lababdar", "Garlic Butter Naan Basket"],
+      "total": 1385
+    },
+    {
+      "date": "2026-05-02",
+      "items": ["Family Thali Platter", "Smoked Jamun Cooler"],
+      "total": 1570
+    }
+  ]
+}

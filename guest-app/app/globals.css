@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+@theme {
+  /* Luxury fine-dining palette — deep navy, antique brass, ivory, wine */
+  --color-cream: #f5f1e8;
+  --color-parchment: #eae3d3;
+  --color-ink: #101a2c;
+  --color-ink-soft: #3a4459;
+  --color-stone: #6b6355; /* ≥4.5:1 on cream so secondary text meets WCAG AA */
+  /* ember = house navy: primary actions + people/social accents */
+  --color-ember: #24365c;
+  --color-ember-deep: #16233f;
+  --color-ember-soft: #e3e7ef;
+  /* saffron = antique brass: food & preference accents, selection states */
+  --color-saffron: #a8842f;
+  --color-saffron-soft: #f2ead6;
+  /* sage = cellar green: confirmations and safety states */
+  --color-sage: #4a7c59;
+  --color-sage-soft: #e4ece2;
+  /* plum = burgundy: browsing & menu accents */
+  --color-plum: #7c4350;
+  --color-plum-soft: #f0e2e4;
+  --color-sand: #c9bda4;
+  --color-sand-soft: #efe9db;
+  --color-danger: #a83a31;
+  --color-danger-soft: #f6e4e1;
+
+  /* iOS 27 system fill (controls at rest) and non-opaque separator */
+  --color-fill: rgb(120 120 128 / 0.16);
+  --color-fill-strong: rgb(120 120 128 / 0.24);
+  --color-separator: rgb(16 26 44 / 0.12);
+
+  /* iOS 27 type ramp — SF Pro Dynamic Type metrics (size/line-height):
+     Caption1 12/16 · Footnote 13/18 · Body 17/22 · Title3 20/25 ·
+     Title2 22/28 · LargeTitle 34/41 */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 17px;
+  --text-base--line-height: 22px;
+  --text-lg: 20px;
+  --text-lg--line-height: 25px;
+  --text-xl: 22px;
+  --text-xl--line-height: 28px;
+  --text-3xl: 34px;
+  --text-3xl--line-height: 41px;
+
+  --font-wordmark: var(--font-fraunces);
+  --font-display: var(--font-fraunces);
+  /* SF Pro on Apple devices (iOS 27 look), Inter everywhere else */
+  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-inter);
+
+  --shadow-lift: 0 1px 1px rgb(16 26 44 / 0.03), 0 10px 26px -12px rgb(16 26 44 / 0.14);
+  /* Liquid Glass ambient: one soft deep shadow (iOS 27 kit: 0 18 46 @0.25) */
+  --shadow-float: 0 2px 6px rgb(16 26 44 / 0.05), 0 18px 46px -18px rgb(16 26 44 / 0.25);
+
+  --radius-card: 1.375rem;
+}
+
+/* Respect the OS motion preference for CSS-driven animation */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Keyboard focus parity: anything that responds to :hover must respond to
+   :focus-visible too. Zero-specificity :where() gives every interactive element
+   a visible ring by default, while components that define their own focus
+   treatment (Button, Card) still win. Light surfaces get the navy ring; dark
+   surfaces (headers, intro screens, toasts) get a cream ring so it stays
+   visible. */
+:where(a, button, [role="button"]):focus-visible {
+  outline: 2px solid var(--color-ember);
+  outline-offset: 2px;
+}
+.lux-dark :where(a, button, [role="button"]):focus-visible,
+.hero-bar :where(a, button, [role="button"]):focus-visible,
+.glass-dark:focus-visible,
+.glass-dark :where(a, button, [role="button"]):focus-visible {
+  outline-color: var(--color-cream);
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Warm candlelight ambience behind every light screen — never flat gray */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46rem 40rem at 8% -10%, rgb(168 132 47 / 0.10), transparent 60%),
+    radial-gradient(40rem 36rem at 108% 6%, rgb(124 67 80 / 0.08), transparent 60%),
+    radial-gradient(44rem 40rem at 88% 112%, rgb(74 124 89 / 0.08), transparent 62%),
+    radial-gradient(32rem 30rem at -6% 82%, rgb(36 54 92 / 0.08), transparent 58%);
+}
+
+::selection {
+  background: var(--color-saffron-soft);
+}
+
+/* ---------- The house dark treatment: navy, vignette, film grain -------- */
+
+.lux-dark {
+  position: relative;
+  isolation: isolate;
+  color: var(--color-cream);
+  background:
+    radial-gradient(120% 90% at 18% -6%, #22355c 0%, #121c33 48%, #0b1222 100%);
+}
+
+/* Grain + vignette, one recipe for every dark surface in the app */
+.lux-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  opacity: 0.07;
+}
+
+.lux-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    100% 80% at 50% 18%,
+    transparent 42%,
+    rgb(5 8 16 / 0.5) 100%
+  );
+}
+
+/* Feathered seam from a dark band into the ivory body — never a hard cut */
+.lux-feather {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 6rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--color-cream));
+}
+
+/* Screen header band: same navy/grain recipe, soft falloff below */
+.hero-bar {
+  position: relative;
+  isolation: isolate;
+  color: var(--color-cream);
+  background:
+    radial-gradient(140% 160% at 16% -30%, #22355c 0%, #121c33 55%, #0d1526 100%);
+}
+
+.hero-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  opacity: 0.07;
+}
+
+.hero-bar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  height: 1.75rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(13 21 38 / 0.28), transparent);
+}
+
+/* ---------- Boutique surfaces ---------- */
+
+/* Liquid Glass (iOS 27): ~70% translucent fill over a strong backdrop blur,
+   hairline top/bottom edge highlights, one soft ambient shadow — no heavy
+   borders. Edge light comes from inset shadows, not strokes. */
+.glass {
+  background: rgb(255 253 247 / 0.7);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(16 26 44 / 0.05),
+    var(--shadow-lift);
+}
+
+.glass-bar {
+  background: rgb(245 241 232 / 0.7);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+
+.glass-dark {
+  background: rgb(16 26 44 / 0.7);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border: 1px solid rgb(245 241 232 / 0.16);
+  box-shadow:
+    inset 0 1px 0 rgb(245 241 232 / 0.14),
+    var(--shadow-float);
+}
+
+.glass-input {
+  background: rgb(255 253 247 / 0.7);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+
+/* Primary action: quiet depth, no neon glow. Top edge highlight per the
+   iOS 27 glass-prominent recipe. */
+.btn-sheen {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 -1px 0 rgb(0 0 0 / 0.1),
+    0 10px 26px -12px rgb(16 26 44 / 0.55);
+}
+
+.btn-sheen:disabled {
+  box-shadow: none;
+}
+
+/* One editorial voice for every stat, badge and trust signal */
+.editorial {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-parchment) 25%,
+    #f2ecdf 50%,
+    var(--color-parchment) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}

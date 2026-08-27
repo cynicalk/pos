@@ -18,6 +18,7 @@ shaped it.
 | `dashboard/` | React, Vite              | 5173 | Operator app — also serves the public landing pages  |
 | `admin/`     | React, Vite              | 5174 | Super-admin: tenant management across restaurants    |
 | `menu/`      | React, Vite              | 5175 | Public QR-menu ordering for dine-in guests           |
+| `guest-app/` | Next.js                  | 3001 | Reservation-first guest dine-in app — group recommender, shared table, order, pay, feedback; talks to the backend's `/api/guest` adapter |
 | `shared/`    | Plain ES modules         | —    | Code the apps agree on: money formatting, timezone helpers, the feature catalogue |
 
 A single PostgreSQL database backs the whole system, multi-tenant by

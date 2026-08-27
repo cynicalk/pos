@@ -1,0 +1,284 @@
+{
+  "restaurant": {
+    "name": "Amber & Vine",
+    "tagline": "Modern Indian kitchen · Est. 2019",
+    "location": "12 Lantern Street, Indiranagar"
+  },
+  "dishes": [
+    {
+      "id": "d01",
+      "name": "Burrata Chaat",
+      "description": "Creamy burrata over tangy papdi, tamarind pearls and mint chutney",
+      "price": 545,
+      "category": "starters",
+      "tags": ["veg", "premium", "popular"],
+      "allergens": ["dairy", "gluten"],
+      "emoji": "🧀",
+      "tone": "saffron"
+    },
+    {
+      "id": "d02",
+      "name": "Charcoal Paneer Tikka",
+      "description": "Smoked cottage cheese, pickled onions, coriander crema",
+      "price": 425,
+      "category": "starters",
+      "tags": ["veg", "popular", "spicy"],
+      "allergens": ["dairy"],
+      "emoji": "🔥",
+      "tone": "ember"
+    },
+    {
+      "id": "d03",
+      "name": "Truffle Mushroom Galouti",
+      "description": "Melt-in-mouth mushroom kebabs with truffle oil and saffron sheermal",
+      "price": 595,
+      "category": "starters",
+      "tags": ["veg", "premium"],
+      "allergens": ["gluten", "dairy"],
+      "emoji": "🍄",
+      "tone": "plum"
+    },
+    {
+      "id": "d04",
+      "name": "Malabar Prawn Skillet",
+      "description": "Butter-garlic prawns, curry leaf, coastal red spice",
+      "price": 675,
+      "category": "starters",
+      "tags": ["premium", "spicy"],
+      "allergens": ["shellfish", "dairy"],
+      "emoji": "🦐",
+      "tone": "ember"
+    },
+    {
+      "id": "d05",
+      "name": "Corn & Cheese Croquettes",
+      "description": "Golden-fried, gooey inside, with smoked chipotle dip",
+      "price": 345,
+      "category": "starters",
+      "tags": ["veg", "kids", "popular"],
+      "allergens": ["dairy", "gluten", "egg"],
+      "emoji": "🌽",
+      "tone": "saffron"
+    },
+    {
+      "id": "d06",
+      "name": "Chicken 65 Lettuce Cups",
+      "description": "Crisp fried chicken, curry-leaf aioli, iceberg cups",
+      "price": 445,
+      "category": "starters",
+      "tags": ["spicy", "popular", "light"],
+      "allergens": ["egg", "soy"],
+      "emoji": "🥬",
+      "tone": "sage"
+    },
+    {
+      "id": "d07",
+      "name": "Jain Hara Bhara Kebab",
+      "description": "Spinach and green pea patties, no onion no garlic, mint dip",
+      "price": 325,
+      "category": "starters",
+      "tags": ["veg", "jain", "vegan", "light"],
+      "allergens": [],
+      "emoji": "🌿",
+      "tone": "sage"
+    },
+    {
+      "id": "d08",
+      "name": "Nalli Nihari",
+      "description": "Slow-braised lamb shank, twelve-hour stock, saffron and rose",
+      "price": 895,
+      "category": "mains",
+      "tags": ["premium", "popular"],
+      "allergens": ["gluten", "dairy"],
+      "emoji": "🍖",
+      "tone": "plum"
+    },
+    {
+      "id": "d09",
+      "name": "Butter Chicken (House Cut)",
+      "description": "Tandoor-charred thigh, tomato-fenugreek makhani, single cream",
+      "price": 595,
+      "category": "mains",
+      "tags": ["popular", "kids"],
+      "allergens": ["dairy", "nuts"],
+      "emoji": "🍗",
+      "tone": "ember"
+    },
+    {
+      "id": "d10",
+      "name": "Paneer Lababdar",
+      "description": "Cottage cheese in silky tomato-cashew gravy, kasuri methi",
+      "price": 495,
+      "category": "mains",
+      "tags": ["veg", "popular"],
+      "allergens": ["dairy", "nuts"],
+      "emoji": "🍛",
+      "tone": "saffron"
+    },
+    {
+      "id": "d11",
+      "name": "Jain Dal Tadka",
+      "description": "Yellow lentils tempered with cumin and tomato, no onion no garlic",
+      "price": 345,
+      "category": "mains",
+      "tags": ["veg", "jain", "vegan", "light"],
+      "allergens": [],
+      "emoji": "🥣",
+      "tone": "saffron"
+    },
+    {
+      "id": "d12",
+      "name": "Vegan Coconut Stew & Appam",
+      "description": "Kerala-style vegetable ishtu, first-press coconut milk, lace appams",
+      "price": 445,
+      "category": "mains",
+      "tags": ["veg", "vegan", "light"],
+      "allergens": [],
+      "emoji": "🥥",
+      "tone": "sage"
+    },
+    {
+      "id": "d13",
+      "name": "Ghee Roast Chicken",
+      "description": "Mangalorean ghee roast, byadgi chilli, neer dosa on the side",
+      "price": 645,
+      "category": "mains",
+      "tags": ["spicy", "premium"],
+      "allergens": ["dairy"],
+      "emoji": "🌶️",
+      "tone": "ember"
+    },
+    {
+      "id": "d14",
+      "name": "Family Thali Platter",
+      "description": "Six curries, dal, breads, rice, raita and dessert — serves 3–4",
+      "price": 1295,
+      "category": "mains",
+      "tags": ["veg", "sharing", "popular", "kids"],
+      "allergens": ["dairy", "gluten", "nuts"],
+      "emoji": "🍱",
+      "tone": "saffron"
+    },
+    {
+      "id": "d15",
+      "name": "Mixed Grill Sigri Platter",
+      "description": "Tandoori chicken, seekh kebab, fish tikka, malai broccoli — serves 3–4",
+      "price": 1595,
+      "category": "mains",
+      "tags": ["sharing", "premium", "popular"],
+      "allergens": ["dairy", "egg"],
+      "emoji": "🍢",
+      "tone": "plum"
+    },
+    {
+      "id": "d16",
+      "name": "Kid's Mac & Makhani",
+      "description": "Macaroni tossed in mild makhani sauce, cheese crust",
+      "price": 295,
+      "category": "mains",
+      "tags": ["veg", "kids"],
+      "allergens": ["dairy", "gluten"],
+      "emoji": "🧒",
+      "tone": "saffron"
+    },
+    {
+      "id": "d17",
+      "name": "Konkan Fish Curry & Rice",
+      "description": "Seer fish in kokum-coconut curry, steamed ambemohar rice",
+      "price": 695,
+      "category": "mains",
+      "tags": ["premium", "light"],
+      "allergens": [],
+      "emoji": "🐟",
+      "tone": "sage"
+    },
+    {
+      "id": "d18",
+      "name": "Truffle Khichdi Risotto",
+      "description": "Slow-stirred moong khichdi, parmesan, winter truffle shavings",
+      "price": 745,
+      "category": "mains",
+      "tags": ["veg", "premium", "light"],
+      "allergens": ["dairy"],
+      "emoji": "🍚",
+      "tone": "plum"
+    },
+    {
+      "id": "d19",
+      "name": "Garlic Butter Naan Basket",
+      "description": "Assorted naans brushed with garlic butter — serves the table",
+      "price": 295,
+      "category": "breads-rice",
+      "tags": ["veg", "sharing", "popular"],
+      "allergens": ["gluten", "dairy"],
+      "emoji": "🫓",
+      "tone": "sand"
+    },
+    {
+      "id": "d20",
+      "name": "Steamed Jeera Rice",
+      "description": "Basmati tempered with cumin and ghee",
+      "price": 245,
+      "category": "breads-rice",
+      "tags": ["veg", "jain", "light", "kids"],
+      "allergens": ["dairy"],
+      "emoji": "🍚",
+      "tone": "sand"
+    },
+    {
+      "id": "d21",
+      "name": "Dark Chocolate Kulfi Bar",
+      "description": "Single-origin chocolate kulfi, sea salt, pistachio praline",
+      "price": 395,
+      "category": "desserts",
+      "tags": ["veg", "premium", "popular", "kids"],
+      "allergens": ["dairy", "nuts"],
+      "emoji": "🍫",
+      "tone": "plum"
+    },
+    {
+      "id": "d22",
+      "name": "Gulab Jamun Cheesecake",
+      "description": "Baked cheesecake layered with rose-soaked jamun — serves two",
+      "price": 445,
+      "category": "desserts",
+      "tags": ["veg", "sharing", "popular"],
+      "allergens": ["dairy", "gluten", "egg"],
+      "emoji": "🍰",
+      "tone": "ember"
+    },
+    {
+      "id": "d23",
+      "name": "Seasonal Fruit & Sorbet",
+      "description": "Cut seasonal fruit with raspberry sorbet — dairy-free",
+      "price": 325,
+      "category": "desserts",
+      "tags": ["veg", "vegan", "jain", "light"],
+      "allergens": [],
+      "emoji": "🍧",
+      "tone": "sage"
+    },
+    {
+      "id": "d24",
+      "name": "Salted Lassi / Masala Chaas",
+      "description": "House-churned, served in copper kulhads",
+      "price": 195,
+      "category": "drinks",
+      "tags": ["veg", "light", "kids"],
+      "allergens": ["dairy"],
+      "emoji": "🥛",
+      "tone": "sand"
+    },
+    {
+      "id": "d25",
+      "name": "Smoked Jamun Cooler",
+      "description": "Java plum, smoked salt, sparkling water — zero proof",
+      "price": 275,
+      "category": "drinks",
+      "tags": ["veg", "vegan", "jain", "premium"],
+      "allergens": [],
+      "emoji": "🍹",
+      "tone": "plum"
+    }
+  ]
+}
