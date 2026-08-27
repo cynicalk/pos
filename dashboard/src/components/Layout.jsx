@@ -589,7 +589,7 @@ export default function Layout() {
               const isOpen = openGroups[item.key] ?? false;
               const groupActive = item.children.some(c => location.pathname.startsWith(c.to));
               return (
-                <div key={item.key}>
+                <div key={item.key} className="shrink-0">
                   <button
                     onClick={() => setOpenGroups(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
                     className="flex w-full items-center gap-2.5 rounded-[6px] px-2.5 text-[12.5px] font-medium transition-colors duration-75"
@@ -654,7 +654,11 @@ export default function Layout() {
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-[6px] px-2.5 text-[12.5px] font-medium transition-colors duration-75 ${
+                  // shrink-0: the nav is an overflowing flex column, so without
+                  // this a flat row is squashed below its 36px while the group
+                  // rows (buttons in a wrapper div) keep theirs — the source of
+                  // the uneven spacing. Rows hold height; the nav scrolls.
+                  `shrink-0 flex items-center gap-2.5 rounded-[6px] px-2.5 text-[12.5px] font-medium transition-colors duration-75 ${
                     isActive ? 'nav-active' : 'nav-default'
                   }`
                 }
