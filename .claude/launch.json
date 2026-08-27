@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cooklyt-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "backend", "start"],
+      "port": 3000
+    },
+    {
+      "name": "cooklyt-guest",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "guest-app", "run", "dev", "--", "-p", "3001"],
+      "port": 3001
+    }
+  ]
+}

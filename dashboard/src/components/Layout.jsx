@@ -48,6 +48,7 @@ import {
   Truck,
   ShieldCheck,
   BookMarked,
+  ExternalLink,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../api/client';
@@ -103,6 +104,13 @@ const PLANNED_BY_GROUP = PLANNED_FEATURES.reduce((acc, f) => {
   (acc[f.group] ||= []).push({ to: f.path, label: f.title, Icon: CircleDashed });
   return acc;
 }, {});
+
+// The guest dine-in app runs as its own web app on port 3001 (see guest-app/).
+// Same convention as the QR menu card (VITE_MENU_URL): a configurable URL that
+// defaults to the current host on the guest app's port for local dev.
+const GUEST_APP_URL =
+  import.meta.env.VITE_GUEST_URL ||
+  `${window.location.protocol}//${window.location.hostname}:3001`;
 
 const ALL_NAV = [
   { to: '/overview', label: 'Overview', Icon: LayoutDashboard, end: true, adminOnly: false },
@@ -183,6 +191,9 @@ const ALL_NAV = [
     type: 'group', key: 'guestmenu', label: 'Guest Menu', Icon: QrCode, adminOnly: true,
     children: [
       { to: '/menu-card', label: 'Menu Card', Icon: QrCode },
+      // The reservation-first guest dine-in app (a separate surface on :3001).
+      // External link — it is its own web app, not a dashboard route.
+      { href: GUEST_APP_URL, label: 'Dine-in App', Icon: ExternalLink, external: true },
       ...(PLANNED_BY_GROUP['Guest Menu'] || []),
     ],
   },
@@ -210,7 +221,9 @@ const ALL_NAV = [
 const GROUP_PATHS = Object.fromEntries(
   ALL_NAV
     .filter((n) => n.type === 'group')
-    .map((n) => [n.key, (n.children || []).map((c) => c.to)]),
+    // Only internal (routed) children have a `to`; external links (the dine-in
+    // app) are excluded so they never drive group auto-expand or active state.
+    .map((n) => [n.key, (n.children || []).filter((c) => c.to).map((c) => c.to)]),
 );
 
 const NOTIFIABLE = new Set(['NEW_ORDER', 'ORDER_READY', 'PAYMENT_COMPLETED', 'BILL_REQUESTED', 'STAFF_ASSIGNED', 'RESERVATION_REMINDER', 'ITEM_VOIDED', 'ITEM_WASTED']);
@@ -587,7 +600,7 @@ export default function Layout() {
             if (item.type === 'group') {
               const GroupIcon = item.Icon;
               const isOpen = openGroups[item.key] ?? false;
-              const groupActive = item.children.some(c => location.pathname.startsWith(c.to));
+              const groupActive = item.children.some(c => c.to && location.pathname.startsWith(c.to));
               return (
                 <div key={item.key} className="shrink-0">
                   <button
@@ -610,37 +623,64 @@ export default function Layout() {
                       className="mt-px flex flex-col gap-px pb-px"
                       style={{ borderLeft: '1px solid var(--line)', marginLeft: 14, paddingLeft: 6 }}
                     >
-                      {item.children.map(({ to, label, Icon }) => (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-75 ${
-                              isActive ? 'nav-active' : 'nav-default'
-                            }`
+                      {item.children.map(({ to, href, label, Icon }) => {
+                        const childClass =
+                          'flex items-center gap-2 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-75 nav-default';
+                        const hoverIn = (e) => {
+                          if (!e.currentTarget.classList.contains('nav-active')) {
+                            e.currentTarget.style.background = 'var(--hover)';
+                            e.currentTarget.style.color = 'var(--ink)';
                           }
-                          style={({ isActive }) => ({
-                            height: 32,
-                            background: isActive ? 'var(--paper-2)' : 'transparent',
-                            color: isActive ? 'var(--ink)' : 'var(--mute)',
-                          })}
-                          onMouseEnter={(e) => {
-                            if (!e.currentTarget.classList.contains('nav-active')) {
-                              e.currentTarget.style.background = 'var(--hover)';
-                              e.currentTarget.style.color = 'var(--ink)';
+                        };
+                        // External surfaces (the dine-in app) open in a new tab —
+                        // a plain anchor, never a router link, and never "active".
+                        if (href) {
+                          return (
+                            <a
+                              key={href}
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={childClass}
+                              style={{ height: 32, background: 'transparent', color: 'var(--mute)' }}
+                              onMouseEnter={hoverIn}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'var(--mute)';
+                              }}
+                            >
+                              <Icon size={13} />
+                              {label}
+                            </a>
+                          );
+                        }
+                        return (
+                          <NavLink
+                            key={to}
+                            to={to}
+                            className={({ isActive }) =>
+                              `flex items-center gap-2 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-75 ${
+                                isActive ? 'nav-active' : 'nav-default'
+                              }`
                             }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!location.pathname.startsWith(to)) {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.color = 'var(--mute)';
-                            }
-                          }}
-                        >
-                          <Icon size={13} />
-                          {label}
-                        </NavLink>
-                      ))}
+                            style={({ isActive }) => ({
+                              height: 32,
+                              background: isActive ? 'var(--paper-2)' : 'transparent',
+                              color: isActive ? 'var(--ink)' : 'var(--mute)',
+                            })}
+                            onMouseEnter={hoverIn}
+                            onMouseLeave={(e) => {
+                              if (!location.pathname.startsWith(to)) {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'var(--mute)';
+                              }
+                            }}
+                          >
+                            <Icon size={13} />
+                            {label}
+                          </NavLink>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
