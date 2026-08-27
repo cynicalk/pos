@@ -345,7 +345,10 @@ function SessionRow({ session, format, formatTime, currency }) {
 function OrderRow({ order, format, formatTime, currency }) {
   const [open, setOpen] = useState(false);
   const ChannelIcon = CHANNEL_ICONS[order.channel] || UtensilsCrossed;
-  const token = order.id.slice(-6).toUpperCase();
+  // Prefer the human order_ref (what the live board, receipts and KOTs show,
+  // and what a guest sees on their bill) so one order reads the same everywhere;
+  // fall back to the id slice for any legacy row without a ref.
+  const token = order.order_ref || order.id.slice(-6).toUpperCase();
   const createdBy = order.created_by_email?.split('@')[0] ?? '—';
 
   const displayTotal = order.status === 'paid'
@@ -490,7 +493,7 @@ function OrderRow({ order, format, formatTime, currency }) {
 const ORDER_CSV_COLS = [
   { label: 'Date',           get: (o) => new Date(o.created_at).toLocaleDateString() },
   { label: 'Time',           get: (o) => new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
-  { label: 'Token',          get: (o) => o.id.slice(-6).toUpperCase() },
+  { label: 'Token',          get: (o) => o.order_ref || o.id.slice(-6).toUpperCase() },
   { label: 'Channel',        get: (o) => o.channel ?? '' },
   { label: 'Table / Ref',    get: (o) => o.channel === 'dining' ? (o.table_number ? `Table ${o.table_number}` : '') : (o.customer_ref ?? '') },
   { label: 'Staff',          get: (o) => o.created_by_email?.split('@')[0] ?? '' },
