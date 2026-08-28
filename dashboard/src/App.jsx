@@ -57,6 +57,8 @@ const DemandForecast  = lazy(() => import('./pages/DemandForecast'));
 const PrepSheet       = lazy(() => import('./pages/PrepSheet'));
 const InventoryForecast = lazy(() => import('./pages/InventoryForecast'));
 const ReorderPlan     = lazy(() => import('./pages/ReorderPlan'));
+const ShiftPlan       = lazy(() => import('./pages/ShiftPlan'));
+const Scheduling      = lazy(() => import('./pages/Scheduling'));
 const FeatureStatus   = lazy(() => import('./pages/FeatureStatus'));
 const Actions         = lazy(() => import('./pages/Actions'));
 const Economics       = lazy(() => import('./pages/Economics'));
@@ -209,6 +211,8 @@ export default function App() {
             <Route path="/forecast/prep-sheet" element={<RequireAdmin><PrepSheet /></RequireAdmin>} />
             <Route path="/forecast/inventory"  element={<RequireAdmin><InventoryForecast /></RequireAdmin>} />
             <Route path="/forecast/reorder"    element={<RequireAdmin><ReorderPlan /></RequireAdmin>} />
+            <Route path="/forecast/shift-planning" element={<RequireAdmin><ShiftPlan /></RequireAdmin>} />
+            <Route path="/forecast/scheduling"     element={<RequireAdmin><Scheduling /></RequireAdmin>} />
 
             {/* Internal source of truth for what the app actually does (W1). */}
             <Route path="/feature-status"      element={<RequireAdmin><FeatureStatus /></RequireAdmin>} />

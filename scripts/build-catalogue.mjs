@@ -121,8 +121,8 @@ const PATCH = {
   'waste-prediction':             ['forecast', 3, 'addon', 'shell', 'Needs prep-vs-sold capture to score against.'],
   'inventory-forecasting':        ['forecast', 3, 'addon', 'built', 'Tier 0 stock projection shipped this session at /forecast/inventory — stock walked down against the forecast.'],
   'auto-reorder-suggestions':     ['forecast', 3, 'addon', 'built', 'Tier 0 reorder plan (h=3) shipped this session at /forecast/reorder — the projection read at the lead time.'],
-  'shift-planning':               ['forecast', 3, 'addon', 'shell', 'Buildable on Tier 0 next; currently a shell.'],
-  'cost-based-scheduling':        ['forecast', 3, 'addon', 'shell', 'Buildable on Tier 0 next; currently a shell.'],
+  'shift-planning':               ['forecast', 3, 'addon', 'built', 'Tier 0 shift plan shipped this session at /forecast/shift-planning — forecast covers ÷ learned covers-per-labour-hour.'],
+  'cost-based-scheduling':        ['forecast', 3, 'addon', 'built', 'Tier 0 scheduling week shipped this session at /forecast/scheduling — labour cost vs forecast revenue against the outlet’s own labour-% band.'],
   'live-food-cost':               ['forecast', 1, 'base', null, 'Under Recipe Mgmt.'],
   'recipe-costing':               ['forecast', 1, 'base', null, ''],
   'ingredient-cost-tracker':      ['forecast', 1, 'base', null, 'Append-only price history + cost_spike rule.'],
@@ -232,8 +232,6 @@ const SHELL_SLUG = {
   'weather-event-forecasting':     'weather',
   'promo-aware-forecast':          'promo',
   'waste-prediction':              'waste',
-  'shift-planning':                'shift-planning',
-  'cost-based-scheduling':         'scheduling',
 };
 for (const f of out) {
   if (f.status === 'shell') f.shellSlug = SHELL_SLUG[f.slug] || null;

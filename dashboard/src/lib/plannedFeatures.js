@@ -79,21 +79,6 @@ export const PLANNED_FEATURES = [
       'rather than counted afterwards.',
     reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
   },
-  {
-    slug: 'shift-planning', path: '/forecast/shift-planning', group: 'Forecasting',
-    title: 'Shift Planning',
-    summary: 'Staffing suggested against expected demand, hour by hour.',
-    reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
-  },
-  {
-    slug: 'scheduling', path: '/forecast/scheduling', group: 'Forecasting',
-    title: 'Cost-based Scheduling',
-    summary:
-      "A week's rota held against a labour-cost target, so the trade-off between cover and " +
-      'margin is made on purpose.',
-    reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
-  },
-
   // ── Needs scraping infrastructure (4) ────────────────────────────────────
   {
     slug: 'competitor-prices', path: '/market/competitor-prices', group: 'Market Intel',

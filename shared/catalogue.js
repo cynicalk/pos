@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 11 partial, 47 built, 11 shell, 10 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 11 partial, 49 built, 9 shell, 10 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -644,11 +644,10 @@ export const CATALOGUE = [
     "family": "Forecasting & ML",
     "phase": 3,
     "tier": "addon",
-    "status": "shell",
+    "status": "built",
     "surface": "",
     "archivedStatus": "history-gated",
-    "note": "Buildable on Tier 0 next; currently a shell.",
-    "shellSlug": "scheduling"
+    "note": "Tier 0 scheduling week shipped this session at /forecast/scheduling — labour cost vs forecast revenue against the outlet’s own labour-% band."
   },
   {
     "slug": "demand-forecasting",
@@ -769,11 +768,10 @@ export const CATALOGUE = [
     "family": "Forecasting & ML",
     "phase": 3,
     "tier": "addon",
-    "status": "shell",
+    "status": "built",
     "surface": "",
     "archivedStatus": "history-gated",
-    "note": "Buildable on Tier 0 next; currently a shell.",
-    "shellSlug": "shift-planning"
+    "note": "Tier 0 shift plan shipped this session at /forecast/shift-planning — forecast covers ÷ learned covers-per-labour-hour."
   },
   {
     "slug": "supplier-management",

@@ -119,4 +119,56 @@ const getIngredientsStock = (restaurantId) =>
     [restaurantId],
   ).then((r) => r.rows);
 
-module.exports = { getDailySeries, getRecipesByDish, getCapacitySignal, getIngredientsStock };
+/**
+ * Labour actually worked, per local trading day.
+ *
+ * From `staff_shifts`, which carries its own `hours` and `hourly_rate` snapshot
+ * — so the cost is what was paid, not what a rate table says today. Only
+ * completed shifts (hours recorded) count; a shift still open has no hours yet
+ * and would understate the day. Keyed by `work_date`, which is already the local
+ * trading day the roster was cut for.
+ */
+const getDailyLabour = (restaurantId, days) =>
+  db.query(
+    `SELECT work_date::text                       AS date,
+            SUM(hours)::float8                     AS hours,
+            SUM(hours * hourly_rate)::float8       AS cost,
+            COUNT(DISTINCT user_id)::int           AS headcount
+       FROM staff_shifts
+      WHERE restaurant_id = $1
+        AND hours IS NOT NULL
+        AND work_date >= (now())::date - $2::int
+        AND work_date <  (now())::date
+      GROUP BY work_date
+      ORDER BY work_date ASC`,
+    [restaurantId, days],
+  ).then((r) => r.rows);
+
+/**
+ * Historical labour-hours by role, for splitting a suggested total back out the
+ * way this kitchen actually staffs — not a textbook ratio.
+ */
+const getRoleHoursMix = (restaurantId, days) =>
+  db.query(
+    `SELECT u.role                    AS role,
+            SUM(s.hours)::float8      AS hours,
+            SUM(s.hours * s.hourly_rate)::float8 AS cost
+       FROM staff_shifts s
+       JOIN users u ON u.id = s.user_id
+      WHERE s.restaurant_id = $1
+        AND s.hours IS NOT NULL
+        AND s.work_date >= (now())::date - $2::int
+        AND s.work_date <  (now())::date
+      GROUP BY u.role
+      ORDER BY hours DESC`,
+    [restaurantId, days],
+  ).then((r) => r.rows);
+
+module.exports = {
+  getDailySeries,
+  getRecipesByDish,
+  getCapacitySignal,
+  getIngredientsStock,
+  getDailyLabour,
+  getRoleHoursMix,
+};

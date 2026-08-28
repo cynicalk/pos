@@ -111,54 +111,6 @@ const layouts = {
     ],
   },
 
-    'shift-planning': {
-    filters: ['Date', 'Section'],
-    kpis: [
-      { label: 'Forecast covers' },
-      { label: 'Suggested staff' },
-      { label: 'Currently rostered' },
-      { label: 'Gap' },
-    ],
-    chart: { title: 'Forecast covers and cover by hour', x: 'Hour', y: 'Covers' },
-    table: {
-      title: 'Hour by hour',
-      columns: ['Hour', 'Forecast covers', 'Suggested', 'Rostered', 'Gap', 'Role short'],
-    },
-    panels: [
-      {
-        title: 'A suggestion, against a roster you own',
-        body:
-          'Nothing here moves a shift. The suggested line sits next to what is actually rostered so ' +
-          'the difference is a conversation rather than an instruction.',
-      },
-    ],
-  },
-
-  scheduling: {
-    filters: ['Week', 'Role'],
-    kpis: [
-      { label: 'Rostered hours' },
-      { label: 'Labour cost' },
-      { label: 'Share of forecast revenue' },
-      { label: 'Target' },
-      { label: 'Variance to target' },
-    ],
-    chart: { title: 'Labour cost against target across the week', x: 'Day', y: 'Share of revenue' },
-    table: {
-      title: 'The week',
-      columns: ['Day', 'Role', 'Hours', 'Cost', 'Share of forecast revenue', 'Against target'],
-    },
-    panels: [
-      {
-        title: 'The trade-off is made on purpose',
-        body:
-          'Holding a rota to a labour-cost target means somebody decides where cover gets thinned. ' +
-          'This screen makes that decision explicit and records it, instead of leaving it to whoever ' +
-          'happens to be filling the rota that week.',
-      },
-    ],
-  },
-
   // ── Market Intel ─────────────────────────────────────────────────────────
 
   'competitor-prices': {

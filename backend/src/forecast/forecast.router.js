@@ -31,4 +31,13 @@ router.get('/reorder', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.getReorderPlan(req.user.restaurantId, { date: req.query.date, leadDays }));
 }));
 
+router.get('/shift-plan', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getShiftPlan(req.user.restaurantId, { date: req.query.date }));
+}));
+
+router.get('/scheduling', ...adminOnly, asyncHandler(async (req, res) => {
+  const days = req.query.days ? Number(req.query.days) : undefined;
+  res.json(await service.getScheduling(req.user.restaurantId, { date: req.query.date, days }));
+}));
+
 module.exports = router;

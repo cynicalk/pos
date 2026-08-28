@@ -24,9 +24,9 @@ import { PLANNED_FEATURES } from '../src/lib/plannedFeatures.js';
 // in the diff — not a silent side effect of editing the generator.
 const EXPECTED_TOTAL = 86;
 const EXPECTED_BY_STATUS = {
-  built: 47,
+  built: 49,
   partial: 11,
-  shell: 11,
+  shell: 9,
   absent: 10,
   external: 4,
   'blocked-ext': 3,

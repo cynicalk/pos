@@ -50,3 +50,17 @@ export const useReorderPlan = (date) =>
     queryFn: get(withDate('/forecast/reorder', date)),
     ...common,
   });
+
+export const useShiftPlan = (date) =>
+  useQuery({
+    queryKey: ['forecast', 'shift-plan', date ?? null],
+    queryFn: get(withDate('/forecast/shift-plan', date)),
+    ...common,
+  });
+
+export const useScheduling = (date) =>
+  useQuery({
+    queryKey: ['forecast', 'scheduling', date ?? null],
+    queryFn: get(withDate('/forecast/scheduling', date)),
+    ...common,
+  });

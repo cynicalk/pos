@@ -5,6 +5,7 @@ const baseline = require('../modules/forecast/baseline');
 const mix = require('../modules/forecast/item-mix');
 const prep = require('../modules/forecast/prep');
 const inventory = require('../modules/forecast/inventory');
+const staffing = require('../modules/forecast/staffing');
 
 /**
  * Tier 0 demand forecast and the prep sheet that falls out of it.
@@ -395,14 +396,144 @@ async function getReorderPlan(restaurantId, { date, leadDays = REORDER_LEAD_DAYS
   };
 }
 
+/** How many days ahead the scheduling week view covers. */
+const SCHEDULE_DAYS = 7;
+
+/**
+ * The learned staffing models, built once from history and shared by the shift
+ * plan and the scheduling week.
+ *
+ * Covers are the outlet's daily orders (what the demand forecast predicts);
+ * labour is joined from staff_shifts by trading day. Productivity, the role
+ * split, the blended hourly rate and the labour-% band are all learned from
+ * this outlet's own record — nothing here is an industry figure.
+ */
+async function staffingModels(restaurantId) {
+  const { tz, series } = await context(restaurantId);
+  const orderSeries = asMetric(series, 'orders');
+  const revenueSeries = asMetric(series, 'revenue');
+
+  const labour = await repo.getDailyLabour(restaurantId, HISTORY_DAYS);
+  const roleHours = await repo.getRoleHoursMix(restaurantId, HISTORY_DAYS);
+
+  // Join labour to covers/revenue by trading day; keep only days with both.
+  const byDate = new Map(series.map((d) => [d.date, d]));
+  const history = labour
+    .map((l) => {
+      const s = byDate.get(l.date);
+      if (!s) return null;
+      return {
+        date: l.date,
+        covers: Number(s.orders) || 0,
+        revenue: Number(s.value) || 0,
+        labourHours: Number(l.hours) || 0,
+        labourCost: Number(l.cost) || 0,
+        headcount: Number(l.headcount) || 0,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    tz,
+    orderSeries,
+    revenueSeries,
+    history,
+    productivity: staffing.learnProductivity(history),
+    mix: staffing.roleMix(roleHours),
+    rate: staffing.blendedRate(roleHours),
+    shiftHours: staffing.typicalShiftHours(history),
+    band: staffing.laborPctBand(history),
+  };
+}
+
+/**
+ * Shift Planning: the staff-hours one day needs, from its forecast covers.
+ */
+async function getShiftPlan(restaurantId, { date } = {}) {
+  const m = await staffingModels(restaurantId);
+  const target = date || tomorrowIn(m.tz);
+  const covers = baseline.forecastDay(m.orderSeries, target);
+
+  const plan = staffing.planDay(covers.point, m.productivity, { roleMix: m.mix, shiftHours: m.shiftHours });
+
+  return {
+    timezone: m.tz,
+    date: target,
+    model: 'seasonal_naive',
+    isBaselineModel: true,
+    forecastCovers: covers,
+    productivity: {
+      coversPerLabourHour: m.productivity.coversPerLabourHour,
+      sampleDays: m.productivity.sampleDays,
+      enough: m.productivity.enough,
+      minDays: staffing.MIN_HISTORY_DAYS,
+    },
+    typicalShiftHours: m.shiftHours,
+    blendedHourlyRate: m.rate,
+    plan,
+    estimatedLabourCost: plan.suggestedHours === null ? null : plan.suggestedHours * m.rate,
+    note: 'Covers per labour-hour is learned from this outlet’s own completed shifts '
+      + 'against its own recorded covers — not an industry standard. The plan is a '
+      + 'starting roster, not an instruction; who works which section is the manager’s.',
+  };
+}
+
+/**
+ * Cost-based Scheduling: a week of forecast covers → hours → labour cost, each
+ * day’s cost read as a share of its forecast takings and judged against the
+ * outlet’s own normal.
+ */
+async function getScheduling(restaurantId, { date, days = SCHEDULE_DAYS } = {}) {
+  const m = await staffingModels(restaurantId);
+  const start = date || tomorrowIn(m.tz);
+
+  const week = [];
+  for (let i = 0; i < days; i += 1) {
+    const day = shiftDate(start, i);
+    const covers = baseline.forecastDay(m.orderSeries, day);
+    const revenue = baseline.forecastDay(m.revenueSeries, day);
+    const plan = staffing.planDay(covers.point, m.productivity, { roleMix: m.mix, shiftHours: m.shiftHours });
+    const labourCost = plan.suggestedHours === null ? null : plan.suggestedHours * m.rate;
+    const laborPct = labourCost !== null && revenue.point ? (labourCost / revenue.point) * 100 : null;
+    week.push({
+      date: day,
+      forecastCovers: covers.point,
+      forecastRevenue: revenue.point,
+      suggestedHours: plan.suggestedHours,
+      suggestedHeadcount: plan.suggestedHeadcount,
+      labourCost,
+      laborPct,
+      verdict: staffing.verdict(laborPct, m.band),
+    });
+  }
+
+  return {
+    timezone: m.tz,
+    startDate: start,
+    days,
+    model: 'seasonal_naive',
+    isBaselineModel: true,
+    blendedHourlyRate: m.rate,
+    productivity: { enough: m.productivity.enough, sampleDays: m.productivity.sampleDays, minDays: staffing.MIN_HISTORY_DAYS },
+    band: m.band,
+    week,
+    note: 'Labour cost is the suggested hours at your blended paid rate. Lean and heavy '
+      + 'are judged against this outlet’s own recent labour-%, not a fixed target — '
+      + 'a day reads heavy only relative to how you normally staff.',
+  };
+}
+
 module.exports = {
   getDemand,
   getPrepSheet,
   getCapacity,
   getInventoryForecast,
   getReorderPlan,
+  getShiftPlan,
+  getScheduling,
   HISTORY_DAYS,
   EXPECTED_WMAPE,
   INVENTORY_HORIZON_DAYS,
   REORDER_LEAD_DAYS,
+  SCHEDULE_DAYS,
 };
