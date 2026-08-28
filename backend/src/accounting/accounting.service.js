@@ -9,9 +9,11 @@ const { ValidationError } = require('../shared/errors');
  * chooses a format.
  */
 
-// The demo and every current deployment run in India; the export groups by the
-// local trading day, not UTC, so a late-night order lands on the right date.
-const DEFAULT_TZ = 'Asia/Kolkata';
+// Grouping is by the local trading day so a late-night order lands on the right
+// date. The timezone comes from the caller (the screen passes the operator's
+// configured zone), then the restaurant's own timezone setting, then UTC — never
+// a hardcoded region, so the day-book always agrees with the Reports screen.
+const FALLBACK_TZ = 'UTC';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,11 +30,13 @@ function resolveRange(from, to) {
   return { from: fromStr, to: toStr };
 }
 
-async function assemble(restaurantId, { from, to, tz = DEFAULT_TZ } = {}) {
+async function assemble(restaurantId, { from, to, tz } = {}) {
   const range = resolveRange(from, to);
+  // Caller's zone wins; else the restaurant's configured trading timezone; else UTC.
+  const zone = tz || (await repo.getTimezone(restaurantId)) || FALLBACK_TZ;
   const [income, collections, companyName] = await Promise.all([
-    repo.getDailyIncome(range.from, range.to, tz, restaurantId),
-    repo.getDailyCollections(range.from, range.to, tz, restaurantId),
+    repo.getDailyIncome(range.from, range.to, zone, restaurantId),
+    repo.getDailyCollections(range.from, range.to, zone, restaurantId),
     repo.getRestaurantName(restaurantId),
   ]);
 
@@ -98,4 +102,4 @@ async function exportFile(restaurantId, { format = 'tally', ...opts } = {}) {
   throw new ValidationError('format must be one of: tally, journal');
 }
 
-module.exports = { preview, exportFile, DEFAULT_TZ };
+module.exports = { preview, exportFile, FALLBACK_TZ };

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileSpreadsheet, FileCode, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
 import api from '../api/client';
 import { useCurrency } from '../context/CurrencyContext';
+import { useTimezone } from '../context/TimezoneContext';
 
 /**
  * Accounting Export — the POS Accounting Bridge.
@@ -50,13 +51,14 @@ const iso = (d) => d.toISOString().slice(0, 10);
 
 export default function AccountingExport() {
   const { format } = useCurrency();
+  const { iana } = useTimezone();
   const [to, setTo] = useState(iso(new Date()));
   const [from, setFrom] = useState(iso(new Date(Date.now() - 29 * 86400000)));
   const [downloading, setDownloading] = useState(null);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['accounting', 'preview', from, to],
-    queryFn: async () => (await api.get(`/accounting/preview?from=${from}&to=${to}`)).data,
+    queryKey: ['accounting', 'preview', from, to, iana],
+    queryFn: async () => (await api.get(`/accounting/preview?from=${from}&to=${to}&tz=${encodeURIComponent(iana)}`)).data,
     enabled: !!localStorage.getItem('pos_user') && from <= to,
     staleTime: 60_000,
   });
@@ -64,7 +66,7 @@ export default function AccountingExport() {
   const download = async (fmt) => {
     setDownloading(fmt);
     try {
-      const res = await api.get(`/accounting/export?from=${from}&to=${to}&format=${fmt}`, {
+      const res = await api.get(`/accounting/export?from=${from}&to=${to}&format=${fmt}&tz=${encodeURIComponent(iana)}`, {
         responseType: 'blob',
       });
       const disp = res.headers['content-disposition'] || '';

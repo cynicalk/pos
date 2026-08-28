@@ -49,4 +49,10 @@ const getRestaurantName = (restaurantId) =>
   db.query('SELECT name FROM restaurants WHERE id = $1', [restaurantId])
     .then((r) => r.rows[0]?.name || 'CookLyt');
 
-module.exports = { getDailyIncome, getDailyCollections, getRestaurantName };
+/** The restaurant's configured trading timezone, so the day-book groups by the
+ *  same day the rest of the reports do. Null when unset — the caller defaults. */
+const getTimezone = (restaurantId) =>
+  db.query(`SELECT value FROM settings WHERE restaurant_id = $1 AND key = 'timezone'`, [restaurantId])
+    .then((r) => r.rows[0]?.value || null);
+
+module.exports = { getDailyIncome, getDailyCollections, getRestaurantName, getTimezone };
