@@ -106,27 +106,6 @@ export const PLANNED_FEATURES = [
     reason: REASON.NEEDS_INFRASTRUCTURE, blocker: SCRAPE_BLOCKER,
   },
 
-  // ── Needs data nobody has measured (1) ───────────────────────────────────
-  {
-    slug: 'nutrition', path: '/menu-card/nutrition', group: 'Guest Menu',
-    title: 'Nutrition & Calories',
-    summary:
-      'Per-serving calories and macros on the guest menu card, so a guest can pick a dish ' +
-      'against a target without asking the floor.',
-    reason: REASON.NEEDS_UPLOAD,
-    blocker:
-      'CookLyt holds no nutritional data for any dish. Your recipes give quantities, not ' +
-      'calories, and nothing in the POS records the nutritional content of an ingredient. ' +
-      'A language model can produce a confident-looking number for any dish, and a guest ' +
-      'managing diabetes or counting macros would act on it — so this stays a blank screen ' +
-      'until real per-ingredient nutrition data is loaded, whether from a supplier or a ' +
-      'reference table.',
-    alternative: {
-      to: '/menu-card',
-      label: 'Declare allergens and diet instead — those come from your own recipes',
-    },
-  },
-
   // ── Needs third-party credentials (1) ────────────────────────────────────
   {
     slug: 'tally', path: '/integrations/tally', group: 'Integrations',

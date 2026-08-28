@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 9 partial, 51 built, 9 shell, 10 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 9 partial, 52 built, 8 shell, 10 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -477,11 +477,10 @@ export const CATALOGUE = [
     "family": "Guest Experience",
     "phase": 3,
     "tier": "addon",
-    "status": "shell",
+    "status": "built",
     "surface": "",
     "archivedStatus": "partial",
-    "note": "The POS holds no nutritional data; ships as an honest shell.",
-    "shellSlug": "nutrition"
+    "note": "Per-serving macros exploded from recipes + declared per-ingredient nutrition; incomplete dishes abstain."
   },
   {
     "slug": "dietary-filter",

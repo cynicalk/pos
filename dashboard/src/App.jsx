@@ -70,6 +70,7 @@ const Rankings        = lazy(() => import('./pages/Rankings'));
 const Guests          = lazy(() => import('./pages/Guests'));
 const Group           = lazy(() => import('./pages/Group'));
 const MenuCard        = lazy(() => import('./pages/MenuCard'));
+const NutritionCard   = lazy(() => import('./pages/NutritionCard'));
 const Payouts         = lazy(() => import('./pages/Payouts'));
 
 function getStoredUser() {
@@ -202,6 +203,7 @@ export default function App() {
             <Route path="/guests"        element={<RequireAdmin><Guests /></RequireAdmin>} />
             <Route path="/group"         element={<RequireAdmin><Group /></RequireAdmin>} />
             <Route path="/menu-card"     element={<RequireAdmin><MenuCard /></RequireAdmin>} />
+            <Route path="/menu-card/nutrition" element={<RequireAdmin><NutritionCard /></RequireAdmin>} />
             <Route path="/payouts"       element={<RequireAdmin><Payouts /></RequireAdmin>} />
 
             {/* Tier 0 forecasting — shells becoming real pages as the engine

@@ -196,35 +196,6 @@ const layouts = {
     },
   },
 
-  // ── Guest Menu ───────────────────────────────────────────────────────────
-
-  nutrition: {
-    filters: ['Category', 'Diet', 'Allergen'],
-    kpis: [
-      { label: 'Dishes with nutrition' },
-      { label: 'Ingredients with nutrition' },
-      { label: 'Coverage of the menu' },
-      { label: 'Source' },
-    ],
-    table: {
-      title: 'Per serving',
-      caption:
-        'Every figure would trace through a recipe to a per-ingredient source you can name. A dish with ' +
-        'one undeclared ingredient reports nothing rather than a number that is nearly right.',
-      columns: ['Dish', 'Serving', 'Energy', 'Protein', 'Carbohydrate', 'Fat', 'Source', 'Complete'],
-    },
-    panels: [
-      {
-        title: 'The one screen a model could fake convincingly',
-        body:
-          'Asked for the calories in a butter chicken, a language model produces a confident figure ' +
-          'instantly, and a guest managing diabetes or counting macros would act on it. That is exactly ' +
-          'why nothing generated appears here. Load real per-ingredient nutrition data and this screen ' +
-          'fills itself from the recipes you already keep.',
-      },
-    ],
-  },
-
   // ── Integrations ─────────────────────────────────────────────────────────
 
   tally: {

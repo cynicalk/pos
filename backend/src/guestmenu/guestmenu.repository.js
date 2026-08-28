@@ -44,6 +44,45 @@ const getMenuWithDietary = (restaurantId) =>
     [restaurantId],
   ).then((r) => r.rows);
 
+/**
+ * Available dishes with their recipe lines and per-ingredient nutrition.
+ *
+ * Same one-query-per-menu discipline as getMenuWithDietary, but carries the
+ * recipe quantity and yield the nutrition explosion needs, plus each
+ * ingredient's per-unit macros (NULL where undeclared — the module treats that
+ * as "cannot vouch", not zero). Line quantities are the operator's costing data
+ * and never leave the server.
+ */
+const getMenuWithNutrition = (restaurantId) =>
+  db.query(
+    `SELECT mi.id,
+            mi.name,
+            mi.category,
+            (mi.recipe_id IS NOT NULL) AS has_recipe,
+            r.yield_quantity::float8 AS yield,
+            COALESCE(
+              (SELECT json_agg(json_build_object(
+                        'ingredientName', ing.name,
+                        'quantity',       ri.quantity::float8,
+                        'kcalPerUnit',    ing.kcal_per_unit::float8,
+                        'proteinPerUnit', ing.protein_g_per_unit::float8,
+                        'carbsPerUnit',   ing.carbs_g_per_unit::float8,
+                        'fatPerUnit',     ing.fat_g_per_unit::float8
+                      ) ORDER BY ing.name)
+                 FROM recipe_ingredients ri
+                 JOIN ingredients ing ON ing.id = ri.ingredient_id
+                WHERE ri.recipe_id = mi.recipe_id),
+              '[]'::json
+            ) AS lines
+       FROM menu_items mi
+       LEFT JOIN recipes r ON r.id = mi.recipe_id
+      WHERE mi.restaurant_id = $1
+        AND mi.available = true
+        AND mi.archived_at IS NULL
+      ORDER BY mi.category NULLS LAST, mi.name`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
 /** Ingredients an operator still has to classify. */
 const listIngredientDeclarations = (restaurantId) =>
   db.query(
@@ -136,6 +175,7 @@ const getTranslationCoverage = (restaurantId, languageCodes) =>
 
 module.exports = {
   getMenuWithDietary,
+  getMenuWithNutrition,
   listIngredientDeclarations,
   setIngredientDeclaration,
   listUntranslated,

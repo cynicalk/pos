@@ -1,5 +1,6 @@
 const repo = require('./guestmenu.repository');
 const dietary = require('../modules/menu/dietary');
+const nutrition = require('../modules/menu/nutrition');
 const translate = require('../modules/menu/translate');
 const llm = require('../ai/llm.client');
 const { ValidationError, NotFoundError } = require('../shared/errors');
@@ -158,6 +159,49 @@ async function declareIngredient(restaurantId, ingredientId, payload, userId) {
   return saved;
 }
 
+/* ── Operator + guest: nutrition ─────────────────────────────────────────── */
+
+// Shape a nutrition row (has_recipe, lines already camelCased by the query) into
+// the pure module's input. Kept here so the module stays free of the DB shape.
+function toNutritionInput(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    hasRecipe: row.has_recipe,
+    yield: row.yield,
+    lines: row.lines || [],
+  };
+}
+
+/**
+ * Per-serving nutrition for the whole menu, derived from recipes and declared
+ * per-ingredient macros. Never invents a number: a dish with an undeclared
+ * ingredient reports nothing and names the gap.
+ */
+async function getNutrition(restaurantId) {
+  const rows = await repo.getMenuWithNutrition(restaurantId);
+  const built = nutrition.buildMenuNutrition(rows.map(toNutritionInput));
+  return {
+    ...built,
+    dishes: built.dishes.map((d, i) => ({ ...d, category: rows[i].category })),
+  };
+}
+
+/**
+ * A map of dishId → per-serving nutrition (or null), for the guest surface to
+ * hang on its ApiDish. Same derivation as the operator screen, so the two never
+ * disagree about a dish.
+ */
+async function getGuestNutritionMap(restaurantId) {
+  const rows = await repo.getMenuWithNutrition(restaurantId);
+  const map = new Map();
+  for (const row of rows) {
+    map.set(row.id, nutrition.dishNutritionForGuest(toNutritionInput(row)));
+  }
+  return map;
+}
+
 /* ── Operator: translation ───────────────────────────────────────────────── */
 
 async function getTranslationStatus(restaurantId) {
@@ -269,6 +313,8 @@ module.exports = {
   getGuestMenu,
   getDeclarations,
   declareIngredient,
+  getNutrition,
+  getGuestNutritionMap,
   getTranslationStatus,
   translateMenu,
   TRANSLATE_CHUNK,

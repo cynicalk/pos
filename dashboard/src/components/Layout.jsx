@@ -49,6 +49,7 @@ import {
   ShieldCheck,
   BookMarked,
   ExternalLink,
+  Flame,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../api/client';
@@ -191,6 +192,7 @@ const ALL_NAV = [
     type: 'group', key: 'guestmenu', label: 'Guest Menu', Icon: QrCode, adminOnly: true,
     children: [
       { to: '/menu-card', label: 'Menu Card', Icon: QrCode },
+      { to: '/menu-card/nutrition', label: 'Nutrition', Icon: Flame },
       // The reservation-first guest dine-in app (a separate surface on :3001).
       // External link — it is its own web app, not a dashboard route.
       { href: GUEST_APP_URL, label: 'Dine-in App', Icon: ExternalLink, external: true },

@@ -48,7 +48,10 @@ const DIET_IS_VEG = { vegan: true, vegetarian: true, non_vegetarian: false, unkn
  */
 async function getMenu(outletId) {
   const o = await outlet(outletId);
-  const menu = await guestMenuService.getGuestMenu(o.id);
+  const [menu, nutritionMap] = await Promise.all([
+    guestMenuService.getGuestMenu(o.id),
+    guestMenuService.getGuestNutritionMap(o.id),
+  ]);
 
   const dishes = (menu.dishes || []).map((d) => ({
     id: d.id,
@@ -63,7 +66,10 @@ async function getMenu(outletId) {
     isVeg: DIET_IS_VEG[d.diet] ?? false,
     spiceLevel: null,
     ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
-    nutrition: null,
+    // Per-serving macros, but only when every ingredient's nutrition is declared
+    // and the dish has a recipe — otherwise null, never a partial or guessed
+    // figure. Same derivation as the operator's Nutrition screen.
+    nutrition: nutritionMap.get(d.id) ?? null,
   }));
 
   return { restaurant: { name: o.name, location: null }, dishes };

@@ -16,9 +16,9 @@ _Last updated: 2026-08-28._
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| built | **49** | Works against real data today |
-| partial | 11 | Core built; one honest gap named in the catalogue note |
-| shell | 9 | Honest empty screen on a real route; needs data or infra |
+| built | **52** | Works against real data today |
+| partial | 9 | Core built; one honest gap named in the catalogue note |
+| shell | 8 | Honest empty screen on a real route; needs data or infra |
 | absent | 10 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
@@ -37,7 +37,13 @@ Payout Leakage detector raises a recoverable-leakage task in the action centre,
 ranked by its rupee shortfall; and **Churn & Reorder Prediction** (LoopAI F-04)
 — the Guests page predicts churn from each guest's own visit cadence (median
 gap), banding them active / due / overdue / likely-lost with a predicted next
-visit, superseding the flat 30-day winback window for the guests it can measure.
+visit, superseding the flat 30-day winback window for the guests it can measure;
+and the **AI Nutrition Assistant** (shell → built) — per-serving calories and
+macros exploded from each dish's recipe through per-ingredient nutrition
+(migration 085), the same arithmetic the prep sheet does for cost. It never
+guesses: a dish with even one undeclared ingredient reports nothing rather than a
+number nearly right, coverage is stated as a percentage of costed dishes, and the
+same figures now feed the guest app's dish detail (previously hardcoded null).
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;

@@ -30,6 +30,10 @@ router.post('/translations/:language', authenticate, authorize('admin'), asyncHa
   res.json(await service.translateMenu(req.user.restaurantId, req.params.language));
 }));
 
+router.get('/nutrition', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.getNutrition(req.user.restaurantId));
+}));
+
 // The operator's preview of exactly what a guest sees, filters and all.
 router.get('/preview', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   const avoid = req.query.avoid ? String(req.query.avoid).split(',') : [];
