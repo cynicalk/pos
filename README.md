@@ -76,6 +76,8 @@ Router  →  Service  →  Repository  →  PostgreSQL
 
 Each domain lives in its own self-contained folder under `backend/src/`. Cross-module calls go service → service; there is no separate adapter layer.
 
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the deeper design, [`ROADMAP.md`](ROADMAP.md) for what is next and the decisions behind it, and the in-app **Feature Status** page (`/feature-status`) for the live build state of all 86 catalogued features.
+
 Shared helpers live in `backend/src/shared/`:
 
 | Helper | Purpose |

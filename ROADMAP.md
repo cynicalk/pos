@@ -1,0 +1,127 @@
+# CookLyt Roadmap
+
+Forward-looking companion to the feature catalogue. The catalogue
+(`shared/catalogue.js`, surfaced in-app at **/feature-status**) is the source of
+truth for *what exists*; this file records *what is next and why*, and the
+decisions that shape it. Where the two disagree, the catalogue wins — it is
+generated from the code.
+
+_Last updated: 2026-08-28._
+
+---
+
+## Where we are
+
+86 features reconciled from the investor deck, by real status in the code:
+
+| Status | Count | Meaning |
+| --- | --- | --- |
+| built | **49** | Works against real data today |
+| partial | 11 | Core built; one honest gap named in the catalogue note |
+| shell | 9 | Honest empty screen on a real route; needs data or infra |
+| absent | 10 | Recognised, not implemented |
+| external | 4 | Lives in the guest app / another surface |
+| blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
+
+Recently shipped: the guest dine-in app integration (`/api/guest`), and the
+**Tier 0 forecasting set** — Demand Forecast, Prep Sheet, Inventory Forecast,
+Auto Reorder, Shift Planning, Cost-based Scheduling — all on one seasonal-naive
+engine, each carrying the accuracy it earned and abstaining where it cannot
+speak.
+
+The discipline every item here inherits: **a number we cannot establish is not
+zero.** Coverage, abstention and "still learning" states survive to the screen;
+nothing is described as learned that was not, and no figure is printed that a
+model could only guess.
+
+---
+
+## Decisions on record
+
+- **ETA engine — keep and enhance, do not rebuild.** The `Cooklyt_ETA_Engine`
+  spec v3 was assessed against the shipped `/api/eta` engine. The engine already
+  implements the spec's category-weight tier *and exceeds it*: the weights are
+  learned (blended seed → observed, per category) rather than a static map, and
+  it does greedy floor-wide queue assignment the spec never covers. Rebuilding to
+  the spec would be a regression. Two spec signals it genuinely lacks are worth
+  adding to the existing engine (see "ETA enhancement" below), not worth a new
+  machine.
+- **Recsys — gated on Phase 0 logging.** The group recommender design
+  (`cooklyt-recsys-context.md`) is emphatic that nothing is modelled before
+  2–3 weeks of clean impression/add/refine/order logs. So the first recsys
+  build is event logging, not a model. Apriori co-order mining already ships
+  (it backs `/api/guest/affinities`); the learned scorer waits on logs.
+- **Vision docs stay vision.** `Cooklyt_V2_Strategic_Features` and
+  `Cooklyt_Deep_Feature_Roadmap` (~150 items: AI agents, digital twin,
+  knowledge graph) are a direction, not a backlog. Items from them enter this
+  roadmap only when they become concrete and buildable on data we hold.
+
+---
+
+## Next up — buildable now
+
+Ordered by leverage against data and infrastructure that already exist.
+
+1. **ETA enhancement (visit intent + party-size duration).** Add the two
+   predictive signals from spec v3 the current engine lacks:
+   - *Visit intent* (eating 1.0× / both 1.3× / chill 1.6×) — the spec's headline
+     pre-seating signal. Needs a `visit_intent` field on waitlist intake and a
+     multiplier in `estimateTableFreeIn`; mid-session drift (chill + mains order
+     → blend down) as specified.
+   - *Party-size duration factor* — bigger parties linger. `base × (party_size ×
+     0.08)`, capped at 40% of base. `party_size` is already captured; today it
+     only drives table fitting, not the ETA.
+   Both slot into the existing formula; no rebuild.
+
+2. **WhatsApp send channel.** The single highest-leverage unlock: four *partial*
+   features are blocked only on this — Smart Alerts delivery, Staff Task
+   Assignment nudge, Repeat-Rate & Winback campaign send, Outcome Tracking. Build
+   the channel abstraction + a persisted outbox so these become send-ready and
+   honestly show "queued — pending channel connection" instead of a `console.log`
+   stub. Readies the two absent WhatsApp features too.
+
+3. **Delivery P&L (LoopAI F-01 + F-06).** The clearest investor-ROI story:
+   per-order commission / tax / platform-fee breakdown on delivery orders, and a
+   daily margin (revenue − food − labour − commission) on the owner briefing.
+   Both build on data already captured (aggregator orders, waste/GRN, and now the
+   labour cost from Cost-based Scheduling).
+
+4. **Data-gated quick wins.**
+   - *New Item Performance Tracker* (partial): add `menu_items.created_at` launch
+     dates + a seed backfill and the tracker lights up.
+   - *Payout Leakage Detector* (partial): it detects leakage but raises no task —
+     wire it into the Actions centre. In-app, no external dependency.
+   - *Customer Churn / Reorder Prediction* (LoopAI F-04): flag lapsed customers
+     from their own reorder cadence; a segment for the winback nudge.
+
+---
+
+## Gated / later
+
+- **Recsys learning pipeline** — Phase 0 event logging first, then logistic
+  regression → content embeddings → LambdaMART. Guest recommender + co-order
+  mining already live; the rest waits on logs (and multi-restaurant scale for
+  the deep/graph models).
+- **External-blocked** — competitor scraping (4 shells), Tally API credentials,
+  invoice OCR, Google-review posting. Documented, not built; they need infra or
+  credentials the product deliberately does not run.
+- **Camera hygiene monitoring** — removed from the nav; recognised as a future
+  line on Compliance › Hygiene. Needs cameras + a CV model no deployment runs.
+- **Autopilot / agentic tier** (LoopAI §2, V2 strategic) — Procurement Agent,
+  Waste Agent, etc. A tier shift from "tells you" to "does it", built on the
+  autonomous-decision groundwork; revisited once the intelligence layer is broad
+  and trusted.
+
+---
+
+## Source documents
+
+Strategy and specs this roadmap reconciles (kept locally, not in the repo):
+
+| Doc | Role here |
+| --- | --- |
+| `Cooklyt_ETA_Engine_Spec_v3` | Assessed → keep & enhance the existing engine |
+| `CookLyt_LoopAI_Feature_Gaps` | Concrete near-term gaps (F-01/04/06/07); F-07 shipped |
+| `cooklyt-recsys-context` + algorithms table | Guest recommender design; gated on Phase 0 logging |
+| `Cooklyt_V2_Strategic_Features` | Long-range vision (AI OS, agents) |
+| `Cooklyt_Deep_Feature_Roadmap` | ~150-item vision catalogue; several already built |
