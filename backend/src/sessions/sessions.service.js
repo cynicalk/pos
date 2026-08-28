@@ -46,6 +46,7 @@ async function recordSessionEnd(tableId, restaurantId) {
       sessionId: ending.session_id,
       waitlistId: party?.id ?? null,    // back-link to the seated walk-in party, if any
       partySize: party?.party_size ?? null, // key Phase-2 signal when the party came via the waitlist
+      visitIntent: party?.visit_intent ?? null, // carried for Engine C to learn intent-specific durations
       startedAt: ending.started_at,
       hadReservation,
       requestedBillAt: ending.requested_bill_at,

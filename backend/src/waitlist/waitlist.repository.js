@@ -3,13 +3,13 @@ const db = require('../shared/db');
 const create = (e) =>
   db.query(
     `INSERT INTO waitlist
-       (restaurant_id, guest_name, guest_phone, whatsapp_opt_in, party_size, allow_extra_chair, prefs, assigned_table_id, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
+       (restaurant_id, guest_name, guest_phone, whatsapp_opt_in, party_size, allow_extra_chair, prefs, assigned_table_id, status, visit_intent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
      RETURNING *`,
     [
       e.restaurantId, e.guestName, e.guestPhone || null, !!e.whatsappOptIn,
       e.partySize, !!e.allowExtraChair, JSON.stringify(e.prefs || {}),
-      e.assignedTableId || null, e.status || 'waiting',
+      e.assignedTableId || null, e.status || 'waiting', e.visitIntent || null,
     ],
   ).then((r) => r.rows[0]);
 

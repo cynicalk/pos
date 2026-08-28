@@ -56,7 +56,7 @@ const getSessionCategories = (client, sessionId, restaurantId) =>
 // party from a PREVIOUS sitting (or the NEXT one) from being mis-linked.
 const getSeatedPartyForTable = (client, tableId, startedAt) =>
   client.query(
-    `SELECT w.id, w.party_size
+    `SELECT w.id, w.party_size, w.visit_intent
      FROM   waitlist w
      WHERE  w.assigned_table_id = $1 AND w.status = 'seated'
        AND  w.seated_at <= $2::timestamptz + INTERVAL '15 minutes'
@@ -86,16 +86,16 @@ const insertSession = (client, s) =>
     `INSERT INTO table_sessions
        (restaurant_id, table_id, session_id, waitlist_id, party_size, started_at, ended_at,
         duration_minutes, had_reservation, requested_bill_at,
-        categories_ordered, item_count, total_amount, ended_reason)
+        categories_ordered, item_count, total_amount, ended_reason, visit_intent)
      VALUES ($1, $2, $3, $4, $5, $6, NOW(),
              EXTRACT(EPOCH FROM (NOW() - $6::timestamptz)) / 60.0, $7, $8,
-             $9::jsonb, $10, $11, $12)
+             $9::jsonb, $10, $11, $12, $13)
      ON CONFLICT (session_id) DO NOTHING
      RETURNING *`,
     [
       s.restaurantId, s.tableId, s.sessionId, s.waitlistId ?? null, s.partySize ?? null, s.startedAt,
       s.hadReservation, s.requestedBillAt ?? null,
-      JSON.stringify(s.categoriesOrdered || {}), s.itemCount, s.totalAmount, s.endedReason,
+      JSON.stringify(s.categoriesOrdered || {}), s.itemCount, s.totalAmount, s.endedReason, s.visitIntent ?? null,
     ],
   ).then((r) => r.rows[0] || null);
 

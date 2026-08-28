@@ -92,6 +92,68 @@ describe('estimateTableFreeIn', () => {
     );
     expect(r.freeInMinutes).toBe(2 + 7); // MIN_FLOOR + buffer
   });
+
+  // ── Visit intent + party size (spec v3 §3) ────────────────────────────────
+
+  it('is neutral with no declared intent or party — backward compatible', () => {
+    const now = Date.now();
+    const r = estimateTableFreeIn(
+      { table_id: 't', seats: 4, started_at: new Date(now - 20 * MIN).toISOString(), requested_bill_at: null, categories: ['Starters', 'Main Course'] },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    expect(r.intentFactor).toBe(1);
+    expect(r.partyFactor).toBe(1);
+    expect(r.freeInMinutes).toBe(37); // unchanged from the no-signal case
+  });
+
+  it('a chill table with no main holds longer (1.6x on the base)', () => {
+    const now = Date.now();
+    // Drinks only (no main → no drift). base max(45,10)=45, ×1.6, +7.
+    const r = estimateTableFreeIn(
+      { table_id: 't', seats: 4, started_at: new Date(now).toISOString(), requested_bill_at: null, categories: ['Drinks'], visit_intent: 'chill', party_size: 3 },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    expect(r.visitIntent).toBe('chill');
+    expect(r.intentFactor).toBe(1.6);
+    expect(r.freeInMinutes).toBe(Math.round(45 * 1.6) + 7); // 79
+  });
+
+  it("a chill table that ordered a main drifts down to 'both' (1.3x)", () => {
+    const now = Date.now();
+    const r = estimateTableFreeIn(
+      { table_id: 't', seats: 4, started_at: new Date(now).toISOString(), requested_bill_at: null, categories: ['Main Course'], visit_intent: 'chill', party_size: 3 },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    // Main Course weight (35) >= 30 → drift to 'both'. base max(45,35)=45 ×1.3.
+    expect(r.intentFactor).toBe(1.3);
+    expect(r.freeInMinutes).toBe(Math.round(45 * 1.3) + 7);
+  });
+
+  it('a larger-than-average party extends the estimate, capped', () => {
+    const now = Date.now();
+    // party 8 vs avg 3 → delta (8−3)×0.08 = 0.40 → factor 1.40 (at the cap).
+    const r = estimateTableFreeIn(
+      { table_id: 't', seats: 8, started_at: new Date(now).toISOString(), requested_bill_at: null, categories: ['Main Course'], party_size: 8 },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    expect(r.partyFactor).toBe(1.4);
+    // huge party (20) still capped at 1.40.
+    const big = estimateTableFreeIn(
+      { table_id: 't', seats: 8, started_at: new Date(now).toISOString(), requested_bill_at: null, categories: ['Main Course'], party_size: 20 },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    expect(big.partyFactor).toBe(1.4);
+  });
+
+  it('intent and party stop mattering once the bill is down', () => {
+    const now = Date.now();
+    const r = estimateTableFreeIn(
+      { table_id: 't', seats: 8, started_at: new Date(now - 30 * MIN).toISOString(), requested_bill_at: new Date(now).toISOString(), categories: ['Main Course'], visit_intent: 'chill', party_size: 12 },
+      { weightFn, ...base, avgParty: 3, now },
+    );
+    expect(r.basis).toBe('bill_requested');
+    expect(r.freeInMinutes).toBe(5 + 7);
+  });
 });
 
 describe('assignQueue', () => {

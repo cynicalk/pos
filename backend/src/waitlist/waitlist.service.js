@@ -16,11 +16,14 @@ const { NotFoundError, ValidationError } = require('../shared/errors');
 
 const PHONE_RE = /^[0-9 +\-().]{7,20}$/;
 
-function validatePayload({ guestName, partySize, guestPhone }) {
+const VISIT_INTENTS = ['eating', 'chill', 'both'];
+
+function validatePayload({ guestName, partySize, guestPhone, visitIntent }) {
   if (!guestName || !String(guestName).trim()) throw new ValidationError('Guest name is required');
   const size = parseInt(partySize, 10);
   if (!Number.isInteger(size) || size < 1 || size > 50) throw new ValidationError('party_size must be between 1 and 50');
   if (guestPhone && !PHONE_RE.test(String(guestPhone).trim())) throw new ValidationError('Invalid phone number format');
+  if (visitIntent != null && !VISIT_INTENTS.includes(visitIntent)) throw new ValidationError('Invalid visit intent');
   return size;
 }
 
@@ -67,6 +70,7 @@ async function join(restaurantId, data) {
     guestPhone: data.guestPhone ? String(data.guestPhone).trim() : null,
     whatsappOptIn: !!data.whatsappOptIn,
     partySize,
+    visitIntent: data.visitIntent || null,
     allowExtraChair: !!data.allowExtraChair,
     prefs: data.prefs && typeof data.prefs === 'object' ? data.prefs : {},
   });

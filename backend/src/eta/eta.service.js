@@ -25,6 +25,35 @@ const WRAP_UP_MINUTES        = 5;   // remaining once the bill has been requeste
 const MIN_FLOOR_MINUTES      = 2;   // never present a table as "free in 0 min"
 const CALCULATING_THRESHOLD  = 5;   // a just-seated, not-yet-ordered table is "calculating"
 
+// Visit intent (ETA spec v3 §3) — the strongest pre-seating signal. A declared
+// intent stretches the estimate; a missing one is neutral, so tables seated off
+// the waitlist and every pre-existing session are untouched.
+const INTENT_FACTORS   = { eating: 1.0, both: 1.3, chill: 1.6 };
+const MAIN_COURSE_WEIGHT = 30;      // a category worth this many minutes reads as a main course
+// Party size (§3.2) — measured as a deviation from the outlet's average party,
+// so an average-sized table keeps the learned duration instead of being pushed
+// off it. Bounded both ways so no single table runs away with the estimate.
+const PARTY_SLOPE      = 0.08;      // each head off the average moves the estimate 8% of base
+const PARTY_MAX_UP     = 0.40;
+const PARTY_MAX_DOWN   = 0.15;
+const DEFAULT_AVG_PARTY = 2.5;
+
+// Intent for the estimate, applying the one mid-session drift the spec allows:
+// a 'chill' table that has ordered a main course has tipped into eating, so it
+// blends down toward 'both'. Drift only ever reduces the multiplier.
+function effectiveIntent(intent, categories, weightFn) {
+  if (intent === 'chill' && categories.some((c) => weightFn(c) >= MAIN_COURSE_WEIGHT)) return 'both';
+  return intent;
+}
+
+// Deviation-from-average party multiplier, clamped.
+function partyFactorFor(partySize, avgParty) {
+  const p = Number(partySize);
+  if (!Number.isFinite(p) || p <= 0 || !avgParty || avgParty <= 0) return 1;
+  const delta = (p - avgParty) * PARTY_SLOPE;
+  return 1 + Math.max(-PARTY_MAX_DOWN, Math.min(PARTY_MAX_UP, delta));
+}
+
 /* ── pure math ─────────────────────────────────────────────────────────────── */
 
 // Restaurant-wide average table time, blended toward the global default until
@@ -48,24 +77,30 @@ function buildWeightFn(categoryStats, overrides) {
 }
 
 // Estimate how long until one occupied table frees, in minutes (incl. buffer).
-function estimateTableFreeIn(table, { weightFn, avgTableTime, buffer, now = Date.now() }) {
+function estimateTableFreeIn(table, { weightFn, avgTableTime, avgParty = DEFAULT_AVG_PARTY, buffer, now = Date.now() }) {
   const start = table.started_at ? new Date(table.started_at).getTime() : null;
   const elapsed = start ? Math.max(0, (now - start) / 60000) : 0;
   const categories = table.categories || [];
   const hasOrders = categories.length > 0;
 
+  const intent = effectiveIntent(table.visit_intent, categories, weightFn);
+  const intentFactor = INTENT_FACTORS[intent] ?? 1;
+  const partyFactor = partyFactorFor(table.party_size, avgParty);
+
   let remaining;
   let basis;
   if (table.requested_bill_at) {
+    // Leaving regardless of who they are or how many — intent and party no
+    // longer move it once the bill is down.
     remaining = WRAP_UP_MINUTES;
     basis = 'bill_requested';
   } else if (!hasOrders) {
-    remaining = avgTableTime - elapsed;
+    remaining = avgTableTime * intentFactor * partyFactor - elapsed;
     basis = 'avg_fallback';
   } else {
     const sumWeights = categories.reduce((s, c) => s + weightFn(c), 0);
     const expectedTotal = Math.max(avgTableTime, sumWeights);
-    remaining = expectedTotal - elapsed;
+    remaining = expectedTotal * intentFactor * partyFactor - elapsed;
     basis = 'category_weights';
   }
 
@@ -79,6 +114,11 @@ function estimateTableFreeIn(table, { weightFn, avgTableTime, buffer, now = Date
     freeInMinutes: Math.round(remaining + buffer),
     calculating,
     basis,
+    // Surfaced so the floor can see why an estimate is what it is — a declared
+    // intent or a large party is a visible reason, not a hidden nudge.
+    intentFactor,
+    partyFactor: Math.round(partyFactor * 100) / 100,
+    visitIntent: table.visit_intent ?? null,
   };
 }
 
@@ -115,8 +155,20 @@ function parseJson(value, fallback) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+// Average party size, blended toward the default until enough sessions exist —
+// same shape as the table-time blend, so the party adjustment measures deviation
+// from a stable baseline rather than a noisy early one.
+function computeAvgParty(partyStat) {
+  const n = partyStat?.n || 0;
+  if (n <= 0 || partyStat.avg == null) return DEFAULT_AVG_PARTY;
+  return (n * partyStat.avg + BLEND_K * DEFAULT_AVG_PARTY) / (n + BLEND_K);
+}
+
 async function getConfig(restaurantId) {
-  const s = await settingsRepo.getAll(restaurantId);
+  const [s, partyStat] = await Promise.all([
+    settingsRepo.getAll(restaurantId),
+    repo.getAvgPartySize(restaurantId),
+  ]);
   const avgStat = parseJson(s.eta_avg_table_time, null);
   const categoryStats = parseJson(s.eta_category_stats, {});
   const overrides = parseJson(s.eta_category_overrides, {});
@@ -128,6 +180,7 @@ async function getConfig(restaurantId) {
     buffer:                   Number.isFinite(bufferRaw) && bufferRaw >= 0 ? bufferRaw : DEFAULT_BUFFER_MINUTES,
     avgTableTime:             computeAvgTableTime(avgStat),
     avgSampleCount:           avgStat?.n || 0,
+    avgParty:                 computeAvgParty(partyStat),
     categoryStats,
     overrides,
   };
@@ -168,7 +221,7 @@ async function getTableEstimates(restaurantId) {
   const now = Date.now();
 
   const occupiedEstimates = occupied.map((t) =>
-    estimateTableFreeIn(t, { weightFn, avgTableTime: config.avgTableTime, buffer: config.buffer, now }),
+    estimateTableFreeIn(t, { weightFn, avgTableTime: config.avgTableTime, avgParty: config.avgParty, buffer: config.buffer, now }),
   );
   const availableEstimates = available.map((t) => ({
     tableId: t.table_id, number: t.number, seats: t.seats,
@@ -201,7 +254,7 @@ async function getCandidateTables(restaurantId, config, now = Date.now()) {
   const weightFn = buildWeightFn(config.categoryStats, config.overrides);
   const occ = occupied
     .filter((t) => !blocked.has(t.table_id))
-    .map((t) => estimateTableFreeIn(t, { weightFn, avgTableTime: config.avgTableTime, buffer: config.buffer, now }));
+    .map((t) => estimateTableFreeIn(t, { weightFn, avgTableTime: config.avgTableTime, avgParty: config.avgParty, buffer: config.buffer, now }));
   const avail = available
     .filter((t) => !blocked.has(t.table_id))
     .map((t) => ({ tableId: t.table_id, seats: t.seats, freeInMinutes: 0, calculating: false }));

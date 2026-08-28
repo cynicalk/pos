@@ -38,14 +38,17 @@ model could only guess.
 
 ## Decisions on record
 
-- **ETA engine — keep and enhance, do not rebuild.** The `Cooklyt_ETA_Engine`
+- **ETA engine — kept and enhanced, not rebuilt.** The `Cooklyt_ETA_Engine`
   spec v3 was assessed against the shipped `/api/eta` engine. The engine already
   implements the spec's category-weight tier *and exceeds it*: the weights are
   learned (blended seed → observed, per category) rather than a static map, and
   it does greedy floor-wide queue assignment the spec never covers. Rebuilding to
-  the spec would be a regression. Two spec signals it genuinely lacks are worth
-  adding to the existing engine (see "ETA enhancement" below), not worth a new
-  machine.
+  the spec would be a regression, so instead the two predictive signals it
+  lacked were **added** (shipped): **visit intent** (eating 1.0× / both 1.3× /
+  chill 1.6×, captured at waitlist intake, with the chill→both mid-session
+  drift) and a **party-size factor** measured as a deviation from the outlet's
+  average party so it does not double-count the learned duration. A missing
+  signal stays neutral, so nothing that predates the change moves.
 - **Recsys — gated on Phase 0 logging.** The group recommender design
   (`cooklyt-recsys-context.md`) is emphatic that nothing is modelled before
   2–3 weeks of clean impression/add/refine/order logs. So the first recsys
@@ -62,31 +65,20 @@ model could only guess.
 
 Ordered by leverage against data and infrastructure that already exist.
 
-1. **ETA enhancement (visit intent + party-size duration).** Add the two
-   predictive signals from spec v3 the current engine lacks:
-   - *Visit intent* (eating 1.0× / both 1.3× / chill 1.6×) — the spec's headline
-     pre-seating signal. Needs a `visit_intent` field on waitlist intake and a
-     multiplier in `estimateTableFreeIn`; mid-session drift (chill + mains order
-     → blend down) as specified.
-   - *Party-size duration factor* — bigger parties linger. `base × (party_size ×
-     0.08)`, capped at 40% of base. `party_size` is already captured; today it
-     only drives table fitting, not the ETA.
-   Both slot into the existing formula; no rebuild.
-
-2. **WhatsApp send channel.** The single highest-leverage unlock: four *partial*
+1. **WhatsApp send channel.** The single highest-leverage unlock: four *partial*
    features are blocked only on this — Smart Alerts delivery, Staff Task
    Assignment nudge, Repeat-Rate & Winback campaign send, Outcome Tracking. Build
    the channel abstraction + a persisted outbox so these become send-ready and
    honestly show "queued — pending channel connection" instead of a `console.log`
    stub. Readies the two absent WhatsApp features too.
 
-3. **Delivery P&L (LoopAI F-01 + F-06).** The clearest investor-ROI story:
+2. **Delivery P&L (LoopAI F-01 + F-06).** The clearest investor-ROI story:
    per-order commission / tax / platform-fee breakdown on delivery orders, and a
    daily margin (revenue − food − labour − commission) on the owner briefing.
    Both build on data already captured (aggregator orders, waste/GRN, and now the
    labour cost from Cost-based Scheduling).
 
-4. **Data-gated quick wins.**
+3. **Data-gated quick wins.**
    - *New Item Performance Tracker* (partial): add `menu_items.created_at` launch
      dates + a seed backfill and the tracker lights up.
    - *Payout Leakage Detector* (partial): it detects leakage but raises no task —

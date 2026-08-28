@@ -64,18 +64,27 @@ function DoorQrCard({ restaurant }) {
   );
 }
 
+// Visit intent (ETA spec v3 §3): the strongest pre-seating signal for how long
+// a table will hold. Optional — leaving it unset keeps the neutral estimate.
+const INTENTS = [
+  { id: 'eating', label: 'Here to eat' },
+  { id: 'both',   label: 'Eat & chill' },
+  { id: 'chill',  label: 'Just chilling' },
+];
+
 function AddWalkIn({ onAdd, pending }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [size, setSize] = useState(2);
+  const [intent, setIntent] = useState('eating');
   const [err, setErr] = useState('');
 
   async function submit() {
     setErr('');
     try {
-      await onAdd({ guestName: name.trim(), guestPhone: phone.trim() || undefined, partySize: size });
-      setName(''); setPhone(''); setSize(2); setOpen(false);
+      await onAdd({ guestName: name.trim(), guestPhone: phone.trim() || undefined, partySize: size, visitIntent: intent });
+      setName(''); setPhone(''); setSize(2); setIntent('eating'); setOpen(false);
     } catch (e) {
       setErr(e?.response?.data?.error || 'Could not add');
     }
@@ -90,6 +99,21 @@ function AddWalkIn({ onAdd, pending }) {
       <div className="flex items-center gap-2">
         <span style={{ fontSize: 12, color: 'var(--mute)' }}>Party</span>
         <input type="number" min="1" max="50" style={{ ...inputStyle, width: 64 }} value={size} onChange={(e) => setSize(Math.max(1, parseInt(e.target.value) || 1))} />
+      </div>
+      <div className="flex items-center gap-1" role="group" aria-label="Visit intent">
+        {INTENTS.map((it) => (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => setIntent(it.id)}
+            style={{
+              ...btn, height: 34, padding: '0 10px', fontSize: 12,
+              background: intent === it.id ? 'var(--ink)' : 'transparent',
+              color: intent === it.id ? 'var(--accent-on)' : 'var(--mute)',
+              border: intent === it.id ? 0 : '1px solid var(--line-2)',
+            }}
+          >{it.label}</button>
+        ))}
       </div>
       <button style={{ ...btn, background: 'var(--ink)', color: 'var(--accent-on)', border: 0 }} disabled={!name.trim() || pending} onClick={submit}>
         {pending ? 'Adding…' : 'Add'}
