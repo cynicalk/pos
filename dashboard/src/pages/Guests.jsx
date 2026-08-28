@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Users, Info, Copy, Check, TrendingDown, Gift, Printer, X } from 'lucide-react';
+import { Users, Info, Copy, Check, TrendingDown, Gift, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
+import Modal from '../components/Modal';
 import { useGuestMetrics, useChurnRisk } from '../hooks/useReputation';
 import { useWinbackOffers, useCreateWinbackOffer } from '../hooks/useWinback';
 import { useCurrency } from '../context/CurrencyContext';
@@ -140,22 +140,12 @@ function WinbackCard({ offer, onClose }) {
     QRCode.toDataURL(offer.code, { width: 240, margin: 2 }).then(setQr).catch(() => {});
   }, [offer.code]);
 
-  // Rendered into document.body: the dashboard layout uses a transformed
-  // container, and a position:fixed overlay inside it would anchor to that box
-  // (off-centre) instead of the viewport. A portal escapes it.
-  return createPortal((
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
-    >
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', width: 340, maxWidth: '100%', textAlign: 'center', position: 'relative' }}>
-        <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--mute)' }}>
-          <X size={17} strokeWidth={2.2} />
-        </button>
-        <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--label)' }}>
-          Winback offer
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: '4px 0 14px' }}>
+  // Uses the shared Modal (portal, Escape-to-close, mobile bottom-sheet) rather
+  // than a hand-rolled overlay, so it behaves like every other dialog in the app.
+  return (
+    <Modal title="Winback offer" onClose={onClose}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: '0 0 14px' }}>
           {offer.guest?.name || 'Guest'}
         </div>
         {qr
@@ -173,8 +163,8 @@ function WinbackCard({ offer, onClose }) {
           <Printer size={13} strokeWidth={2.2} /> Print offer
         </button>
       </div>
-    </div>
-  ), document.body);
+    </Modal>
+  );
 }
 
 /**
