@@ -40,6 +40,7 @@ import {
   LineChart,
   Radar,
   Building2,
+  ShoppingCart,
   Plug,
   CircleDashed,
   Coins,
@@ -170,8 +171,10 @@ const ALL_NAV = [
     // longer in it — which is also what gives them a page title and a header
     // breadcrumb, both of which come from the nav.
     children: [
-      { to: '/forecast/demand',     label: 'Demand Forecast', Icon: LineChart },
-      { to: '/forecast/prep-sheet', label: 'Prep Sheet',      Icon: ClipboardList },
+      { to: '/forecast/demand',     label: 'Demand Forecast',    Icon: LineChart },
+      { to: '/forecast/prep-sheet', label: 'Prep Sheet',         Icon: ClipboardList },
+      { to: '/forecast/inventory',  label: 'Inventory Forecast', Icon: Package },
+      { to: '/forecast/reorder',    label: 'Auto Reorder',       Icon: ShoppingCart },
       ...(PLANNED_BY_GROUP['Forecasting'] || []),
     ],
   },

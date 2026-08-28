@@ -80,26 +80,6 @@ export const PLANNED_FEATURES = [
     reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
   },
   {
-    slug: 'inventory', path: '/forecast/inventory', group: 'Forecasting',
-    title: 'Inventory Forecast',
-    summary:
-      'Forecast-driven stock requirements, with safety stock sized to how variable your ' +
-      'demand and your supplier lead times actually are.',
-    reason: REASON.COLLECTING,
-    blocker:
-      HISTORY_BLOCKER +
-      ' Reorder levels themselves do not wait on this — those are arithmetic over your ' +
-      'counts and lead times, and live under Recipe Mgmt.',
-  },
-  {
-    slug: 'reorder', path: '/forecast/reorder', group: 'Forecasting',
-    title: 'Forecast-based Reordering',
-    summary:
-      'Order quantities sized against expected demand over the lead time, rather than against ' +
-      'a fixed reorder level.',
-    reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
-  },
-  {
     slug: 'shift-planning', path: '/forecast/shift-planning', group: 'Forecasting',
     title: 'Shift Planning',
     summary: 'Staffing suggested against expected demand, hour by hour.',

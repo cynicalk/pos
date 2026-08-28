@@ -36,3 +36,17 @@ export const useCapacity = (date) =>
     queryFn: get(withDate('/forecast/capacity', date)),
     ...common,
   });
+
+export const useInventoryForecast = (date) =>
+  useQuery({
+    queryKey: ['forecast', 'inventory', date ?? null],
+    queryFn: get(withDate('/forecast/inventory', date)),
+    ...common,
+  });
+
+export const useReorderPlan = (date) =>
+  useQuery({
+    queryKey: ['forecast', 'reorder', date ?? null],
+    queryFn: get(withDate('/forecast/reorder', date)),
+    ...common,
+  });

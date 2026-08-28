@@ -55,6 +55,8 @@ const AIChat          = lazy(() => import('./pages/AIChat'));
 const PlannedFeature  = lazy(() => import('./pages/PlannedFeature'));
 const DemandForecast  = lazy(() => import('./pages/DemandForecast'));
 const PrepSheet       = lazy(() => import('./pages/PrepSheet'));
+const InventoryForecast = lazy(() => import('./pages/InventoryForecast'));
+const ReorderPlan     = lazy(() => import('./pages/ReorderPlan'));
 const FeatureStatus   = lazy(() => import('./pages/FeatureStatus'));
 const Actions         = lazy(() => import('./pages/Actions'));
 const Economics       = lazy(() => import('./pages/Economics'));
@@ -200,11 +202,13 @@ export default function App() {
             <Route path="/menu-card"     element={<RequireAdmin><MenuCard /></RequireAdmin>} />
             <Route path="/payouts"       element={<RequireAdmin><Payouts /></RequireAdmin>} />
 
-            {/* Tier 0 forecasting — the first two shells to become real pages.
-                Their paths do not move: settling the URLs early was the whole
-                point of giving the shells their final routes. */}
+            {/* Tier 0 forecasting — shells becoming real pages as the engine
+                reaches them. Their paths do not move: settling the URLs early was
+                the whole point of giving the shells their final routes. */}
             <Route path="/forecast/demand"     element={<RequireAdmin><DemandForecast /></RequireAdmin>} />
             <Route path="/forecast/prep-sheet" element={<RequireAdmin><PrepSheet /></RequireAdmin>} />
+            <Route path="/forecast/inventory"  element={<RequireAdmin><InventoryForecast /></RequireAdmin>} />
+            <Route path="/forecast/reorder"    element={<RequireAdmin><ReorderPlan /></RequireAdmin>} />
 
             {/* Internal source of truth for what the app actually does (W1). */}
             <Route path="/feature-status"      element={<RequireAdmin><FeatureStatus /></RequireAdmin>} />

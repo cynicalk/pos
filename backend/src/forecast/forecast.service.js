@@ -4,6 +4,7 @@ const { validateTimezone, localDate, shiftDate } = require('../shared/timezone')
 const baseline = require('../modules/forecast/baseline');
 const mix = require('../modules/forecast/item-mix');
 const prep = require('../modules/forecast/prep');
+const inventory = require('../modules/forecast/inventory');
 
 /**
  * Tier 0 demand forecast and the prep sheet that falls out of it.
@@ -68,6 +69,27 @@ async function context(restaurantId) {
 
 /** `YYYY-MM-DD` for tomorrow in the restaurant's own timezone. */
 const tomorrowIn = (tz) => shiftDate(localDate(new Date(), tz), 1);
+
+/**
+ * Recipes keyed by dish name, in the shape prep.explode expects. One query, one
+ * place — the prep sheet and the inventory projection explode the same recipes,
+ * so they can never disagree about how much chicken a butter chicken needs.
+ */
+async function loadRecipeMap(restaurantId) {
+  const rows = await repo.getRecipesByDish(restaurantId);
+  const recipes = new Map();
+  for (const row of rows) {
+    if (!recipes.has(row.dish)) recipes.set(row.dish, { yield: row.yield, lines: [] });
+    recipes.get(row.dish).lines.push({
+      ingredientId: row.ingredient_id,
+      name: row.ingredient_name,
+      unit: row.unit,
+      quantity: row.quantity,
+      unitCost: row.unit_cost,
+    });
+  }
+  return recipes;
+}
 
 /**
  * The outlet-total forecast for one date, with the accuracy it has earned.
@@ -152,19 +174,7 @@ async function getPrepSheet(restaurantId, { date } = {}) {
   const shares = mix.buildShares(trading, target);
   const items = mix.itemForecast(total, shares);
 
-  const rows = await repo.getRecipesByDish(restaurantId);
-  const recipes = new Map();
-  for (const row of rows) {
-    if (!recipes.has(row.dish)) recipes.set(row.dish, { yield: row.yield, lines: [] });
-    recipes.get(row.dish).lines.push({
-      ingredientId: row.ingredient_id,
-      name: row.ingredient_name,
-      unit: row.unit,
-      quantity: row.quantity,
-      unitCost: row.unit_cost,
-    });
-  }
-
+  const recipes = await loadRecipeMap(restaurantId);
   const sheet = prep.explode(items, recipes);
 
   return {
@@ -238,4 +248,161 @@ async function getCapacity(restaurantId, { date } = {}) {
   };
 }
 
-module.exports = { getDemand, getPrepSheet, getCapacity, HISTORY_DAYS, EXPECTED_WMAPE };
+/** Default forward window for the stock projection. */
+const INVENTORY_HORIZON_DAYS = 14;
+/** Default supplier lead time the reorder plan reorders at (§ "Buildable on h=3"). */
+const REORDER_LEAD_DAYS = 3;
+
+/**
+ * Walk each ingredient's stock down against the forecast, day by day.
+ *
+ * Shared by the inventory-forecast and reorder screens so both read the exact
+ * same consumption. Each forecast day gets its own portion total *and* its own
+ * weekday-tilted item mix — a Saturday and a Tuesday draw different ingredients
+ * — then explodes through the recipes and accumulates per ingredient.
+ */
+async function projectInventory(restaurantId, { date, horizonDays = INVENTORY_HORIZON_DAYS } = {}) {
+  const { tz, series } = await context(restaurantId);
+  const start = date || tomorrowIn(tz);
+
+  const qtySeries = asMetric(series, 'items');
+  const trading = qtySeries.filter((d) => !baseline.isClosed(d));
+  const recipes = await loadRecipeMap(restaurantId);
+  const stock = await repo.getIngredientsStock(restaurantId);
+
+  // consumption[ingredientId] = number[] of length horizonDays.
+  const consumption = {};
+  for (const ing of stock) consumption[ing.id] = new Array(horizonDays).fill(0);
+
+  let forecastableDays = 0;
+  let coverageSum = 0;
+  const dayTotals = [];
+
+  for (let d = 0; d < horizonDays; d += 1) {
+    const day = shiftDate(start, d);
+    const total = baseline.forecastDay(qtySeries, day);
+    if (total.point === null) { dayTotals.push({ date: day, portions: null }); continue; }
+
+    forecastableDays += 1;
+    const shares = mix.buildShares(trading, day);
+    coverageSum += shares.covered ?? 0;
+    const items = mix.itemForecast(total, shares);
+    const sheet = prep.explode(items, recipes);
+    dayTotals.push({ date: day, portions: total.point });
+
+    for (const ing of sheet.ingredients) {
+      if (consumption[ing.ingredientId]) consumption[ing.ingredientId][d] += ing.quantity;
+    }
+  }
+
+  const ingredients = stock.map((r) => ({
+    id: r.id,
+    name: r.name,
+    unit: r.unit,
+    stockOnHand: r.stock_on_hand,
+    reorderLevel: r.reorder_level,
+    reorderQty: r.reorder_qty,
+    unitCost: r.unit_cost,
+    perishable: r.perishable,
+  }));
+
+  const projection = inventory.project(ingredients, consumption, horizonDays);
+
+  return {
+    tz,
+    start,
+    horizonDays,
+    projection,
+    dayTotals,
+    forecastableDays,
+    // Average share of item volume the mix speaks for across the horizon — the
+    // same honest denominator the prep sheet carries, so the operator knows the
+    // projection covers most of service, not all of it.
+    mixCoverage: forecastableDays > 0 ? coverageSum / forecastableDays : 0,
+  };
+}
+
+/**
+ * Inventory forecasting: where each ingredient's stock is heading.
+ */
+async function getInventoryForecast(restaurantId, { date, horizonDays } = {}) {
+  const { tz, start, projection, dayTotals, forecastableDays, mixCoverage, horizonDays: h } =
+    await projectInventory(restaurantId, { date, horizonDays });
+
+  const drawn = projection.filter((p) => p.drawnByForecast);
+  return {
+    timezone: tz,
+    startDate: start,
+    horizonDays: h,
+    model: 'seasonal_naive',
+    isBaselineModel: true,
+    projection,
+    dayTotals,
+    summary: {
+      tracked: projection.length,
+      drawnByForecast: drawn.length,
+      belowReorderNow: projection.filter((p) => p.status === 'below_reorder_now').length,
+      stockoutWithinHorizon: projection.filter((p) => p.status === 'stockout_within_horizon').length,
+      reorderWithinHorizon: projection.filter((p) => p.status === 'reorder_within_horizon').length,
+    },
+    forecastableDays,
+    mixCoverage,
+    coverageNote:
+      'Only ingredients used by dishes the forecast can speak to — recipe-costed, '
+      + 'regularly-sold dishes — get a depletion date. An ingredient shown as "not '
+      + 'drawn by the forecast" is either unused by any costed dish or used only by '
+      + 'intermittent ones; its stock is real, its burn is not yet knowable here.',
+    accuracy: {
+      grain: 'ingredient',
+      note: 'Ingredient demand pools across dishes, so it is steadier than any single '
+        + 'dish forecast — but no accuracy figure is published at this grain because '
+        + 'none has been measured. The depletion dates inherit the outlet-total error.',
+    },
+  };
+}
+
+/**
+ * Auto reorder: the subset that needs an order placed within the lead time.
+ */
+async function getReorderPlan(restaurantId, { date, leadDays = REORDER_LEAD_DAYS, reviewDays } = {}) {
+  const { tz, start, projection, horizonDays } =
+    await projectInventory(restaurantId, { date });
+
+  const suggestions = inventory.reorderPlan(projection, { leadDays, reviewDays });
+  const totalCost = suggestions.reduce((s, x) => s + x.suggestedCost, 0);
+
+  return {
+    timezone: tz,
+    startDate: start,
+    horizonDays,
+    leadDays,
+    model: 'seasonal_naive',
+    isBaselineModel: true,
+    suggestions,
+    summary: {
+      lines: suggestions.length,
+      urgentNow: suggestions.filter((s) => s.urgency === 'now').length,
+      perishableWasteFlags: suggestions.filter((s) => s.perishableWasteRisk).length,
+      totalCost,
+    },
+    decision: {
+      isRecommendation: false,
+      note: 'These are order-by-lead-time suggestions from your reorder levels and the '
+        + 'forecast — not commitments. Quantity defaults to your configured reorder_qty, '
+        + 'or the forecast need where none is set; a perishable that would sit longer '
+        + 'than a few days of demand is flagged, because only you hold its shelf life.',
+    },
+  };
+}
+
+module.exports = {
+  getDemand,
+  getPrepSheet,
+  getCapacity,
+  getInventoryForecast,
+  getReorderPlan,
+  HISTORY_DAYS,
+  EXPECTED_WMAPE,
+  INVENTORY_HORIZON_DAYS,
+  REORDER_LEAD_DAYS,
+};

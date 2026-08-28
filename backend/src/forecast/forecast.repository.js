@@ -96,4 +96,27 @@ const getCapacitySignal = (restaurantId, tz, targetDate) =>
     [restaurantId, tz],
   ).then((r) => ({ ...r.rows[0], targetDate }));
 
-module.exports = { getDailySeries, getRecipesByDish, getCapacitySignal };
+/**
+ * Every active ingredient with the stock facts the projection walks down.
+ *
+ * `stock_on_hand`, `reorder_level` and `reorder_qty` are the operator's own —
+ * the projection reads them, it does not invent them. A `reorder_qty` of zero
+ * means "not configured", and the reorder plan falls back to the forecast need.
+ */
+const getIngredientsStock = (restaurantId) =>
+  db.query(
+    `SELECT id,
+            name,
+            unit,
+            stock_on_hand::float8    AS stock_on_hand,
+            reorder_level::float8    AS reorder_level,
+            reorder_qty::float8      AS reorder_qty,
+            latest_unit_cost::float8 AS unit_cost,
+            perishable
+       FROM ingredients
+      WHERE restaurant_id = $1 AND is_active = true
+      ORDER BY name`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
+module.exports = { getDailySeries, getRecipesByDish, getCapacitySignal, getIngredientsStock };

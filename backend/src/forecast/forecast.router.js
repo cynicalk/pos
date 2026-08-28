@@ -21,4 +21,14 @@ router.get('/capacity', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.getCapacity(req.user.restaurantId, { date: req.query.date }));
 }));
 
+router.get('/inventory', ...adminOnly, asyncHandler(async (req, res) => {
+  const horizonDays = req.query.horizon ? Number(req.query.horizon) : undefined;
+  res.json(await service.getInventoryForecast(req.user.restaurantId, { date: req.query.date, horizonDays }));
+}));
+
+router.get('/reorder', ...adminOnly, asyncHandler(async (req, res) => {
+  const leadDays = req.query.lead ? Number(req.query.lead) : undefined;
+  res.json(await service.getReorderPlan(req.user.restaurantId, { date: req.query.date, leadDays }));
+}));
+
 module.exports = router;
