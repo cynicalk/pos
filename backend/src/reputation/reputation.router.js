@@ -72,4 +72,8 @@ router.get('/guests', authenticate, authorize('admin'), asyncHandler(async (req,
   res.json(await service.getGuestMetrics(rid(req), { days: req.query.days }));
 }));
 
+router.get('/guests/churn', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.getChurnRisk(rid(req)));
+}));
+
 module.exports = router;

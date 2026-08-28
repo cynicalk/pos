@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Users, Info, Copy, Check } from 'lucide-react';
-import { useGuestMetrics } from '../hooks/useReputation';
+import { Users, Info, Copy, Check, TrendingDown } from 'lucide-react';
+import { useGuestMetrics, useChurnRisk } from '../hooks/useReputation';
 import { useCurrency } from '../context/CurrencyContext';
 
 /**
@@ -71,6 +71,106 @@ function CopyButton({ text, label }) {
   );
 }
 
+const CHURN_STATUS = {
+  active:       { label: 'Active',       color: 'var(--ok)',   bg: 'var(--ok-soft)' },
+  due:          { label: 'Due back',     color: 'var(--info)', bg: 'var(--info-soft)' },
+  overdue:      { label: 'Overdue',      color: 'var(--warn)', bg: 'var(--warn-soft)' },
+  likely_lost:  { label: 'Likely lost',  color: 'var(--bad)',  bg: 'var(--bad-soft)' },
+};
+
+function ChurnPill({ status }) {
+  const s = CHURN_STATUS[status] || CHURN_STATUS.active;
+  return (
+    <span style={{ padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.color, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>{s.label}</span>
+  );
+}
+
+const shortDate = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+
+/**
+ * Churn risk from each guest's own cadence — the per-guest answer to the fixed
+ * 30-day winback window. "Overdue" means overdue for THIS guest: a weekly
+ * regular gone three weeks, not everyone measured against one number.
+ */
+function ChurnSection({ format }) {
+  const { data, isLoading } = useChurnRisk();
+  if (isLoading || !data) return null;
+  if (data.predictableGuests === 0) {
+    return (
+      <div style={{ marginBottom: 26 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <TrendingDown size={15} strokeWidth={2} /> Churn risk &amp; reorder prediction
+        </h3>
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+          No guest yet has the {data.minOrdersForCadence}+ visits needed to measure a cadence, so
+          there is nothing to predict against. This fills in as identified guests return.
+        </p>
+      </div>
+    );
+  }
+
+  const rows = [...data.atRisk, ...data.dueSoon];
+
+  return (
+    <div style={{ marginBottom: 30 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <TrendingDown size={15} strokeWidth={2} /> Churn risk &amp; reorder prediction
+      </h3>
+      <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55, maxWidth: 760 }}>
+        Predicted from each guest's own visit rhythm — the median gap between their visits — not a
+        fixed window. "Overdue for them" is the signal a flat 30-day list misses. Value shown is what
+        an at-risk guest has already spent, never a projection of winning them back.
+      </p>
+
+      <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Stat value={data.atRiskCount} label="at risk of churning"
+          sub={data.atRiskCount > 0 ? `${format(data.atRiskHistoricSpend)} spent previously` : null} />
+        <Stat value={data.dueSoonCount} label="due back soon" />
+        <Stat value={data.predictableGuests} label="guests with a cadence"
+          sub={data.insufficientHistory > 0 ? `${data.insufficientHistory} too new to predict` : null} />
+      </div>
+
+      {rows.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--mute)' }}>No guest is overdue or due back right now.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--line-2)' }}>
+            <th style={th}>Guest</th>
+            <th style={th}>Rhythm</th>
+            <th style={th}>Last seen</th>
+            <th style={th}>Status</th>
+            <th style={th}>Predicted next</th>
+            <th style={th}>Spent</th>
+            <th style={th} />
+          </tr></thead>
+          <tbody>
+            {rows.map((g) => (
+              <tr key={g.customerId} style={{ borderBottom: '1px solid var(--line)' }}>
+                <td style={td}>{g.name || <span style={{ color: 'var(--mute)' }}>no name</span>}</td>
+                <td style={{ ...td, color: 'var(--mute)' }}>~every {g.cadenceDays}d · {g.regularity}</td>
+                <td style={{ ...td, color: 'var(--mute)' }}>{g.daysSince}d ago</td>
+                <td style={td}><ChurnPill status={g.status} /></td>
+                <td style={{ ...td, color: 'var(--mute)', fontVariantNumeric: 'tabular-nums' }}>
+                  {shortDate(g.predictedNextOrder)}
+                  {g.daysUntilPredicted < 0 && <span style={{ color: 'var(--warn)' }}> ({-g.daysUntilPredicted}d late)</span>}
+                </td>
+                <td style={td}>{format(g.totalSpend)}</td>
+                <td style={{ ...td, textAlign: 'right' }}>
+                  <CopyButton text={g.phone} label={`Copy phone number for ${g.name || 'guest'}`} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function Guests() {
   const [days, setDays] = useState(90);
   const { data, isLoading } = useGuestMetrics(days);
@@ -136,6 +236,8 @@ export default function Guests() {
               sub={data.lapsedCount > 0 ? `${format(data.lapsedHistoricSpend)} spent previously` : null}
             />
           </div>
+
+          <ChurnSection format={format} />
 
           <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600 }}>Winback list</h3>
           <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>

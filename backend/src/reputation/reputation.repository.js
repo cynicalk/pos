@@ -234,6 +234,39 @@ const getGuestRollup = (restaurantId, windowDays) =>
     [restaurantId, windowDays],
   ).then((r) => r.rows);
 
+/**
+ * Every identified guest's paid-order timestamps, for cadence-based churn.
+ *
+ * Same "visit = paid order" and same payments-subquery-for-spend definitions as
+ * getGuestRollup, so the two never disagree about a guest's history. Windowed
+ * long (a year) rather than to the page's repeat-rate window: a guest who has
+ * churned stopped ordering weeks ago, and a 90-day window would drop exactly the
+ * lapsed guests the churn view exists to find. Only guests with at least a
+ * couple of orders are returned — one order has no cadence to measure.
+ */
+const getGuestOrderHistory = (restaurantId, windowDays) =>
+  db.query(
+    `SELECT lc.id                              AS customer_id,
+            lc.phone,
+            lc.name,
+            array_agg(o.created_at ORDER BY o.created_at) AS order_dates,
+            COALESCE(SUM(
+              (SELECT COALESCE(SUM(p.amount), 0)
+                 FROM payments p
+                WHERE p.order_id = o.id AND p.status = 'completed')
+            ), 0)::numeric AS total_spend
+       FROM loyalty_customers lc
+       JOIN orders o
+         ON o.loyalty_customer_id = lc.id
+        AND o.restaurant_id       = lc.restaurant_id
+        AND o.status              = 'paid'
+        AND o.created_at >= now() - ($2::int * INTERVAL '1 day')
+      WHERE lc.restaurant_id = $1
+      GROUP BY lc.id, lc.phone, lc.name
+      HAVING COUNT(o.id) >= 2`,
+    [restaurantId, windowDays],
+  ).then((r) => r.rows);
+
 /** How much of the floor the guest metrics actually describe. */
 const getIdentificationCoverage = (restaurantId, windowDays) =>
   db.query(
@@ -268,6 +301,7 @@ module.exports = {
   insertCompetitorRating,
   deleteCompetitorRating,
   getGuestRollup,
+  getGuestOrderHistory,
   getIdentificationCoverage,
   getRestaurantName,
 };

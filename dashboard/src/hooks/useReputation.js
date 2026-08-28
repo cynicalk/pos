@@ -54,6 +54,13 @@ export const useGuestMetrics = (days) =>
     ...common,
   });
 
+export const useChurnRisk = () =>
+  useQuery({
+    queryKey: ['reputation', 'guests', 'churn'],
+    queryFn: get('/reputation/guests/churn'),
+    ...common,
+  });
+
 export const useDraftReply = () =>
   useMutation({
     mutationFn: async (reviewId) => {

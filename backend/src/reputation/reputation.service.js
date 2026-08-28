@@ -4,6 +4,7 @@ const summaryMod = require('../modules/reputation/summary');
 const replyMod = require('../modules/reputation/reply');
 const rankings = require('../modules/reputation/rankings');
 const guests = require('../modules/guests/repeat');
+const churn = require('../modules/guests/churn');
 const llm = require('../ai/llm.client');
 const { ValidationError, NotFoundError } = require('../shared/errors');
 
@@ -404,6 +405,26 @@ async function getGuestMetrics(restaurantId, { days } = {}) {
   });
 }
 
+/** How far back the churn view reads — long enough to include lapsed guests. */
+const CHURN_WINDOW_DAYS = 365;
+
+/**
+ * Churn risk and reorder prediction from each guest's own visit cadence.
+ */
+async function getChurnRisk(restaurantId) {
+  const rows = await repo.getGuestOrderHistory(restaurantId, CHURN_WINDOW_DAYS);
+  const predictions = churn.buildChurnPredictions(
+    rows.map((r) => ({
+      customerId: r.customer_id,
+      phone: r.phone,
+      name: r.name,
+      orderDates: r.order_dates,
+      totalSpend: Number(r.total_spend),
+    })),
+  );
+  return { ...predictions, windowDays: CHURN_WINDOW_DAYS };
+}
+
 /* ── Yumzy grounding ─────────────────────────────────────────────────────── */
 
 /**
@@ -478,6 +499,7 @@ module.exports = {
   recordCompetitorRating,
   deleteCompetitorRating,
   getGuestMetrics,
+  getChurnRisk,
   getSnapshot,
   PLATFORMS,
   DEFAULT_WINDOW_DAYS,
