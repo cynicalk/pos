@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Users, Info, Copy, Check, TrendingDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Users, Info, Copy, Check, TrendingDown, Gift, Printer, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useGuestMetrics, useChurnRisk } from '../hooks/useReputation';
+import { useWinbackOffers, useCreateWinbackOffer } from '../hooks/useWinback';
 import { useCurrency } from '../context/CurrencyContext';
 
 /**
@@ -91,6 +94,89 @@ const shortDate = (iso) => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
+const shortDateLong = (iso) => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const offerLine = (o) =>
+  `${o.discountValue}% off${o.minOrderAmount > 0 ? ` on orders over ₹${o.minOrderAmount}` : ''}`;
+
+/**
+ * Print one winback offer as a hand-over slip: the QR (encoding the code), the
+ * code in plain text so the counter can key it in, and the terms. Opens a bare
+ * print window rather than fighting the app's layout with print CSS, so what
+ * prints is exactly the slip and nothing else.
+ */
+function printOffer(offer, qrDataUrl) {
+  const w = window.open('', '_blank', 'width=420,height=620');
+  if (!w) return;
+  const esc = (s) => String(s ?? '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  w.document.write(`<!doctype html><html><head><title>Winback offer ${esc(offer.code)}</title>
+    <style>
+      body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:32px;color:#1a1a1a;text-align:center}
+      .card{border:1.5px dashed #bbb;border-radius:14px;padding:26px 22px;max-width:320px;margin:0 auto}
+      h1{font-size:19px;margin:0 0 2px} .sub{color:#666;font-size:13px;margin:0 0 18px}
+      img{width:210px;height:210px} .code{font-size:24px;font-weight:700;letter-spacing:2px;margin:16px 0 4px}
+      .terms{font-size:15px;font-weight:600;margin:8px 0 2px} .fine{color:#666;font-size:12px;line-height:1.5;margin-top:10px}
+    </style></head><body>
+    <div class="card">
+      <h1>We miss you${offer.guest?.name ? `, ${esc(offer.guest.name.split(' ')[0])}` : ''}!</h1>
+      <p class="sub">Here's a little something to bring you back</p>
+      <img src="${qrDataUrl}" alt="offer code"/>
+      <div class="code">${esc(offer.code)}</div>
+      <div class="terms">${esc(offerLine(offer))}</div>
+      <p class="fine">Show this at the counter on your next visit. Valid until ${esc(shortDateLong(offer.expiresAt))}. One use.</p>
+    </div>
+    <script>window.onload=function(){window.print();}</script>
+    </body></html>`);
+  w.document.close();
+}
+
+/** A just-issued (or reopened) offer, shown with its QR and a print button. */
+function WinbackCard({ offer, onClose }) {
+  const [qr, setQr] = useState(null);
+  useEffect(() => {
+    QRCode.toDataURL(offer.code, { width: 240, margin: 2 }).then(setQr).catch(() => {});
+  }, [offer.code]);
+
+  // Rendered into document.body: the dashboard layout uses a transformed
+  // container, and a position:fixed overlay inside it would anchor to that box
+  // (off-centre) instead of the viewport. A portal escapes it.
+  return createPortal((
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', width: 340, maxWidth: '100%', textAlign: 'center', position: 'relative' }}>
+        <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--mute)' }}>
+          <X size={17} strokeWidth={2.2} />
+        </button>
+        <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--label)' }}>
+          Winback offer
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: '4px 0 14px' }}>
+          {offer.guest?.name || 'Guest'}
+        </div>
+        {qr
+          ? <img src={qr} alt="offer QR code" style={{ width: 200, height: 200 }} />
+          : <div style={{ width: 200, height: 200, margin: '0 auto', background: 'var(--paper-3)', borderRadius: 8 }} />}
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 2, color: 'var(--ink)', margin: '12px 0 2px', fontFamily: 'ui-monospace, monospace' }}>
+          {offer.code}
+        </div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>{offerLine(offer)}</div>
+        <p style={{ fontSize: 11.5, color: 'var(--mute)', lineHeight: 1.5, margin: '10px 0 16px' }}>
+          Printed and handed over — there is no send channel yet. The code applies at the till like any
+          coupon; valid until {shortDateLong(offer.expiresAt)}, one use.
+        </p>
+        <button style={{ ...btn(true), width: '100%', justifyContent: 'center', padding: '8px 10px' }} onClick={() => printOffer(offer, qr)}>
+          <Printer size={13} strokeWidth={2.2} /> Print offer
+        </button>
+      </div>
+    </div>
+  ), document.body);
+}
+
 /**
  * Churn risk from each guest's own cadence — the per-guest answer to the fixed
  * 30-day winback window. "Overdue" means overdue for THIS guest: a weekly
@@ -98,6 +184,22 @@ const shortDate = (iso) => {
  */
 function ChurnSection({ format }) {
   const { data, isLoading } = useChurnRisk();
+  const { data: winback } = useWinbackOffers();
+  const createOffer = useCreateWinbackOffer();
+  const [activeOffer, setActiveOffer] = useState(null);
+
+  // The open offer per guest, so a guest who already has one shows Print, not
+  // Create — the backend refuses a second, and the UI should not invite it.
+  const openByGuest = new Map(
+    (winback?.offers || [])
+      .filter((o) => o.status === 'open')
+      .map((o) => [o.guest.customerId, o]),
+  );
+
+  const issue = (customerId) => {
+    createOffer.mutate(customerId, { onSuccess: (offer) => setActiveOffer(offer) });
+  };
+
   if (isLoading || !data) return null;
   if (data.predictableGuests === 0) {
     return (
@@ -132,7 +234,17 @@ function ChurnSection({ format }) {
         <Stat value={data.dueSoonCount} label="due back soon" />
         <Stat value={data.predictableGuests} label="guests with a cadence"
           sub={data.insufficientHistory > 0 ? `${data.insufficientHistory} too new to predict` : null} />
+        {winback && winback.summary.total > 0 && (
+          <Stat value={winback.summary.open} label="winback offers open"
+            sub={winback.summary.redeemed > 0 ? `${winback.summary.redeemed} redeemed` : null} />
+        )}
       </div>
+
+      {createOffer.isError && (
+        <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--bad)' }}>
+          {createOffer.error?.response?.data?.error || 'Could not create the offer.'}
+        </p>
+      )}
 
       {rows.length === 0 ? (
         <p style={{ fontSize: 13, color: 'var(--mute)' }}>No guest is overdue or due back right now.</p>
@@ -145,6 +257,7 @@ function ChurnSection({ format }) {
             <th style={th}>Status</th>
             <th style={th}>Predicted next</th>
             <th style={th}>Spent</th>
+            <th style={th}>Winback</th>
             <th style={th} />
           </tr></thead>
           <tbody>
@@ -159,6 +272,21 @@ function ChurnSection({ format }) {
                   {g.daysUntilPredicted < 0 && <span style={{ color: 'var(--warn)' }}> ({-g.daysUntilPredicted}d late)</span>}
                 </td>
                 <td style={td}>{format(g.totalSpend)}</td>
+                <td style={td}>
+                  {openByGuest.has(g.customerId) ? (
+                    <button style={btn()} onClick={() => setActiveOffer(openByGuest.get(g.customerId))}>
+                      <Printer size={12} strokeWidth={2.2} /> {openByGuest.get(g.customerId).code}
+                    </button>
+                  ) : (
+                    <button
+                      style={btn()}
+                      disabled={createOffer.isPending}
+                      onClick={() => issue(g.customerId)}
+                    >
+                      <Gift size={12} strokeWidth={2.2} /> Create offer
+                    </button>
+                  )}
+                </td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <CopyButton text={g.phone} label={`Copy phone number for ${g.name || 'guest'}`} />
                 </td>
@@ -167,6 +295,8 @@ function ChurnSection({ format }) {
           </tbody>
         </table>
       )}
+
+      {activeOffer && <WinbackCard offer={activeOffer} onClose={() => setActiveOffer(null)} />}
     </div>
   );
 }

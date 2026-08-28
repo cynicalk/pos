@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 9 partial, 52 built, 8 shell, 10 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 9 partial, 53 built, 8 shell, 9 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -455,9 +455,9 @@ export const CATALOGUE = [
     "family": "Winback & Retention",
     "phase": 2,
     "tier": "base",
-    "status": "absent",
-    "surface": "",
-    "note": "Printed table/packaging offers; not built.",
+    "status": "built",
+    "surface": "/guests",
+    "note": "Issues a single-use discount (real coupon) to a lapsed guest, printable as a QR; redeems at the till, no send channel implied.",
     "archivedStatus": null
   },
   {
