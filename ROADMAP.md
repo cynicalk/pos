@@ -23,11 +23,15 @@ _Last updated: 2026-08-28._
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
 
-Recently shipped: the guest dine-in app integration (`/api/guest`), and the
+Recently shipped: the guest dine-in app integration (`/api/guest`); the
 **Tier 0 forecasting set** — Demand Forecast, Prep Sheet, Inventory Forecast,
 Auto Reorder, Shift Planning, Cost-based Scheduling — all on one seasonal-naive
 engine, each carrying the accuracy it earned and abstaining where it cannot
-speak.
+speak; the **ETA enhancement** (visit intent + party-size); and the **Delivery
+P&L** — the operating margin on Economics now counts the delivery platform's
+take (from settlements) alongside food and labour, closing the last cost the
+page previously only named. F-01's per-order commission breakdown was already
+present in the Payouts settlement detail.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -72,13 +76,7 @@ Ordered by leverage against data and infrastructure that already exist.
    honestly show "queued — pending channel connection" instead of a `console.log`
    stub. Readies the two absent WhatsApp features too.
 
-2. **Delivery P&L (LoopAI F-01 + F-06).** The clearest investor-ROI story:
-   per-order commission / tax / platform-fee breakdown on delivery orders, and a
-   daily margin (revenue − food − labour − commission) on the owner briefing.
-   Both build on data already captured (aggregator orders, waste/GRN, and now the
-   labour cost from Cost-based Scheduling).
-
-3. **Data-gated quick wins.**
+2. **Data-gated quick wins.**
    - *New Item Performance Tracker* (partial): add `menu_items.created_at` launch
      dates + a seed backfill and the tracker lights up.
    - *Payout Leakage Detector* (partial): it detects leakage but raises no task —

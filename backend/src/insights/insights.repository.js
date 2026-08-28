@@ -192,8 +192,44 @@ const getTimezone = (restaurantId) =>
     [restaurantId],
   ).then((r) => r.rows[0]?.value || 'UTC');
 
+/**
+ * Delivery platform cost for the period, from reconciled settlement lines.
+ *
+ * The real cost of an aggregator order is what the platform kept: commission,
+ * the taxes withheld on it (TDS/TCS), and any SLA penalty — i.e. gross minus the
+ * net that actually landed. Only orders whose settlement CSV has been imported
+ * appear here, so `reconciledOrders` is reported alongside the total delivery
+ * orders in the period: a commission figure that silently covered half of
+ * delivery would flatter the margin exactly where it hurts.
+ */
+const getDeliveryCostTotals = (restaurantId, days) =>
+  db.query(
+    `SELECT
+       COALESCE(SUM(so.commission), 0)::float8                    AS commission,
+       COALESCE(SUM(so.tds + so.tcs), 0)::float8                  AS taxes_withheld,
+       COALESCE(SUM(so.sla_penalty), 0)::float8                   AS penalties,
+       COALESCE(SUM(so.gross_amount - so.net_amount), 0)::float8  AS platform_take,
+       COALESCE(SUM(so.gross_amount), 0)::float8                  AS gross,
+       COUNT(*)::int                                              AS reconciled_orders
+     FROM settlement_orders so
+     WHERE so.restaurant_id = $1
+       AND so.order_date >= (now())::date - $2::int`,
+    [restaurantId, days],
+  ).then((r) => r.rows[0]);
+
+/** How many delivery orders the period actually had, for reconciliation coverage. */
+const getDeliveryOrderCount = (restaurantId, days) =>
+  db.query(
+    `SELECT COUNT(*)::int AS n
+       FROM orders
+      WHERE restaurant_id = $1 AND channel = 'delivery'
+        AND created_at >= now() - make_interval(days => $2)`,
+    [restaurantId, days],
+  ).then((r) => r.rows[0].n);
+
 module.exports = {
   getMenuPerformance, getSpanDays, getBasketLines, getNewItems, getHourBuckets,
   getEconomicsTotals, getCancellationTotals, getFoodCostTotals,
+  getDeliveryCostTotals, getDeliveryOrderCount,
   getAllItemQuantities, getTimezone,
 };

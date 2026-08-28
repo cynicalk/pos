@@ -100,15 +100,45 @@ async function getEconomics(restaurantId, daysRaw) {
   // quoted without labour flatters the operator by exactly what they pay staff.
   const revenue = Number(totals.revenue || 0);
   const labour = await labourService.getLabourTotals(restaurantId, periodDays, revenue);
+  const hasFoodCost = base.foodCost.foodCostPct !== null;
+  const hasLabour = labour.totalHours > 0;
   const primeCost = labourHours.computePrimeCost({
     foodCost: base.foodCost.foodCost,
     labourCost: labour.labourCost,
     revenue,
-    hasFoodCost: base.foodCost.foodCostPct !== null,
-    hasLabour: labour.totalHours > 0,
+    hasFoodCost,
+    hasLabour,
   });
 
-  return { ...base, labour, primeCost };
+  // Delivery platform take — countable now that settlements land, closing the
+  // last cost the economics page previously only named. Coverage travels with
+  // it so a partial reconciliation cannot flatter the margin.
+  const [deliveryTotals, deliveryOrders] = await Promise.all([
+    repo.getDeliveryCostTotals(restaurantId, periodDays),
+    repo.getDeliveryOrderCount(restaurantId, periodDays),
+  ]);
+  const reconciledOrders = Number(deliveryTotals.reconciled_orders || 0);
+  const delivery = {
+    commission: Number(deliveryTotals.commission || 0),
+    taxesWithheld: Number(deliveryTotals.taxes_withheld || 0),
+    penalties: Number(deliveryTotals.penalties || 0),
+    platformTake: Number(deliveryTotals.platform_take || 0),
+    gross: Number(deliveryTotals.gross || 0),
+    reconciledOrders,
+    deliveryOrders: Number(deliveryOrders || 0),
+    coveragePct: deliveryOrders > 0 ? Math.round((reconciledOrders / deliveryOrders) * 100) : null,
+  };
+  const operatingMargin = labourHours.computeOperatingMargin({
+    revenue,
+    foodCost: base.foodCost.foodCost,
+    labourCost: labour.labourCost,
+    deliveryCost: delivery.platformTake,
+    hasFoodCost,
+    hasLabour,
+    hasDelivery: reconciledOrders > 0,
+  });
+
+  return { ...base, labour, primeCost, delivery, operatingMargin };
 }
 
 module.exports = {

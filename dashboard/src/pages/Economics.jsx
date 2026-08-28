@@ -118,9 +118,9 @@ export default function Economics() {
                         background: 'var(--paper-2)', borderRadius: 9, alignItems: 'flex-start' }}>
             <Info size={14} strokeWidth={2} style={{ color: 'var(--mute)', flexShrink: 0, marginTop: 2 }} />
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: 'var(--mute)' }}>
-              These are the costs CookLyt can see. Not included: {data.costPerOrder.excludes.join(', ')}.
-              Commission and platform taxes need aggregator settlements, which aren't connected yet —
-              so the figures above are a floor, not a full cost.
+              These are the costs CookLyt can attribute to a single order: {data.costPerOrder.excludes.join(', ')}.
+              Platform commission is not attributed per order — it lands per settlement — so it is
+              counted at the period level in the operating margin below, not in this per-order floor.
             </p>
           </div>
 
@@ -179,6 +179,51 @@ export default function Economics() {
               </p>
             </div>
           )}
+
+          <h2 style={{ margin: '26px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+            Delivery cost &amp; operating margin
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10, marginTop: 10 }}>
+            <Stat
+              label="Platform take"
+              value={data.delivery.deliveryOrders === 0 ? '—' : format(data.delivery.platformTake)}
+              sub={data.delivery.reconciledOrders > 0
+                ? `${format(data.delivery.commission)} commission + taxes/penalties`
+                : 'no settlements reconciled'}
+            />
+            <Stat
+              label="Reconciled"
+              value={data.delivery.deliveryOrders === 0
+                ? 'No delivery'
+                : `${data.delivery.reconciledOrders} of ${data.delivery.deliveryOrders}`}
+              sub={data.delivery.coveragePct == null ? 'delivery orders' : `${data.delivery.coveragePct}% of delivery orders`}
+            />
+            <Stat
+              label="Operating margin"
+              value={data.operatingMargin.operatingMarginPct == null
+                ? 'Not available'
+                : `${data.operatingMargin.operatingMarginPct.toFixed(1)}%`}
+              sub={data.operatingMargin.complete ? format(data.operatingMargin.operatingMargin) : 'revenue − food − labour − delivery'}
+            />
+            <Stat label="Operating cost"
+              value={data.operatingMargin.operatingCost == null ? '—' : format(data.operatingMargin.operatingCost)}
+              sub="food + labour + platform take" />
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, padding: '11px 14px',
+                        background: data.operatingMargin.complete ? 'var(--paper-2)' : 'var(--warn-soft)', borderRadius: 9, alignItems: 'flex-start' }}>
+            <Info size={14} strokeWidth={2} style={{ color: data.operatingMargin.complete ? 'var(--mute)' : 'var(--warn)', flexShrink: 0, marginTop: 2 }} />
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: data.operatingMargin.complete ? 'var(--mute)' : 'var(--ink-2)' }}>
+              {data.operatingMargin.complete ? (
+                <>Operating margin is revenue less food, labour and the delivery platform's take —
+                a contribution margin <strong style={{ fontWeight: 600 }}>before</strong> rent, utilities
+                and overheads, not net profit.
+                {data.delivery.coveragePct != null && data.delivery.coveragePct < 100 &&
+                  ` Delivery commission covers ${data.delivery.coveragePct}% of delivery orders — the rest await their settlement.`}</>
+              ) : (
+                <>Operating margin needs its cost halves. Missing: {data.operatingMargin.missing.join('; ')}.</>
+              )}
+            </p>
+          </div>
 
           <h2 style={{ margin: '26px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Cancellations</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10, marginTop: 10 }}>

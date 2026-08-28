@@ -115,6 +115,47 @@ function computePrimeCost({ foodCost, labourCost, revenue, hasLabour, hasFoodCos
   };
 }
 
+/**
+ * Operating margin — the full P&L now that settlements land: revenue less food,
+ * labour and the platform's delivery take.
+ *
+ * The margin is "complete" on food + labour + revenue, the costs that apply to
+ * every order. Delivery commission is additive: it is folded in whenever any
+ * settlement was reconciled, and its coverage travels alongside so a period with
+ * half its delivery orders reconciled does not read as if the whole platform
+ * cost were counted. A margin quoted as complete while a cost is missing is the
+ * one number on this page that could mislead in the operator's favour.
+ */
+function computeOperatingMargin({
+  revenue, foodCost, labourCost, deliveryCost,
+  hasFoodCost, hasLabour, hasDelivery,
+}) {
+  const rev = Number(revenue || 0);
+  const food = Number(foodCost || 0);
+  const labour = Number(labourCost || 0);
+  const delivery = Number(deliveryCost || 0);
+  const complete = Boolean(hasFoodCost) && Boolean(hasLabour) && rev > 0;
+
+  const operatingCost = food + labour + delivery;
+  return {
+    revenue: round2(rev),
+    foodCost: round2(food),
+    labourCost: round2(labour),
+    deliveryCost: round2(delivery),
+    deliveryIncluded: Boolean(hasDelivery),
+    operatingCost: complete ? round2(operatingCost) : null,
+    operatingMargin: complete ? round2(rev - operatingCost) : null,
+    operatingMarginPct: complete ? round2(((rev - operatingCost) / rev) * 100) : null,
+    complete,
+    missing: [
+      ...(hasFoodCost ? [] : ['food cost — no costed recipes on the dishes sold']),
+      ...(hasLabour ? [] : ['labour — no shifts logged in this period']),
+      ...(hasDelivery ? [] : ['delivery commission — no settlements reconciled for this period']),
+    ],
+  };
+}
+
 module.exports = {
   MAX_SHIFT_HOURS, hoursBetween, reviewShift, computeLabourTotals, computePrimeCost,
+  computeOperatingMargin,
 };

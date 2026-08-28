@@ -3,6 +3,7 @@ const crossSell = require('../src/modules/menu/cross-sell');
 const newItems = require('../src/modules/menu/new-items');
 const hours = require('../src/modules/dinein/hours');
 const economics = require('../src/modules/economics/unit-economics');
+const labourHours = require('../src/modules/labour/hours');
 
 // Economics and menu intelligence (MERGE_PLAN.md Phase 3). All pure — the
 // fetching half lives in insights.repository.js.
@@ -271,5 +272,37 @@ describe('unit economics', () => {
     expect(e.costPerOrder.avgOrderValue).toBe(0);
     expect(e.cancellation.cancellationPct).toBe(0);
     expect(e.cancellation.avgLostPerCancellation).toBe(0);
+  });
+});
+
+describe('operating margin (delivery included)', () => {
+  const base = {
+    revenue: 100000, foodCost: 30000, labourCost: 25000, deliveryCost: 8000,
+    hasFoodCost: true, hasLabour: true, hasDelivery: true,
+  };
+
+  test('revenue less food, labour and platform take', () => {
+    const m = labourHours.computeOperatingMargin(base);
+    expect(m.complete).toBe(true);
+    expect(m.operatingCost).toBe(63000);          // 30k + 25k + 8k
+    expect(m.operatingMargin).toBe(37000);
+    expect(m.operatingMarginPct).toBe(37);
+    expect(m.deliveryIncluded).toBe(true);
+  });
+
+  test('folds delivery in when reconciled, and stands without it', () => {
+    const noDelivery = labourHours.computeOperatingMargin({ ...base, deliveryCost: 0, hasDelivery: false });
+    // Still complete on food + labour, but the missing cost is named, not zeroed.
+    expect(noDelivery.complete).toBe(true);
+    expect(noDelivery.deliveryIncluded).toBe(false);
+    expect(noDelivery.operatingMargin).toBe(45000); // 100k − 30k − 25k
+    expect(noDelivery.missing).toContain('delivery commission — no settlements reconciled for this period');
+  });
+
+  test('withholds the margin when a core cost is missing', () => {
+    const noLabour = labourHours.computeOperatingMargin({ ...base, labourCost: 0, hasLabour: false });
+    expect(noLabour.complete).toBe(false);
+    expect(noLabour.operatingMargin).toBeNull();
+    expect(noLabour.missing).toContain('labour — no shifts logged in this period');
   });
 });
