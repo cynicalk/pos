@@ -15,14 +15,26 @@ const { ValidationError, NotFoundError } = require('../shared/errors');
  * restaurant looking at a spinner.
  */
 
-// One translation pass covers this many dishes. Same reasoning as the review
-// classifier's batch cap: a whole menu in one prompt is where a small model
-// starts losing its place and returns a list of the wrong length.
-const TRANSLATE_BATCH = 15;
+// Dishes per model call. Small on purpose: a short list is where a small model
+// keeps its place and returns the right length, and a failed chunk loses only a
+// few dishes instead of the whole menu (each chunk saves on its own, the moment
+// it comes back — so even a client timeout mid-run never loses what completed).
+const TRANSLATE_CHUNK = 6;
 
-// Operator-initiated, so waiting is expected — but bounded, and well under the
-// dashboard's own ceiling for this call.
-const TRANSLATE_TIMEOUT_MS = 60_000;
+// Dishes attempted per operator click. Bounded so the request fits the browser's
+// own timeout on a slow local model; the note tells the operator to run it again
+// to pick up the rest, and each run resumes exactly where the last left off.
+const TRANSLATE_MAX_PER_RUN = 12;
+
+// A cold just-in-time model load (LM Studio/Ollama load the model on first use)
+// is worn once here so the chunks after it run warm. Best-effort — its failure
+// is not fatal.
+const TRANSLATE_WARMUP_MS = 60_000;
+
+// Per-chunk budget. Generous because structured generation on a small local
+// model is not fast; a chunk that overruns is simply left for the next run.
+const TRANSLATE_CHUNK_MS = 60_000;
+
 
 /* ── The guest menu card ─────────────────────────────────────────────────── */
 
@@ -181,7 +193,7 @@ async function translateMenu(restaurantId, language) {
     );
   }
 
-  const pending = await repo.listUntranslated(restaurantId, language, TRANSLATE_BATCH);
+  const pending = await repo.listUntranslated(restaurantId, language, TRANSLATE_MAX_PER_RUN);
   if (!pending.length) {
     return { translated: 0, remaining: 0, note: 'Everything on the menu is already translated.' };
   }
@@ -195,43 +207,62 @@ async function translateMenu(restaurantId, language) {
     };
   }
 
-  let entries;
-  try {
-    const { content } = await llm.chat([
+  // Prime the model once so the first chunk is not paying a cold just-in-time
+  // load inside its own timeout — that cold load is what silently failed before.
+  await llm.warmup(TRANSLATE_WARMUP_MS);
+
+  // Translate in small chunks, saving each that parses cleanly. A chunk is
+  // still all-or-nothing WITHIN itself (a short or reordered list would misalign
+  // those dishes), but one bad chunk no longer discards the whole menu.
+  let translated = 0;
+  let failedChunks = 0;
+  // Attempt a chunk with schema-constrained output; if the server rejects the
+  // response_format (some don't), fall back to a plain call — the parser handles
+  // free-form JSON too, so the schema is a reliability bonus, not a requirement.
+  const runChunk = async (chunk) => {
+    const messages = [
       { role: 'system', content: translate.buildPrompt(language) },
-      { role: 'user', content: translate.buildItemList(pending) },
-    ], {
-      temperature: 0.2,
-      maxTokens: 1200,
-      retries: 1,
-      timeoutMs: TRANSLATE_TIMEOUT_MS,
-    });
-    entries = translate.parseTranslations(content, pending.length);
-  } catch {
-    entries = null;
-  }
-
-  if (!entries) {
-    return {
-      translated: 0,
-      remaining: pending.length,
-      note: 'The model did not return a usable translation for every dish, so none were saved. '
-        + 'A partial list would have put each translation on the wrong dish.',
-    };
-  }
-
-  for (let i = 0; i < pending.length; i += 1) {
-    await repo.cacheTranslation(restaurantId, pending[i].id, language, entries[i]);
-  }
-
-  const stillPending = await repo.listUntranslated(restaurantId, language, TRANSLATE_BATCH);
-  return {
-    translated: pending.length,
-    remaining: stillPending.length,
-    note: stillPending.length > 0
-      ? `${stillPending.length} more to go — run it again to continue.`
-      : null,
+      { role: 'user', content: translate.buildItemList(chunk) },
+    ];
+    const opts = { temperature: 0.2, maxTokens: 1600, retries: 1, timeoutMs: TRANSLATE_CHUNK_MS };
+    try {
+      const { content } = await llm.chat(messages, { ...opts, responseFormat: translate.RESPONSE_FORMAT });
+      return translate.parseTranslations(content, chunk.length);
+    } catch {
+      try {
+        const { content } = await llm.chat(messages, opts);
+        return translate.parseTranslations(content, chunk.length);
+      } catch {
+        return null;
+      }
+    }
   };
+
+  for (let i = 0; i < pending.length; i += TRANSLATE_CHUNK) {
+    const chunk = pending.slice(i, i + TRANSLATE_CHUNK);
+    const entries = await runChunk(chunk);
+
+    if (!entries) { failedChunks += 1; continue; }
+    for (let j = 0; j < chunk.length; j += 1) {
+      await repo.cacheTranslation(restaurantId, chunk[j].id, language, entries[j]);
+    }
+    translated += chunk.length;
+  }
+
+  const stillPending = await repo.listUntranslated(restaurantId, language, TRANSLATE_MAX_PER_RUN);
+
+  let note = null;
+  if (translated === 0) {
+    note = 'The model could not return a usable translation for any batch, so nothing was saved. '
+      + 'Nothing was written to the wrong dish — try again; the model may just have been loading.';
+  } else if (failedChunks > 0) {
+    note = `Saved ${translated}. ${failedChunks} batch(es) didn't come back usable and were left `
+      + 'for a retry — run it again to pick them up.';
+  } else if (stillPending.length > 0) {
+    note = `${stillPending.length} more to go — run it again to continue.`;
+  }
+
+  return { translated, remaining: stillPending.length, failedChunks, note };
 }
 
 module.exports = {
@@ -240,5 +271,6 @@ module.exports = {
   declareIngredient,
   getTranslationStatus,
   translateMenu,
-  TRANSLATE_BATCH,
+  TRANSLATE_CHUNK,
+  TRANSLATE_MAX_PER_RUN,
 };

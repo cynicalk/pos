@@ -43,8 +43,9 @@ function buildPrompt(language) {
     + '- Translate the DESCRIPTIONS naturally into fluent language.\n'
     + '- Do not add ingredients, spice levels, or claims that are not in the original.\n'
     + '- If a description is empty, return an empty string for it.\n'
-    + 'Reply with ONLY a JSON array, one object per numbered item, in the same order: '
-    + '[{"name":"...","description":"..."}]. No other text.';
+    + 'Reply with ONLY a JSON object with a "translations" array, one entry per '
+    + 'numbered item, in the same order: '
+    + '{"translations":[{"name":"...","description":"..."}]}. No other text.';
 }
 
 /** The items, numbered, as the model sees them. */
@@ -62,17 +63,32 @@ function buildItemList(items) {
  * wrong dish, which on a menu means a guest reading the allergen-free dish's
  * name above the one with peanuts in it.
  */
-function parseTranslations(content, expectedCount) {
-  const match = String(content || '').match(/\[[\s\S]*\]/);
-  if (!match) return null;
-
-  let parsed;
-  try {
-    parsed = JSON.parse(match[0]);
-  } catch {
-    return null;
+// Pull the translation array out of a model reply, tolerating both shapes: a
+// bare `[...]` array (the original prompt, and servers without JSON mode) and a
+// `{"translations":[...]}` object (JSON-mode output, whose root must be an
+// object). Chatter around it is ignored — the array is what matters.
+function extractArray(content) {
+  const text = String(content || '');
+  const objMatch = text.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try {
+      const obj = JSON.parse(objMatch[0]);
+      const arr = obj.translations || obj.items || obj.dishes;
+      if (Array.isArray(arr)) return arr;
+    } catch { /* fall through to the bare-array form */ }
   }
+  const arrMatch = text.match(/\[[\s\S]*\]/);
+  if (arrMatch) {
+    try {
+      const arr = JSON.parse(arrMatch[0]);
+      if (Array.isArray(arr)) return arr;
+    } catch { /* not usable */ }
+  }
+  return null;
+}
 
+function parseTranslations(content, expectedCount) {
+  const parsed = extractArray(content);
   if (!Array.isArray(parsed) || parsed.length !== expectedCount) return null;
 
   const entries = [];
@@ -107,6 +123,35 @@ function localise(item, language) {
   };
 }
 
+// OpenAI-compatible structured-output format (LM Studio wants json_schema, not
+// json_object). Constrains the reply to {"translations":[{name,description}]},
+// which is exactly what the parser reads. Best-effort at the call site: a server
+// that rejects it is retried without, since the parser also handles free text.
+const RESPONSE_FORMAT = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'menu_translations',
+    strict: true,
+    schema: {
+      type: 'object',
+      properties: {
+        translations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              description: { type: 'string' },
+            },
+            required: ['name', 'description'],
+          },
+        },
+      },
+      required: ['translations'],
+    },
+  },
+};
+
 module.exports = {
   MENU_LANGUAGES,
   isSupported,
@@ -114,5 +159,7 @@ module.exports = {
   buildPrompt,
   buildItemList,
   parseTranslations,
+  extractArray,
   localise,
+  RESPONSE_FORMAT,
 };

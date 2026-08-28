@@ -8,6 +8,7 @@
 
 jest.mock('../src/ai/llm.client', () => ({
   reachable: jest.fn(async () => false),
+  warmup: jest.fn(async () => true),
   chat: jest.fn(async () => ({ content: '' })),
 }));
 

@@ -36,7 +36,7 @@ function applyThinkSwitch(messages, think) {
   return out;
 }
 
-function buildBody(messages, { tools, temperature, maxTokens, think = false, model, stream = false } = {}) {
+function buildBody(messages, { tools, temperature, maxTokens, think = false, model, stream = false, responseFormat } = {}) {
   const body = {
     model: model || LLM_MODEL,
     messages: applyThinkSwitch(messages, think),
@@ -46,6 +46,11 @@ function buildBody(messages, { tools, temperature, maxTokens, think = false, mod
   if (tools?.length)               body.tools = tools;
   if (temperature !== undefined)   body.temperature = temperature;
   if (maxTokens !== undefined)     body.max_tokens = maxTokens;
+  // Structured output (OpenAI `response_format`): a JSON schema or json_object.
+  // Servers that support it (LM Studio, hosted OpenAI-compatible) then guarantee
+  // well-formed JSON; ones that don't ignore the field and we fall back to the
+  // parser. Only sent when asked for, so nothing else changes.
+  if (responseFormat)              body.response_format = responseFormat;
   return body;
 }
 
@@ -174,4 +179,26 @@ async function reachable(timeoutMs = 1500) {
   }).then((r) => r.ok).catch(() => false);
 }
 
-module.exports = { chat, chatStream, healthCheck, reachable, LLM_MODEL, LLM_BASE_URL };
+/**
+ * Force the model into memory with a trivial one-token completion.
+ *
+ * `reachable()` only proves the server answers — with just-in-time loaders (LM
+ * Studio, Ollama) the model is not in memory until the first real request, and
+ * that cold load can take longer than a normal per-call timeout. A batch job
+ * pays that once here, under a generous budget, so the real requests that follow
+ * run warm and fast. Best-effort: returns false rather than throwing, and the
+ * caller proceeds either way.
+ */
+async function warmup(timeoutMs = 90_000) {
+  try {
+    await postCompletions(
+      buildBody([{ role: 'user', content: 'ping' }], { maxTokens: 1, temperature: 0 }),
+      { retries: 0, timeoutMs },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { chat, chatStream, healthCheck, reachable, warmup, LLM_MODEL, LLM_BASE_URL };

@@ -224,16 +224,24 @@ function TranslationsTab() {
   const [note, setNote] = useState(null);
 
   const run = useMutation({
-    // A local model writing a dozen dish names takes a while, and this is an
-    // explicit button press — the shared 8s client timeout is far too short.
+    // A local model writing dish names is slow, and on a cold just-in-time load
+    // the first run also pays the model-load cost — so this is generous, and far
+    // longer than the shared 8s client timeout.
     mutationFn: async (code) => (await api.post(
-      `/guestmenu/translations/${code}`, null, { timeout: 90_000 },
+      `/guestmenu/translations/${code}`, null, { timeout: 180_000 },
     )).data,
     onSuccess: (d) => {
       setNote(d.note || `Translated ${d.translated} dish${d.translated === 1 ? '' : 'es'}.`);
       queryClient.invalidateQueries({ queryKey: ['guestmenu'] });
     },
-    onError: () => setNote('The translation run did not finish. Nothing was saved.'),
+    // The server saves each batch as it finishes, so a timed-out run may still
+    // have written some — refresh the counts and say so, rather than claim
+    // nothing was saved.
+    onError: () => {
+      setNote('The run took longer than expected — any batches that finished were saved. '
+        + 'Give it a moment and run it again to continue.');
+      queryClient.invalidateQueries({ queryKey: ['guestmenu'] });
+    },
   });
 
   if (isLoading) return <p style={{ fontSize: 13, color: 'var(--mute)' }}>Loading…</p>;
