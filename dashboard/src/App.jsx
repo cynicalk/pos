@@ -72,6 +72,7 @@ const Group           = lazy(() => import('./pages/Group'));
 const MenuCard        = lazy(() => import('./pages/MenuCard'));
 const NutritionCard   = lazy(() => import('./pages/NutritionCard'));
 const Payouts         = lazy(() => import('./pages/Payouts'));
+const AccountingExport = lazy(() => import('./pages/AccountingExport'));
 
 function getStoredUser() {
   try { return JSON.parse(localStorage.getItem('pos_user') || 'null'); } catch { return null; }
@@ -205,6 +206,7 @@ export default function App() {
             <Route path="/menu-card"     element={<RequireAdmin><MenuCard /></RequireAdmin>} />
             <Route path="/menu-card/nutrition" element={<RequireAdmin><NutritionCard /></RequireAdmin>} />
             <Route path="/payouts"       element={<RequireAdmin><Payouts /></RequireAdmin>} />
+            <Route path="/accounting"    element={<RequireAdmin><AccountingExport /></RequireAdmin>} />
 
             {/* Tier 0 forecasting — shells becoming real pages as the engine
                 reaches them. Their paths do not move: settling the URLs early was

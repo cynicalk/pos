@@ -16,8 +16,8 @@ _Last updated: 2026-08-28._
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| built | **53** | Works against real data today |
-| partial | 9 | Core built; one honest gap named in the catalogue note |
+| built | **54** | Works against real data today |
+| partial | 8 | Core built; one honest gap named in the catalogue note |
 | shell | 8 | Honest empty screen on a real route; needs data or infra |
 | absent | 9 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
@@ -43,7 +43,18 @@ macros exploded from each dish's recipe through per-ingredient nutrition
 (migration 085), the same arithmetic the prep sheet does for cost. It never
 guesses: a dish with even one undeclared ingredient reports nothing rather than a
 number nearly right, coverage is stated as a percentage of costed dishes, and the
-same figures now feed the guest app's dish detail (previously hardcoded null).
+same figures now feed the guest app's dish detail (previously hardcoded null);
+**QR Winback Offers** (absent → built) — the Guests churn table can issue a
+single-use discount to a lapsed guest, printable as a QR; the discount is a real
+coupon (redeems at the till through the existing engine, status read back from
+it), sized by churn severity with the minimum order anchored to the guest's own
+average spend, and honest that there is no send channel — it is printed and
+handed over; and the **POS Accounting Bridge** (partial → built) — a period's
+takings exported as balanced double-entry vouchers, either Tally-importable XML
+or a journal CSV, produced server-side with no credentials (that is the separate
+blocked Tally auto-sync). Every voucher balances by construction (the discount is
+the billed-minus-collected plug), and where that plug disagrees with the POS's
+own discount total the gap is shown, not swallowed.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;

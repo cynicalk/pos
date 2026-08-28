@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 9 partial, 53 built, 8 shell, 9 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 8 partial, 54 built, 8 shell, 9 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -150,10 +150,10 @@ export const CATALOGUE = [
     "family": "Payouts & Finance",
     "phase": 1,
     "tier": "base",
-    "status": "partial",
+    "status": "built",
     "surface": "",
     "archivedStatus": "partial",
-    "note": "CSV export covers the manual workflow; no direct accounting format."
+    "note": "Balanced daily sales vouchers exported as Tally XML or journal CSV; no credentials needed (that is the separate Tally auto-sync shell)."
   },
   {
     "slug": "prime-cost-health",

@@ -62,7 +62,7 @@ const PATCH = {
   'prime-cost-health':            ['payouts', 1, 'base', null, 'Withheld when labour data missing; currently complete at ~39%.'],
   'labour-efficiency':            ['payouts', 1, 'base', null, ''],
   'invoice-parser':               ['payouts', 1, 'base', 'partial', 'Structured CSV intake only; deck implies OCR of photographed bills.'],
-  'pos-accounting-bridge':        ['payouts', 1, 'base', 'partial', 'CSV export covers the manual workflow; no direct accounting format.'],
+  'pos-accounting-bridge':        ['payouts', 1, 'base', 'built', 'Balanced daily sales vouchers exported as Tally XML or journal CSV; no credentials needed (that is the separate Tally auto-sync shell).'],
   'tally-integration':            ['payouts', 3, 'pro', 'shell', 'Honest shell; needs Tally API credentials issued to the deployment.'],
 
   // Menu Intelligence

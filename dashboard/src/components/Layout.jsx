@@ -50,6 +50,7 @@ import {
   BookMarked,
   ExternalLink,
   Flame,
+  FileSpreadsheet,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../api/client';
@@ -136,6 +137,7 @@ const ALL_NAV = [
       { to: '/variance', label: 'Variance',  Icon: Scale      },
       { to: '/economics',     label: 'Economics',     Icon: Coins   },
       { to: '/payouts',       label: 'Payouts',       Icon: Wallet  },
+      { to: '/accounting',    label: 'Accounting Export', Icon: FileSpreadsheet },
       { to: '/menu-insights', label: 'Menu Insights', Icon: Grid2X2 },
     ],
   },
