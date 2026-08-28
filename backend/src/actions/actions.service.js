@@ -5,6 +5,7 @@ const tracker = require('../modules/outcomes/tracker');
 const procurementRepo = require('../procurement/procurement.repository');
 const complianceService = require('../compliance/compliance.service');
 const reputationService = require('../reputation/reputation.service');
+const payoutsService = require('../payouts/payouts.service');
 const snapshotsRepo = require('../snapshots/snapshots.repository');
 const anomaly = require('../modules/analytics/anomaly');
 const { ValidationError, NotFoundError } = require('../shared/errors');
@@ -138,11 +139,12 @@ async function evaluateAll() {
 
 /** Open actions, ranked by rupee impact where an honest figure exists. */
 async function list(restaurantId, status) {
-  const actions = await repo.listActions(restaurantId, status);
-  const cancellationLoss = await repo.getCancellationLoss(
-    restaurantId, engine.CANCELLATION_WINDOW_DAYS,
-  );
-  return opportunity.rankActions(actions, { cancellationLoss });
+  const [actions, cancellationLoss, payoutLeakage] = await Promise.all([
+    repo.listActions(restaurantId, status),
+    repo.getCancellationLoss(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
+    payoutsService.getRecoverableBySettlement(restaurantId),
+  ]);
+  return opportunity.rankActions(actions, { cancellationLoss, payoutLeakage });
 }
 
 /** Current value of a tracked metric, or null when it isn't computable. */

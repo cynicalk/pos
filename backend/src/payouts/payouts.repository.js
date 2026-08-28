@@ -123,6 +123,17 @@ const getPosRevenue = (restaurantId, from, to) =>
     [restaurantId, from, to],
   ).then((r) => r.rows[0]);
 
+// Settlements that still have recoverable leakage, so the action centre can put
+// a rupee figure on the leakage task it raised — keyed by settlement id, which
+// is what the action's dedupe key carries.
+const getRecoverableSettlements = (restaurantId) =>
+  db.query(
+    `SELECT id, recoverable::float8 AS recoverable
+       FROM settlements
+      WHERE restaurant_id = $1 AND recoverable > 0`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
 module.exports = {
   getContract,
   listContracts,
@@ -132,4 +143,5 @@ module.exports = {
   listSettlementOrders,
   saveSettlement,
   getPosRevenue,
+  getRecoverableSettlements,
 };

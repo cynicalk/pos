@@ -2,11 +2,10 @@
  * Opportunity Score — ranks open actions by estimated rupee impact.
  * Ported from `src/modules/rules/opportunity.ts`, kept pure.
  *
- * The discipline that makes this worth anything: **only rule types with a
- * defensible rupee figure behind them get one.** In the source that was payout
- * variance (the settlement shortfall itself) and cancellations (revenue lost in
- * the window). POS has no settlements yet, so today exactly one rule quantifies:
- * high_cancellation, against real cancelled-order revenue.
+ * The discipline that makes this worth anything: **only actions with a
+ * defensible rupee figure behind them get one.** Two do: payout leakage (the
+ * recoverable settlement shortfall itself) and cancellations (revenue lost in
+ * the window). Both are measured, not modelled.
  *
  * Everything else — a rating dip, a stalled table — is genuine risk with no
  * honest number attached. Those rank by priority *below* the quantified ones and
@@ -24,10 +23,21 @@ const PRIORITY_WEIGHT = { critical: 3, high: 2, medium: 1, low: 0 };
  */
 function estimateOpportunities(actions, inputs = {}) {
   const cancellationLoss = Number(inputs.cancellationLoss || 0);
+  // { settlementId: recoverable } — the reconciled leakage behind each payout task.
+  const payoutLeakage = inputs.payoutLeakage || {};
   const estimates = new Map();
 
   for (const action of actions) {
-    if (action.rule_type === 'high_cancellation' && cancellationLoss > 0) {
+    // A payout leakage task carries its settlement id in the dedupe key, and its
+    // recoverable amount is the measured shortfall — the most defensible rupee
+    // figure on the page.
+    const leakMatch = /^payout_leakage:(.+)$/.exec(action.dedupe_key || '');
+    if (leakMatch && payoutLeakage[leakMatch[1]] > 0) {
+      estimates.set(action.id, {
+        amount: Number(payoutLeakage[leakMatch[1]]),
+        basis: 'recoverable settlement shortfall',
+      });
+    } else if (action.rule_type === 'high_cancellation' && cancellationLoss > 0) {
       estimates.set(action.id, {
         amount: cancellationLoss,
         basis: 'revenue on cancelled orders, last 30 days',

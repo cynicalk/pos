@@ -185,6 +185,27 @@ describe('opportunity ranking', () => {
     expect(ranked.every((a) => a.opportunity.amount === null)).toBe(true);
     expect(ranked.map((a) => a.id)).toEqual(['a', 'b', 'c']);
   });
+
+  test('a payout leakage task carries its recoverable shortfall as the amount', () => {
+    const withLeak = [
+      { id: 'leak', dedupe_key: 'payout_leakage:s1', priority: 'medium', created_at: '2026-08-02' },
+      ...actions,
+    ];
+    const ranked = opportunity.rankActions(withLeak, {
+      cancellationLoss: 8000,
+      payoutLeakage: { s1: 12000 },
+    });
+    // ₹12,000 recoverable outranks the ₹8,000 cancellation loss.
+    expect(ranked[0].id).toBe('leak');
+    expect(ranked[0].opportunity.amount).toBe(12000);
+    expect(ranked[0].opportunity.basis).toBe('recoverable settlement shortfall');
+  });
+
+  test('a leakage task with no matching recoverable is unquantified, not zero', () => {
+    const withLeak = [{ id: 'leak', dedupe_key: 'payout_leakage:s9', priority: 'medium', created_at: '2026-08-02' }];
+    const [ranked] = opportunity.rankActions(withLeak, { payoutLeakage: {} });
+    expect(ranked.opportunity.amount).toBeNull();
+  });
 });
 
 describe('outcome verdicts', () => {

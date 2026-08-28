@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 11 partial, 49 built, 9 shell, 10 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 9 partial, 51 built, 9 shell, 10 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -139,10 +139,10 @@ export const CATALOGUE = [
     "family": "Payouts & Finance",
     "phase": 1,
     "tier": "base",
-    "status": "partial",
+    "status": "built",
     "surface": "ops /payouts/[id]",
     "archivedStatus": "built",
-    "note": "Detects and ranks leakage but raises no task; deck says it raises a task."
+    "note": "Reconciliation raises a recoverable-leakage task in the action centre on import, ranked by its rupee shortfall via the opportunity score."
   },
   {
     "slug": "pos-accounting-bridge",
@@ -217,10 +217,10 @@ export const CATALOGUE = [
     "family": "Menu Intelligence",
     "phase": 1,
     "tier": "base",
-    "status": "partial",
+    "status": "built",
     "surface": "ops /menu",
     "archivedStatus": "built",
-    "note": "Needs menu_items.created_at; no dish has a launch date, so it tracks nothing yet."
+    "note": "Tracks dishes launched inside a recent window against the menu median, from menu_items.created_at; demo launch dates backfilled by scripts/backfill-launch-dates.js."
   },
   {
     "slug": "collection-gap-finder",

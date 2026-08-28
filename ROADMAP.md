@@ -30,8 +30,11 @@ engine, each carrying the accuracy it earned and abstaining where it cannot
 speak; the **ETA enhancement** (visit intent + party-size); and the **Delivery
 P&L** — the operating margin on Economics now counts the delivery platform's
 take (from settlements) alongside food and labour, closing the last cost the
-page previously only named. F-01's per-order commission breakdown was already
-present in the Payouts settlement detail.
+page previously only named (F-01's per-order commission breakdown was already
+present in the Payouts settlement detail); and two **data-gated wins** — the New
+Item Performance tracker now has spread launch dates to track against, and the
+Payout Leakage detector raises a recoverable-leakage task in the action centre,
+ranked by its rupee shortfall.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -76,13 +79,10 @@ Ordered by leverage against data and infrastructure that already exist.
    honestly show "queued — pending channel connection" instead of a `console.log`
    stub. Readies the two absent WhatsApp features too.
 
-2. **Data-gated quick wins.**
-   - *New Item Performance Tracker* (partial): add `menu_items.created_at` launch
-     dates + a seed backfill and the tracker lights up.
-   - *Payout Leakage Detector* (partial): it detects leakage but raises no task —
-     wire it into the Actions centre. In-app, no external dependency.
-   - *Customer Churn / Reorder Prediction* (LoopAI F-04): flag lapsed customers
-     from their own reorder cadence; a segment for the winback nudge.
+2. **Customer Churn / Reorder Prediction (LoopAI F-04).** Flag lapsed customers
+   from their own reorder cadence; a segment for the winback nudge. Still to
+   build — the two other data-gated wins (New Item Performance, Payout Leakage)
+   have shipped.
 
 ---
 

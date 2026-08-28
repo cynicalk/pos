@@ -55,7 +55,7 @@ const PATCH = {
 
   // Payouts & Finance
   'payout-checker':               ['payouts', 1, 'base', null, ''],
-  'payout-leakage-detector':      ['payouts', 1, 'base', 'partial', 'Detects and ranks leakage but raises no task; deck says it raises a task.'],
+  'payout-leakage-detector':      ['payouts', 1, 'base', 'built', 'Reconciliation raises a recoverable-leakage task in the action centre on import, ranked by its rupee shortfall via the opportunity score.'],
   'auditor-ready-transaction-log':['payouts', 1, 'base', null, ''],
   'cost-per-order':               ['payouts', 1, 'base', null, ''],
   'cancellation-cost':            ['payouts', 1, 'base', null, ''],
@@ -69,7 +69,7 @@ const PATCH = {
   'menu-performance':             ['menu', 1, 'base', null, ''],
   'menu-engineering':             ['menu', 1, 'base', null, ''],
   'cross-sell-map-builder':       ['menu', 1, 'base', null, 'Real lift; feeds nothing outbound yet.'],
-  'new-item-performance-tracker': ['menu', 1, 'base', 'partial', 'Needs menu_items.created_at; no dish has a launch date, so it tracks nothing yet.'],
+  'new-item-performance-tracker': ['menu', 1, 'base', 'built', 'Tracks dishes launched inside a recent window against the menu median, from menu_items.created_at; demo launch dates backfilled by scripts/backfill-launch-dates.js.'],
 
   // Competitor Intel
   'search-rank-tracker':          ['competitor', 1, 'base', null, 'Manual entry; CookLyt does not read any platform.'],

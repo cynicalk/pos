@@ -1,7 +1,55 @@
 const repo = require('./payouts.repository');
 const parser = require('../modules/payouts/parse');
 const reconciler = require('../modules/payouts/reconcile');
+const actionsRepo = require('../actions/actions.repository');
+const rulesEngine = require('../modules/rules/engine');
 const { ValidationError, NotFoundError } = require('../shared/errors');
+
+// Leakage below this is not worth a task — the reconciliation still records it,
+// but a ₹40 rounding difference is not a dispute anyone will file.
+const MIN_LEAKAGE_TO_RAISE = 100;
+// Above this, the recovery is worth flagging as an alert rather than a nudge.
+const HIGH_LEAKAGE = 1000;
+// A settlement is a one-shot import; its action need only be de-duped against a
+// re-import of the very same file within a long window.
+const LEAKAGE_COOLDOWN_HOURS = 24 * 60;
+
+/**
+ * Raise a task when a settlement leaves money on the table.
+ *
+ * The reconciliation already computes what is recoverable — commission
+ * overcharged against the contracted rate, SLA penalties, short payouts. Storing
+ * that on the settlement was never the point; the point is to recover it, which
+ * needs it in front of someone. So an import with real recoverable leakage
+ * raises an action in the same centre every other issue lands in, keyed to the
+ * settlement so a re-import does not stack a second one.
+ */
+async function maybeRaiseLeakageAction(restaurantId, settlement, report) {
+  const recoverable = Number(report.totalRecoverable || 0);
+  if (recoverable < MIN_LEAKAGE_TO_RAISE) return;
+
+  const dedupeKey = `payout_leakage:${settlement.id}`;
+  const suppressed = await actionsRepo.findSuppressedDedupeKeys(
+    restaurantId, [dedupeKey], LEAKAGE_COOLDOWN_HOURS,
+  );
+  if (suppressed.includes(dedupeKey)) return;
+
+  const priority = recoverable >= HIGH_LEAKAGE ? 'high' : 'medium';
+  const findingsCount = Array.isArray(report.findings) ? report.findings.length : 0;
+  const amount = Math.round(recoverable);
+  await actionsRepo.createAction(restaurantId, {
+    actionType: rulesEngine.actionTypeFor(priority),
+    dedupeKey,
+    title: `Recover ₹${amount} from the ${settlement.platform} settlement`,
+    description:
+      `Reconciling this ${settlement.platform} settlement found ₹${amount} recoverable`
+      + (findingsCount ? ` across ${findingsCount} finding${findingsCount === 1 ? '' : 's'}` : '')
+      + ' — commission overcharges, SLA penalties or short payouts. Open the settlement '
+      + 'to see it order by order and file the disputes.',
+    priority,
+    deliveredVia: 'dashboard',
+  });
+}
 
 /*
  * Settlement reconciliation (MERGE_PLAN.md Phase 8 — Tier 2).
@@ -163,6 +211,9 @@ async function importSettlement(restaurantId, { buffer, fileName, platform = nul
     parsed, report, fileName, userId,
   });
 
+  // Turn recoverable leakage into a task the operator will actually see.
+  await maybeRaiseLeakageAction(restaurantId, settlement, report);
+
   return {
     id: settlement.id,
     platform: settlement.platform,
@@ -242,6 +293,38 @@ async function getSettlementDetail(restaurantId, id) {
   };
 }
 
+/**
+ * Raise leakage tasks for settlements already imported before this existed.
+ *
+ * The reconciliation stored the recoverable amount on every past settlement but
+ * never surfaced it as a task. This walks them once; the per-settlement dedupe
+ * key makes it idempotent, so it can be run safely more than once.
+ */
+async function backfillLeakageActions(restaurantId) {
+  const { settlements } = await listSettlements(restaurantId);
+  let raised = 0;
+  for (const s of settlements) {
+    if (Number(s.recoverable) < MIN_LEAKAGE_TO_RAISE) continue;
+    const before = await actionsRepo.findSuppressedDedupeKeys(
+      restaurantId, [`payout_leakage:${s.id}`], LEAKAGE_COOLDOWN_HOURS,
+    );
+    if (before.length) continue; // already has an open/recent action
+    await maybeRaiseLeakageAction(
+      restaurantId, { id: s.id, platform: s.platform }, { totalRecoverable: s.recoverable, findings: s.findings },
+    );
+    raised += 1;
+  }
+  return raised;
+}
+
+/** Map of settlement id → recoverable amount, for ranking leakage tasks. */
+async function getRecoverableBySettlement(restaurantId) {
+  const rows = await repo.getRecoverableSettlements(restaurantId);
+  const map = {};
+  for (const r of rows) map[r.id] = Number(r.recoverable);
+  return map;
+}
+
 module.exports = {
   getContracts,
   saveContract,
@@ -249,6 +332,8 @@ module.exports = {
   importSettlement,
   listSettlements,
   getSettlementDetail,
+  getRecoverableBySettlement,
+  backfillLeakageActions,
   MAX_FILE_BYTES,
   HISTORY_LIMIT,
 };
