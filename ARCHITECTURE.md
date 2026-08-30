@@ -48,8 +48,8 @@ Router  →  Service  →  Repository  →  SQL
 
 `backend/src/modules/` holds pure functions only — no database import, no
 network. Anything that can be expressed as *inputs → output* lives here:
-forecasting maths, settlement reconciliation, review classification, the rules
-engine. Two consequences follow:
+forecasting maths, settlement reconciliation, prep reconciliation and over-prep
+prediction, review classification, the rules engine. Two consequences follow:
 
 1. **It is testable without a database.** The bulk of the test suite exercises
    these modules directly, in milliseconds, with hand-built inputs.
@@ -69,6 +69,36 @@ the upgrade with the same HttpOnly cookie the REST API uses, and the server
 pushes order, table, and kitchen state to the operator dashboard as it changes —
 so the floor view, the kitchen queue, and the live-ops rail update without
 polling.
+
+---
+
+## Feature toggles
+
+An admin can switch whole modules of the app off for their restaurant. The state
+is one `feature_flags` setting — a JSON object that stores only the *off* entries,
+so the default (and anything not listed) is on, and "enable everything" is the
+empty object. The keys are the nav paths themselves, which matters: the toggle
+list is *derived* from the same `ALL_NAV` the sidebar renders, so it cannot drift
+from the menu the operator actually sees.
+
+Enforcement is deliberately in two places, because each alone is insufficient:
+
+- **Client** — the sidebar filters switched-off entries out, and the router gates
+  their pages, so a disabled feature disappears from the UI and a typed URL lands
+  on an honest "turned off" panel rather than a blank screen.
+- **Server** — a `featureGate` middleware maps each toggle key to the backend
+  route(s) that serve it and returns `403 feature_disabled` on a direct call, so a
+  curl or a stale tab can't sail past a toggle. Routers shared by two features are
+  split by sub-path (longest prefix wins), so switching one off never switches off
+  the other. It reads the flag from the caller's own token claim and a short
+  per-restaurant cache that a toggle write busts at once.
+
+Two safety rules hold the mechanism together: the core POS flow and the admin
+screens needed to switch things back on are **protected** — they carry no switch
+and the filter forces them on, so an admin cannot lock out the till or themselves;
+and a handful of features whose data has no dedicated route (Costing reads
+Inventory and Recipes; Order History reads Orders) stay client-side only, a
+boundary documented in `feature-routes.js` rather than half-enforced.
 
 ---
 
@@ -142,10 +172,21 @@ outlet-total forecast  →  per-dish share  →  ingredient quantities
 The current model is a seasonal-naive baseline (weekday × recent level). It is
 deliberately labelled as the baseline everywhere it appears, and it declines to
 answer rather than guess: it refuses below a minimum history, excludes closed
-days from the level, derives its uncertainty band from its own backtested errors
+days from the level (and past promotion days, so a discount spike doesn't inflate
+a normal weekday), derives its uncertainty band from its own backtested errors
 rather than a parametric assumption, and routes intermittent dishes out of the
 prep sheet instead of averaging a dish that sells three on a Saturday down to
 "half a portion a day."
+
+**Waste prediction** is the same discipline turned toward what was *made*. The
+one number the waste picture always lacked — how much of each dish was prepped —
+is captured at two points (a pre-service plan, a post-service actual) and
+reconciled against what sold, so over-prep is measured per dish, not guessed.
+Once enough history accrues, the per-dish/weekday over-prep pattern is projected
+onto the next service, abstaining per dish below a history floor. It forecasts the
+likely *surplus* and flags chronic over-preppers; it never prescribes a prep
+quantity, because choosing one weighs the cost of running out against the cost of
+binning — shelf-life and stockout-cost data the POS does not hold.
 
 ---
 
