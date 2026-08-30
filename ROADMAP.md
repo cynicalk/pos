@@ -77,15 +77,20 @@ lands on an honest "turned off" panel). Flags are one `feature_flags` setting
 (JSON of only the OFF entries; empty means everything on), keyed by the same nav
 paths the sidebar renders so the list cannot drift; core POS and admin screens
 are protected so an admin cannot lock the till or themselves out. Enforcement is
-**both client and server**: a small `featureGate` middleware maps each toggle key
-to its dedicated API prefix and returns `403 feature_disabled` on a direct call to
-a switched-off feature, reading the flag from the caller's own token claim and a
-short per-restaurant cache that a toggle write busts at once. Features whose API
-prefix is shared with another (still-enabled) feature stay client-side for now —
-gating a shared router would switch off more than asked — so the server-enforced
-set is the dedicated-router subset (Reviews, Rankings, Coupons, Payouts,
-Accounting, Compliance, Outbox, Procurement, the Recipe-Mgmt routers, and
-Forecasting at the section level); the rest are listed honestly in the code.
+**both client and server**: a `featureGate` middleware maps each toggle key to its
+backend route(s) and returns `403 feature_disabled` on a direct call to a
+switched-off feature, reading the flag from the caller's own token claim and a
+short per-restaurant cache that a toggle write busts at once. Shared routers are
+split by **sub-path**, longest prefix winning — `/api/reputation/guests` is Guests
+while the rest is Rankings, `/api/reports/food-cost-variance` is Variance while the
+rest is Reports, `/api/compliance/sops` is the Playbook, `/api/insights/{economics
+vs menu…}` splits Economics from Menu Insights — so switching one feature off never
+switches off the other. A protected page that reads a gated feature (Overview's
+widgets) simply gets a 403 for that one call and renders empty; the client already
+tolerates it, so a disabled feature shows no data anywhere. The only features left
+client-side are the handful with **no dedicated server route** — Costing (reads
+Inventory + Recipes), Order History (reads Orders), the Market-Intel shells and the
+Tally integration (no live data route) — documented in `feature-routes.js`.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -130,15 +135,6 @@ Ordered by leverage against data and infrastructure that already exist.
    wire WhatsApp Business API credentials/config, drain `queued` rows to `sent`
    or `failed`, then route Smart Alerts and Staff Task nudges through the same
    enqueue path.
-
-2. **Feature-toggle enforcement — widen the map.** The `featureGate` middleware
-   now enforces the dedicated-router subset server-side (see *Recently shipped*).
-   What remains is the harder half of the map: features whose API prefix is shared
-   between two nav entries (Loyalty vs Guests both read `/api/loyalty`; History and
-   the Costing/Variance/Economics analytics pages over `/api/reports` and friends).
-   Enforcing those needs either per-route gating inside the shared router or a
-   finer key→sub-path map, decided feature by feature. Until then they are
-   client-side only, and that boundary is documented in `feature-routes.js`.
 
 ---
 

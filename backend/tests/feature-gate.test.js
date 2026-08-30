@@ -26,6 +26,26 @@ describe('featureForApiPath', () => {
     expect(featureForApiPath('/api/prep/forecast')).toBe('group:forecasting');
   });
 
+  test('splits a shared router by sub-path, longest prefix winning', () => {
+    // Reputation: Guests owns its churn sub-tree; Rankings owns the rest.
+    expect(featureForApiPath('/api/reputation/guests/churn')).toBe('/guests');
+    expect(featureForApiPath('/api/reputation/rankings/ranks')).toBe('/rankings');
+    expect(featureForApiPath('/api/reputation/classify')).toBe('/rankings');
+    expect(featureForApiPath('/api/winback/offers')).toBe('/guests');
+    // Reports vs Variance.
+    expect(featureForApiPath('/api/reports/food-cost-variance')).toBe('/variance');
+    expect(featureForApiPath('/api/reports/daily')).toBe('/reports');
+    // Insights split.
+    expect(featureForApiPath('/api/insights/economics')).toBe('/economics');
+    expect(featureForApiPath('/api/insights/menu')).toBe('/menu-insights');
+    // Compliance vs Playbook.
+    expect(featureForApiPath('/api/compliance/sops/foo')).toBe('/sops');
+    expect(featureForApiPath('/api/compliance/hygiene')).toBe('/compliance');
+    // Guest menu vs Nutrition.
+    expect(featureForApiPath('/api/guestmenu/nutrition')).toBe('/menu-card/nutrition');
+    expect(featureForApiPath('/api/guestmenu/declarations')).toBe('/menu-card');
+  });
+
   test('leaves ungated routes alone', () => {
     expect(featureForApiPath('/api/menu')).toBeNull();
     expect(featureForApiPath('/api/orders')).toBeNull();
