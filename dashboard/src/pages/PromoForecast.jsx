@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Tag, Info, ArrowRight, Hourglass } from 'lucide-react';
 import { useDemandForecast } from '../hooks/useForecast';
+import { CARD, LABEL, th, td, tdNum } from '../lib/ui';
 
 /**
  * Promo-aware Forecast — not a separate model, a property of the demand one.
@@ -16,22 +17,6 @@ import { useDemandForecast } from '../hooks/useForecast';
  * history of comparable offers this deployment does not hold, and a made-up
  * uplift is the kind of number the engine refuses to print.
  */
-
-const CARD = {
-  border: '1px solid var(--line)', borderRadius: 12,
-  background: 'var(--paper)', padding: '18px 20px', minWidth: 0,
-};
-const LABEL = {
-  fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
-  letterSpacing: '.12em', color: 'var(--label)',
-};
-const th = {
-  padding: '8px 11px', textAlign: 'left', fontSize: 10, fontWeight: 600,
-  color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '.06em',
-  whiteSpace: 'nowrap', borderBottom: '1px solid var(--line)',
-};
-const td = { padding: '9px 11px', fontSize: 12.5, color: 'var(--ink)' };
-const tdNum = { ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
 
 const fmtDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
