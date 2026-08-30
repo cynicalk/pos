@@ -14,6 +14,9 @@ const ALLOWED_KEYS = new Set([
   // they're system-managed and must not be writable through this API.
   'eta_enabled', 'eta_buffer_minutes', 'allow_extra_chair',
   'eta_reservation_block_enabled', 'eta_category_overrides',
+  // Per-restaurant feature switches (admin). A JSON object mapping a nav key to
+  // `false` when the feature is switched OFF; anything absent is ON by default.
+  'feature_flags',
 ]);
 
 function validateCurrency(code) {
@@ -157,6 +160,20 @@ async function update(key, value, restaurantId) {
       const n = parseFloat(mins);
       if (typeof cat !== 'string' || cat.length > 100 || isNaN(n) || n < 0 || n > 240) {
         throw new ValidationError('Each override must map a category to 0–240 minutes');
+      }
+    }
+  }
+  if (key === 'feature_flags') {
+    // A JSON object of nav-key → boolean. Only `false` entries carry meaning
+    // (a switched-off feature); an empty object means everything is on.
+    let parsed;
+    try { parsed = JSON.parse(value); } catch { throw new ValidationError('feature_flags must be valid JSON'); }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new ValidationError('feature_flags must be a JSON object');
+    }
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof k !== 'string' || k.length > 120 || typeof v !== 'boolean') {
+        throw new ValidationError('each feature flag must map a string key to a boolean');
       }
     }
   }

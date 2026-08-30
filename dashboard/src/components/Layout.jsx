@@ -43,6 +43,7 @@ import {
   ShoppingCart,
   Plug,
   CircleDashed,
+  ToggleLeft,
   Coins,
   Grid2X2,
   Truck,
@@ -72,6 +73,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useMeProfile, useSetUserPresent } from '../hooks/useUsers';
 import { useSettings, useUpdateSetting } from '../hooks/useSettings';
 import { useAIStatus } from '../hooks/useAI';
+import { parseFlags, isFeatureEnabled, blockedFeatureForPath } from '../lib/features';
 import { PLANNED_FEATURES } from '../lib/plannedFeatures';
 
 // ── Theme helpers ──────────────────────────────────────────────────────────────
@@ -115,7 +117,7 @@ const GUEST_APP_URL =
   import.meta.env.VITE_GUEST_URL ||
   `${window.location.protocol}//${window.location.hostname}:3001`;
 
-const ALL_NAV = [
+export const ALL_NAV = [
   { to: '/overview', label: 'Overview', Icon: LayoutDashboard, end: true, adminOnly: false },
   { to: '/menu',     label: 'Menu',     Icon: UtensilsCrossed,            adminOnly: false },
   { to: '/tables',   label: 'Tables',   Icon: Grid3X3,         end: true,  adminOnly: false },
@@ -215,6 +217,7 @@ const ALL_NAV = [
   { to: '/integrations/tally', label: 'Integrations', Icon: Plug, adminOnly: true },
   { to: '/users',    label: 'Users',    Icon: Users,    adminOnly: true },
   { to: '/settings', label: 'Settings', Icon: Settings, adminOnly: true },
+  { to: '/feature-toggles', label: 'Feature Toggles', Icon: ToggleLeft, adminOnly: true },
   { to: '/feature-status', label: 'Feature Status', Icon: CircleDashed, adminOnly: true },
 ];
 
@@ -235,6 +238,39 @@ const GROUP_PATHS = Object.fromEntries(
 );
 
 const NOTIFIABLE = new Set(['NEW_ORDER', 'ORDER_READY', 'PAYMENT_COMPLETED', 'BILL_REQUESTED', 'STAFF_ASSIGNED', 'RESERVATION_REMINDER', 'ITEM_VOIDED', 'ITEM_WASTED']);
+
+// Shown in place of a page whose feature an admin has switched off, so the route
+// still resolves to something honest instead of a blank or broken screen.
+function FeatureOffPanel({ feature, isAdmin, onGo }) {
+  return (
+    <div style={{ maxWidth: 460, margin: '12vh auto 0', textAlign: 'center', padding: '0 20px' }}>
+      <div style={{ display: 'inline-flex', padding: 14, borderRadius: 14, background: 'var(--paper-3)', color: 'var(--mute)' }}>
+        <ToggleLeft size={26} strokeWidth={2} />
+      </div>
+      <h1 style={{ margin: '18px 0 0', fontSize: 20, fontWeight: 600, color: 'var(--ink)' }}>
+        {feature.label} is switched off
+      </h1>
+      <p style={{ margin: '10px 0 0', fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+        {feature.groupLabel && feature.groupLabel !== feature.label
+          ? `This feature is turned off for your restaurant (under ${feature.groupLabel}).`
+          : 'This feature is turned off for your restaurant.'}{' '}
+        {isAdmin ? 'You can switch it back on in Feature Toggles.' : 'An admin can switch it back on in Feature Toggles.'}
+      </p>
+      {isAdmin && (
+        <button
+          onClick={onGo}
+          style={{
+            marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px',
+            borderRadius: 8, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)',
+            fontSize: 13, fontWeight: 500, cursor: 'pointer',
+          }}
+        >
+          <ToggleLeft size={15} /> Open Feature Toggles
+        </button>
+      )}
+    </div>
+  );
+}
 
 function MyQRModal({ user, onClose }) {
   const [qrUrl, setQrUrl] = useState('');
@@ -507,9 +543,22 @@ export default function Layout() {
   const isKitchen = user?.role === 'kitchen';
   // Drop the AI Assistant nav item when the operator disabled it for this restaurant
   const aiDisabled = aiStatus?.enabled === false;
-  const nav = ALL_NAV.filter(
-    (n) => (!n.adminOnly || isAdmin) && (!n.staffOnly || !isKitchen) && !(n.to === '/ai-chat' && aiDisabled),
-  );
+  // Per-restaurant feature switches (admin-controlled at /feature-toggles).
+  const featureFlags = parseFlags(settings);
+  const nav = ALL_NAV
+    .filter((n) => (!n.adminOnly || isAdmin) && (!n.staffOnly || !isKitchen) && !(n.to === '/ai-chat' && aiDisabled))
+    // Hide switched-off features: whole groups, and individual children within a group.
+    .map((n) => (n.type === 'group'
+      ? { ...n, children: (n.children || []).filter((c) => c.external || c.href || isFeatureEnabled(c.to, featureFlags)) }
+      : n))
+    .filter((n) => (n.type === 'group'
+      ? isFeatureEnabled(`group:${n.key}`, featureFlags) && (n.children || []).length > 0
+      : isFeatureEnabled(n.to, featureFlags)));
+
+  // A typed/bookmarked URL to a switched-off module lands on an honest panel
+  // rather than the working page. Matched against the full nav so a disabled
+  // feature is still recognised (the filtered `nav` above has already dropped it).
+  const blockedFeature = blockedFeatureForPath(location.pathname, ALL_NAV, featureFlags);
 
   // Path match on a segment boundary, not a bare prefix. A plain startsWith
   // makes '/menu-insights' match the '/menu' nav item — which sits earlier in
@@ -919,7 +968,11 @@ export default function Layout() {
 
         <main className="flex-1 overflow-y-auto p-5 lg:p-6">
           <ErrorBoundary key={location.pathname}>
-            <Outlet />
+            {blockedFeature ? (
+              <FeatureOffPanel feature={blockedFeature} isAdmin={isAdmin} onGo={() => navigate('/feature-toggles')} />
+            ) : (
+              <Outlet />
+            )}
           </ErrorBoundary>
         </main>
       </div>

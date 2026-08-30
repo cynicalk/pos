@@ -62,6 +62,7 @@ const Scheduling      = lazy(() => import('./pages/Scheduling'));
 const PromoForecast   = lazy(() => import('./pages/PromoForecast'));
 const WastePrediction = lazy(() => import('./pages/WastePrediction'));
 const FeatureStatus   = lazy(() => import('./pages/FeatureStatus'));
+const FeatureToggles  = lazy(() => import('./pages/FeatureToggles'));
 const Actions         = lazy(() => import('./pages/Actions'));
 const Economics       = lazy(() => import('./pages/Economics'));
 const MenuInsights    = lazy(() => import('./pages/MenuInsights'));
@@ -226,6 +227,7 @@ export default function App() {
 
             {/* Internal source of truth for what the app actually does (W1). */}
             <Route path="/feature-status"      element={<RequireAdmin><FeatureStatus /></RequireAdmin>} />
+            <Route path="/feature-toggles"     element={<RequireAdmin><FeatureToggles /></RequireAdmin>} />
 
             {/* The 18 not-yet-possible features (MERGE_PLAN.md §2 Tier 3). Their
                 final URLs are claimed now so that shipping one swaps the element
