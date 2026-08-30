@@ -33,6 +33,8 @@ async function main() {
   // to show. A real restaurant that already charges one skips this entirely.
   const scIdx = args.indexOf('--demo-sc');
   const demoScPct = scIdx >= 0 ? parseFloat(args[scIdx + 1]) : null;
+  const wpIdx = args.indexOf('--waive-pct');
+  const waivePct = wpIdx >= 0 ? parseInt(args[wpIdx + 1], 10) : 20;
 
   // 1. Party size on every dining bill that has none.
   const covers = await db.query(
@@ -84,7 +86,7 @@ async function main() {
           AND o.channel = 'dining'
           AND p.status = 'completed'
           AND p.service_charge_amount > 0
-          AND (abs(hashtext(p.id::text)) % 100) < 20
+          AND (abs(hashtext(p.id::text)) % 100) < $3
           AND o.created_at >= now() - make_interval(days => $2)
      )
      UPDATE payments p
@@ -93,7 +95,7 @@ async function main() {
             total_charged = p.total_charged  - p.service_charge_amount,
             service_charge_amount = 0
        FROM cand WHERE cand.id = p.id`,
-    [restaurantId, days],
+    [restaurantId, days, waivePct],
   );
 
   console.log(`Covers set on ${covers.rowCount} dining orders; service charge removed on ${waived.rowCount} bills.`);

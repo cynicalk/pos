@@ -25,6 +25,15 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   hour** (revenue ÷ completed shift hours, abstaining where no roster is logged).
   Both average across only the outlets that could report, and appear as totals
   tiles and columns on the Group page.
+- **Operator intelligence — Wave 4.** The Wave 1–3 findings now raise ranked
+  actions and route through the message outbox. Three deterministic rules:
+  **coupon_loss** (a code giving away ≥40% on real volume, priced by the discount
+  actually given), **attach_drop** (a high-margin category's per-order attach
+  falling ≥0.03 vs the prior window), and **sc_removal_high** (a server removing
+  the service charge on ≥25% of their bills). Every raised action is also enqueued
+  to the outbox as an `operator_alert` — queued to the operator's `alert_whatsapp`
+  number (a new setting) or skipped honestly when none is set, pending the
+  WhatsApp channel worker. Delivery stays truthful: nothing is pretend-sent.
 - **Operator intelligence — Wave 3** (the two billing capture points; migration
   090). An optional **guest count** at billing unlocks **average per cover** on
   the Economics page (with the share of bills that carried a count); and a

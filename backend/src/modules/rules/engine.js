@@ -105,6 +105,35 @@ const DEFAULT_RULES = [
     messageTemplate:
       'Table {table} has been seated {minutes_seated} minutes without ordering. Check on them.',
   },
+  // ── Operator-intelligence rules (Wave 4) ────────────────────────────────
+  // Turn the coupon / attach / service-charge findings into raised actions.
+  {
+    ruleType: 'coupon_loss',
+    // 40% off gross is structurally heavy whatever the volume. Below this a code
+    // is a normal promotion, not a leak worth a morning.
+    condition: { field: 'discount_rate', op: '>=', value: 40 },
+    severity: 'medium',
+    messageTemplate:
+      '{code} ran {orders} orders at {discount_rate}% off — you keep ₹{net_per_order} per order after the '
+      + 'discount. Heavy discounting on a popular code is paying to be popular; consider a cap or a smaller offer.',
+  },
+  {
+    ruleType: 'attach_drop',
+    // A 0.03/order fall in a high-margin category — the "0.1 metric" slipping.
+    condition: { field: 'attach_drop', op: '>=', value: 0.03 },
+    severity: 'low',
+    messageTemplate:
+      '{category} per order fell to {attach} (was {prev_attach}) — down {drop} over the last {window_days} days. '
+      + 'A high-margin add-on slipping quietly; a prompt or bundle can lift it back.',
+  },
+  {
+    ruleType: 'sc_removal_high',
+    condition: { field: 'removed_pct', op: '>=', value: 25 },
+    severity: 'medium',
+    messageTemplate:
+      '{server} removed the service charge on {waived} of {applicable} bills ({removed_pct}%), against the '
+      + 'outlet average of {outlet_pct}%. Worth a word — it is lost revenue and a service signal.',
+  },
 ];
 
 // Reviews needed before an average is worth alerting on. Below this a single
@@ -319,6 +348,7 @@ function buildCandidates(rules, context, now = Date.now()) {
   const expiries = require('./expiries');
   const { evaluateRankDrop } = require('./rank-drop');
   const { evaluateRevenueAnomaly } = require('./anomaly-rule');
+  const oi = require('./operator-intel');
   const enabled = rules.filter((r) => r.enabled);
   return [
     ...evaluateCancellations(enabled, context),
@@ -329,6 +359,9 @@ function buildCandidates(rules, context, now = Date.now()) {
     ...expiries.evaluateCertExpiry(enabled, context),
     ...evaluateRankDrop(enabled, context),
     ...evaluateRevenueAnomaly(enabled, context),
+    ...oi.evaluateCouponLoss(enabled, context),
+    ...oi.evaluateAttachDrop(enabled, context),
+    ...oi.evaluateScRemoval(enabled, context),
   ];
 }
 

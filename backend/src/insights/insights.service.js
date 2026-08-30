@@ -175,8 +175,19 @@ async function getAttachRate(restaurantId, daysRaw) {
   return { days, ...attachRate.buildAttachRate({ categoryRows, totals }) };
 }
 
+/** Service-charge-removed on its own — reused by the rules engine (Wave 4). */
+async function getScRemoved(restaurantId, daysRaw) {
+  const days = parseDays(daysRaw);
+  const [scRow, scByServer, scRate] = await Promise.all([
+    repo.getScRemoved(restaurantId, days),
+    repo.getScRemovedByServer(restaurantId, days),
+    repo.getServiceChargeRate(restaurantId),
+  ]);
+  return { days, ...billingMetrics.buildScRemoved(scRow, scByServer, { scRate }) };
+}
+
 module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
-  getCouponEconomics, getAttachRate,
+  getCouponEconomics, getAttachRate, getScRemoved,
 };

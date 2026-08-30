@@ -18,6 +18,9 @@ const ALLOWED_KEYS = new Set([
   // Per-restaurant feature switches (admin). A JSON object mapping a nav key to
   // `false` when the feature is switched OFF; anything absent is ON by default.
   'feature_flags',
+  // WhatsApp number operator alerts (raised actions) are queued to. Blank keeps
+  // them queued with no recipient until one is set.
+  'alert_whatsapp',
 ]);
 
 function validateCurrency(code) {
@@ -162,6 +165,12 @@ async function update(key, value, restaurantId) {
       if (typeof cat !== 'string' || cat.length > 100 || isNaN(n) || n < 0 || n > 240) {
         throw new ValidationError('Each override must map a category to 0–240 minutes');
       }
+    }
+  }
+  if (key === 'alert_whatsapp' && value !== '') {
+    // A permissive phone check: digits, spaces, +, -, () and 7–20 chars.
+    if (typeof value !== 'string' || !/^[+\d][\d\s()-]{6,19}$/.test(value)) {
+      throw new ValidationError('alert_whatsapp must be a phone number, or blank to clear it');
     }
   }
   if (key === 'feature_flags') {

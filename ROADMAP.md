@@ -185,13 +185,14 @@ first as Insights panels and action-centre rules, then pushed through the outbox
 | **Sales per labour hour (SPLH)** | `labour` module + cost-based scheduling | ✅ **shipped** | Per-outlet revenue ÷ completed shift hours in the group view, abstaining where no roster is logged. Station-level planned-vs-actual headcount needs station tags (smaller follow-on). |
 | **APC / per-cover average** | optional cover count captured at billing (migration 090) | ✅ **shipped** | Average per cover on the Economics page, with the share of dine-in bills that carried a guest count. AOV (per order) always shown; APC abstains until covers exist. |
 | **Service-charge-removed %** | persisted `service_charge_waived` flag (migration 090) | ✅ **shipped** | Removed rate on the Economics page — of dine-in bills where a service charge applied, the share guests declined — with an estimate of the rupees foregone and a per-server breakdown. |
-| **Always-on delivery** ("Friday" layer) | rules/actions engine + AI narration + message outbox | 🔗 assemble | Wire the findings above as rules → ranked actions → outbox messages. Gated on the WhatsApp worker (item 2). |
+| **Always-on delivery** ("Friday" layer) | rules/actions engine + AI narration + message outbox | ✅ **shipped** | Three rules (coupon_loss, attach_drop, sc_removal_high) raise ranked actions; each is enqueued to the outbox as an `operator_alert`, queued to the operator's `alert_whatsapp` number. Actual WhatsApp send still waits on the channel worker (item 2). |
 
 **Sequencing:** Wave 1 — coupon contribution + category attach (no migration)
 ✅ **shipped**. Wave 2 — SSSG + SPLH in the group view (read-layer on existing
 tables) ✅ **shipped**. Wave 3 — covers-on-the-bill + SC-removed capture
 (migration 090 + billing UI) ✅ **shipped**. Wave 4 — route it all through the
-agent we already have.
+agent we already have (rules → ranked actions → outbox) ✅ **shipped**; live
+WhatsApp send remains gated on the channel worker.
 
 ### 2. WhatsApp send channel
 

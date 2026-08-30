@@ -7,8 +7,15 @@ const complianceService = require('../compliance/compliance.service');
 const reputationService = require('../reputation/reputation.service');
 const payoutsService = require('../payouts/payouts.service');
 const snapshotsRepo = require('../snapshots/snapshots.repository');
+const insightsService = require('../insights/insights.service');
+const messagingService = require('../messaging/messaging.service');
+const settingsRepo = require('../settings/settings.repository');
 const anomaly = require('../modules/analytics/anomaly');
 const { ValidationError, NotFoundError } = require('../shared/errors');
+
+// Window the operator-intelligence rules read over — the same 30 days their
+// Insights panels default to, so an action and its page agree.
+const OI_WINDOW_DAYS = 30;
 
 const VALID_STATUSES = ['open', 'acknowledged', 'acted_on', 'dismissed'];
 
@@ -75,7 +82,8 @@ async function evaluate(restaurantId, now = Date.now()) {
   const rules = await repo.listRules(restaurantId);
   if (!rules.length) return [];
 
-  const [orderStats, reviews, seatedTables, priceChanges, compliance, rankings, anomalies] =
+  const [orderStats, reviews, seatedTables, priceChanges, compliance, rankings, anomalies,
+    couponEconomics, attach, scRemoved] =
     await Promise.all([
     repo.getOrderStats(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
     repo.getRecentReviews(restaurantId, engine.RATING_WINDOW),
@@ -89,6 +97,11 @@ async function evaluate(restaurantId, now = Date.now()) {
     // Phase 9. Reads the same daily snapshots the revenue report does, so an
     // anomaly alert and the report can never disagree about what a day took.
     getRevenueAnomalies(restaurantId),
+    // Wave 4 — the operator-intelligence findings, from the same computed
+    // figures their Insights pages show.
+    insightsService.getCouponEconomics(restaurantId, OI_WINDOW_DAYS),
+    insightsService.getAttachRate(restaurantId, OI_WINDOW_DAYS),
+    insightsService.getScRemoved(restaurantId, OI_WINDOW_DAYS),
   ]);
 
   const candidates = engine.buildCandidates(rules, {
@@ -101,6 +114,10 @@ async function evaluate(restaurantId, now = Date.now()) {
     certs: compliance.certs,
     trackedQueries: rankings.trackedQueries,
     anomalies,
+    couponEconomics,
+    attach,
+    scRemoved,
+    windowDays: OI_WINDOW_DAYS,
   }, now);
 
   if (!candidates.length) return [];
@@ -110,15 +127,37 @@ async function evaluate(restaurantId, now = Date.now()) {
   );
   const fresh = engine.dedupeCandidates(candidates, suppressed);
 
+  // Where operator alerts go, if the operator has set a number. Absent → each
+  // enqueued alert records honestly as 'skipped: no recipient on file'.
+  const alertRecipient = (await settingsRepo.getAll(restaurantId)).alert_whatsapp || null;
+
   const created = [];
   for (const c of fresh) {
-    created.push(await repo.createAction(restaurantId, {
+    const action = await repo.createAction(restaurantId, {
       ...c,
       actionType: engine.actionTypeFor(c.priority),
-      // Delivery is dashboard-only for now. WhatsApp outbound arrives with the
-      // daily brief later in Phase 2 and will set this to its own channel.
       deliveredVia: 'dashboard',
-    }));
+    });
+    created.push(action);
+
+    // Every raised finding is also logged to the message outbox — the delivery
+    // queue that drains to WhatsApp once the channel worker lands. Until then it
+    // parks at 'queued' (recipient set) or 'skipped' (none), never pretend-sent.
+    // A queue failure must not lose the action, so it is caught and swallowed.
+    try {
+      await messagingService.enqueue(restaurantId, {
+        channel: 'whatsapp',
+        kind: 'operator_alert',
+        recipient: alertRecipient,
+        recipientName: 'Operator',
+        body: `${action.title} — ${action.description}`,
+        refId: action.id,
+        // Operator alerts are opt-in by being the owner's own configured number.
+        optIn: true,
+      });
+    } catch (err) {
+      console.error('[actions] outbox enqueue failed for', action.id, '—', err.message);
+    }
   }
   return created;
 }
@@ -139,12 +178,17 @@ async function evaluateAll() {
 
 /** Open actions, ranked by rupee impact where an honest figure exists. */
 async function list(restaurantId, status) {
-  const [actions, cancellationLoss, payoutLeakage] = await Promise.all([
+  const [actions, cancellationLoss, payoutLeakage, coupons] = await Promise.all([
     repo.listActions(restaurantId, status),
     repo.getCancellationLoss(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
     payoutsService.getRecoverableBySettlement(restaurantId),
+    insightsService.getCouponEconomics(restaurantId, OI_WINDOW_DAYS),
   ]);
-  return opportunity.rankActions(actions, { cancellationLoss, payoutLeakage });
+  // Price coupon_loss actions by the discount their code actually gave away.
+  const couponDiscount = Object.fromEntries(
+    (coupons.codes || []).map((c) => [c.code, c.discount]),
+  );
+  return opportunity.rankActions(actions, { cancellationLoss, payoutLeakage, couponDiscount });
 }
 
 /** Current value of a tracked metric, or null when it isn't computable. */

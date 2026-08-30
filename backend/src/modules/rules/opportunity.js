@@ -25,6 +25,8 @@ function estimateOpportunities(actions, inputs = {}) {
   const cancellationLoss = Number(inputs.cancellationLoss || 0);
   // { settlementId: recoverable } — the reconciled leakage behind each payout task.
   const payoutLeakage = inputs.payoutLeakage || {};
+  // { code: discountGiven } — the measured discount handed away by each code.
+  const couponDiscount = inputs.couponDiscount || {};
   const estimates = new Map();
 
   for (const action of actions) {
@@ -32,6 +34,7 @@ function estimateOpportunities(actions, inputs = {}) {
     // recoverable amount is the measured shortfall — the most defensible rupee
     // figure on the page.
     const leakMatch = /^payout_leakage:(.+)$/.exec(action.dedupe_key || '');
+    const couponMatch = /^coupon_loss:(.+)$/.exec(action.dedupe_key || '');
     if (leakMatch && payoutLeakage[leakMatch[1]] > 0) {
       estimates.set(action.id, {
         amount: Number(payoutLeakage[leakMatch[1]]),
@@ -41,6 +44,13 @@ function estimateOpportunities(actions, inputs = {}) {
       estimates.set(action.id, {
         amount: cancellationLoss,
         basis: 'revenue on cancelled orders, last 30 days',
+      });
+    } else if (couponMatch && couponDiscount[couponMatch[1]] > 0) {
+      // The discount actually given on this code — money handed away, measured,
+      // not the (unknowable) share of it that trimming would recover.
+      estimates.set(action.id, {
+        amount: Number(couponDiscount[couponMatch[1]]),
+        basis: 'discount given on this code, last 30 days',
       });
     } else {
       // No honest estimate. Deliberately not zero — zero would sort as

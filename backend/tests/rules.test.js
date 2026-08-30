@@ -238,9 +238,9 @@ describe('rule catalogue', () => {
     // makes the engine look broken, so it is not seeded until it can.
     const types = engine.DEFAULT_RULES.map((r) => r.ruleType).sort();
     expect(types).toEqual([
-      'cert_expiry', 'cost_spike', 'high_cancellation',
+      'attach_drop', 'cert_expiry', 'cost_spike', 'coupon_loss', 'high_cancellation',
       'license_expiry', 'rank_drop', 'rating_drop', 'revenue_anomaly',
-      'stalled_table',
+      'sc_removal_high', 'stalled_table',
     ]);
   });
 
