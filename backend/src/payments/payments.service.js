@@ -92,7 +92,18 @@ async function getBill(orderId, restaurantId, orderItemIds = null, waiveServiceC
   return { ...bill, items: allItems, couponCode };
 }
 
-async function processPayment(orderId, { method, tenders: tendersInput, amountTendered, waiveServiceCharge = false }, restaurantId) {
+// A guest count entered at billing: a positive whole number, or null when left
+// blank. Anything else is rejected so a stray value can't corrupt per-cover maths.
+function normaliseCovers(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0 || n > 1000) {
+    throw new ValidationError('covers must be a whole number of guests between 1 and 1000');
+  }
+  return n;
+}
+
+async function processPayment(orderId, { method, tenders: tendersInput, amountTendered, waiveServiceCharge = false, covers }, restaurantId) {
   let effectiveMethod;
   let effectiveTenders = null;
 
@@ -115,9 +126,15 @@ async function processPayment(orderId, { method, tenders: tendersInput, amountTe
   if (!order) throw new NotFoundError('Order');
   if (order.status === 'paid') throw new AppError('Order is already paid', 400);
 
+  const coverCount        = normaliseCovers(covers);
   const settings          = await settingsRepo.getAll(restaurantId);
   const taxRate           = parseFloat(settings.tax_rate      || '0') / 100;
+  const scConfigured      = parseFloat(settings.service_charge || '0') > 0;
   const serviceChargeRate = waiveServiceCharge ? 0 : parseFloat(settings.service_charge || '0') / 100;
+  // Waived only counts where a service charge would otherwise apply — a dining
+  // bill at an outlet that charges one. Elsewhere the toggle is a no-op, not a
+  // "removal" to hold against the outlet.
+  const serviceChargeWaived = waiveServiceCharge === true && scConfigured && order.channel === 'dining';
   const packagingFee      = order.channel !== 'dining'
     ? parseFloat(settings.packaging_fee || '0')
     : 0;
@@ -153,15 +170,17 @@ async function processPayment(orderId, { method, tenders: tendersInput, amountTe
     const created = await repo.create({
       orderId, amount: total, method: effectiveMethod,
       subtotal, taxRate, taxAmount,
-      serviceChargeRate, serviceChargeAmount,
+      serviceChargeRate, serviceChargeAmount, serviceChargeWaived,
       discountAmount, couponDiscountAmount, loyaltyDiscountAmount,
       packagingFee, totalCharged: total,
       tenders: effectiveTenders,
     }, client);
     await repo.updateStatus(created.id, 'completed', client);
+    // Persist the guest count alongside the status flip when one was entered.
     await client.query(
-      "UPDATE orders SET status = 'paid' WHERE id = $1 AND restaurant_id = $2",
-      [orderId, restaurantId],
+      `UPDATE orders SET status = 'paid'${coverCount != null ? ', covers = $3' : ''}
+         WHERE id = $1 AND restaurant_id = $2`,
+      coverCount != null ? [orderId, restaurantId, coverCount] : [orderId, restaurantId],
     );
 
     // Settle loyalty inside the payment tx so points (redeem + earn) commit or
@@ -203,11 +222,12 @@ async function processPayment(orderId, { method, tenders: tendersInput, amountTe
 // Split bill by items — each split has its own tender(s); order marked paid atomically.
 // Each split.items entry is { orderItemId, quantity } — quantities may be partial
 // (e.g. 2 of 5 burgers on one split, 3 on the other).
-async function processSplitPayment(orderId, { splits, waiveServiceCharge = false }, restaurantId) {
+async function processSplitPayment(orderId, { splits, waiveServiceCharge = false, covers }, restaurantId) {
   if (!Array.isArray(splits) || splits.length < 2) {
     throw new ValidationError('Split payment requires at least 2 splits');
   }
 
+  const coverCount = normaliseCovers(covers);
   const order = await ordersService.getById(orderId, restaurantId);
   if (!order) throw new NotFoundError('Order');
   if (order.status === 'paid') throw new AppError('Order is already paid', 400);
@@ -218,6 +238,8 @@ async function processSplitPayment(orderId, { splits, waiveServiceCharge = false
   ]);
 
   const taxRate           = parseFloat(settings.tax_rate      || '0') / 100;
+  const scConfigured      = parseFloat(settings.service_charge || '0') > 0;
+  const serviceChargeWaived = waiveServiceCharge === true && scConfigured && order.channel === 'dining';
   const serviceChargeRate = waiveServiceCharge ? 0 : parseFloat(settings.service_charge || '0') / 100;
   const packagingFeeTotal = order.channel !== 'dining'
     ? parseFloat(settings.packaging_fee || '0')
@@ -291,7 +313,7 @@ async function processSplitPayment(orderId, { splits, waiveServiceCharge = false
       payload: {
         orderId, amount: total, method,
         subtotal: splitSubtotal, taxRate, taxAmount,
-        serviceChargeRate, serviceChargeAmount,
+        serviceChargeRate, serviceChargeAmount, serviceChargeWaived,
         discountAmount, couponDiscountAmount, loyaltyDiscountAmount,
         packagingFee, totalCharged: total,
         tenders: tenders.length > 1 ? tenders : null,
@@ -319,8 +341,9 @@ async function processSplitPayment(orderId, { splits, waiveServiceCharge = false
       created.push({ paymentId: payment.id, charged, method });
     }
     await client.query(
-      "UPDATE orders SET status = 'paid' WHERE id = $1 AND restaurant_id = $2",
-      [orderId, restaurantId],
+      `UPDATE orders SET status = 'paid'${coverCount != null ? ', covers = $3' : ''}
+         WHERE id = $1 AND restaurant_id = $2`,
+      coverCount != null ? [orderId, restaurantId, coverCount] : [orderId, restaurantId],
     );
 
     // Settle loyalty inside the payment tx (atomic with the charge). Earn is on

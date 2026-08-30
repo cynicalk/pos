@@ -183,14 +183,15 @@ first as Insights panels and action-centre rules, then pushed through the outbox
 | **Category attach rate** (the "0.1") | `order_items → menu_items.category` | ✅ **shipped** | Items per order by category + penetration, with the delta vs the prior window and high-margin categories flagged, on Menu Insights (`GET /api/insights/attach`). Per-cover once covers land. |
 | **Same-store sales growth (SSSG)** | `daily_snapshots` + the `group` module | ✅ **shipped** | Per-outlet growth vs the prior equal window in the group view, abstaining where there's no prior trade. YoY still abstains until ≥1 yr history. |
 | **Sales per labour hour (SPLH)** | `labour` module + cost-based scheduling | ✅ **shipped** | Per-outlet revenue ÷ completed shift hours in the group view, abstaining where no roster is logged. Station-level planned-vs-actual headcount needs station tags (smaller follow-on). |
-| **APC / per-cover average** | revenue yes; covers only at waitlist/reservation intake (`party_size`), not per bill | ⚠ needs capture | Ship AOV (per order) now; add an optional cover count at billing for true APC, computed where known, abstaining otherwise. |
-| **Service-charge-removed %** | `service_charge_amount` stored per payment; no waive event | ⚠ needs capture | Add a "waive service charge" control at billing that flags the bill; then the % and its rupee value compute per outlet and per server. |
+| **APC / per-cover average** | optional cover count captured at billing (migration 090) | ✅ **shipped** | Average per cover on the Economics page, with the share of dine-in bills that carried a guest count. AOV (per order) always shown; APC abstains until covers exist. |
+| **Service-charge-removed %** | persisted `service_charge_waived` flag (migration 090) | ✅ **shipped** | Removed rate on the Economics page — of dine-in bills where a service charge applied, the share guests declined — with an estimate of the rupees foregone and a per-server breakdown. |
 | **Always-on delivery** ("Friday" layer) | rules/actions engine + AI narration + message outbox | 🔗 assemble | Wire the findings above as rules → ranked actions → outbox messages. Gated on the WhatsApp worker (item 2). |
 
 **Sequencing:** Wave 1 — coupon contribution + category attach (no migration)
 ✅ **shipped**. Wave 2 — SSSG + SPLH in the group view (read-layer on existing
 tables) ✅ **shipped**. Wave 3 — covers-on-the-bill + SC-removed capture
-(2 migrations + billing UI). Wave 4 — route it all through the agent we already have.
+(migration 090 + billing UI) ✅ **shipped**. Wave 4 — route it all through the
+agent we already have.
 
 ### 2. WhatsApp send channel
 

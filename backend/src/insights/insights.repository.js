@@ -150,6 +150,92 @@ const getCouponEconomics = (restaurantId, days) =>
     GROUP BY c.id, c.code, c.discount_type, c.discount_value
   `, [restaurantId, days]).then((r) => r.rows);
 
+/**
+ * Average-per-cover inputs: revenue and covers over paid dining bills, split by
+ * whether a guest count was captured. Covers were only just added to the billing
+ * flow, so coverage travels with the figure.
+ */
+const getApc = (restaurantId, days) =>
+  db.query(`
+    WITH dining AS (
+      SELECT o.id, o.covers,
+             (SELECT COALESCE(SUM(p.amount), 0)
+                FROM payments p WHERE p.order_id = o.id AND p.status = 'completed') AS revenue
+        FROM orders o
+       WHERE o.restaurant_id = $1
+         AND o.channel = 'dining'
+         AND o.status = 'paid'
+         AND o.created_at >= now() - make_interval(days => $2)
+    )
+    SELECT
+      COALESCE(SUM(revenue) FILTER (WHERE covers IS NOT NULL), 0)::float8 AS revenue,
+      COALESCE(SUM(covers), 0)::int                                       AS covers,
+      COUNT(*) FILTER (WHERE covers IS NOT NULL)::int                     AS "coveredOrders",
+      COUNT(*)::int                                                       AS "diningOrders"
+    FROM dining
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
+/**
+ * Service-charge-removed inputs, per dining bill (grouped by order so a split
+ * bill counts once). "Applicable" = a bill that either carried a service charge
+ * or had one waived; "waived" = the guest declined it.
+ */
+const getScRemoved = (restaurantId, days) =>
+  db.query(`
+    WITH bills AS (
+      SELECT o.id,
+             BOOL_OR(p.service_charge_waived)          AS waived,
+             SUM(p.service_charge_amount)              AS sc_amount,
+             SUM(p.subtotal)                           AS subtotal
+        FROM orders o
+        JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
+       WHERE o.restaurant_id = $1
+         AND o.channel = 'dining'
+         AND o.status = 'paid'
+         AND o.created_at >= now() - make_interval(days => $2)
+       GROUP BY o.id
+    )
+    SELECT
+      COUNT(*) FILTER (WHERE waived OR sc_amount > 0)::int          AS applicable,
+      COUNT(*) FILTER (WHERE waived)::int                           AS waived,
+      COALESCE(SUM(subtotal) FILTER (WHERE waived), 0)::float8      AS "waivedSubtotal"
+    FROM bills
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
+/** Service-charge-removed broken down by the server responsible for the bill. */
+const getScRemovedByServer = (restaurantId, days) =>
+  db.query(`
+    WITH bills AS (
+      SELECT o.id,
+             COALESCE(o.assigned_staff_id, o.created_by) AS server_id,
+             BOOL_OR(p.service_charge_waived)            AS waived,
+             SUM(p.service_charge_amount)                AS sc_amount
+        FROM orders o
+        JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
+       WHERE o.restaurant_id = $1
+         AND o.channel = 'dining'
+         AND o.status = 'paid'
+         AND o.created_at >= now() - make_interval(days => $2)
+       GROUP BY o.id, COALESCE(o.assigned_staff_id, o.created_by)
+    )
+    SELECT
+      COALESCE(u.name, 'Unassigned')                      AS server,
+      COUNT(*) FILTER (WHERE waived OR sc_amount > 0)::int AS applicable,
+      COUNT(*) FILTER (WHERE waived)::int                  AS waived
+    FROM bills b
+    LEFT JOIN users u ON u.id = b.server_id
+    GROUP BY COALESCE(u.name, 'Unassigned')
+    HAVING COUNT(*) FILTER (WHERE waived OR sc_amount > 0) > 0
+    ORDER BY waived DESC
+  `, [restaurantId, days]).then((r) => r.rows);
+
+/** The configured service-charge rate as a fraction, for the removed-value estimate. */
+const getServiceChargeRate = (restaurantId) =>
+  db.query(
+    `SELECT value FROM settings WHERE restaurant_id = $1 AND key = 'service_charge'`,
+    [restaurantId],
+  ).then((r) => parseFloat(r.rows[0]?.value || '0') / 100);
+
 /** Average contracted delivery commission (a fraction), applied to delivery redemptions. */
 const getAvgCommissionRate = (restaurantId) =>
   db.query(
@@ -312,4 +398,5 @@ module.exports = {
   getDeliveryCostTotals, getDeliveryOrderCount,
   getAllItemQuantities, getTimezone,
   getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
+  getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
 };

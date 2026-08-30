@@ -32,10 +32,11 @@ export function useApplyDiscount(orderId) {
 
 export function useProcessPayment() {
   return useMutation({
-    mutationFn: async ({ orderId, method, tenders, amountTendered, waiveServiceCharge }) => {
+    mutationFn: async ({ orderId, method, tenders, amountTendered, waiveServiceCharge, covers }) => {
       const body = tenders ? { tenders } : { method };
       if (!tenders && amountTendered !== undefined) body.amountTendered = parseFloat(amountTendered);
       if (waiveServiceCharge) body.waiveServiceCharge = true;
+      if (covers != null && covers !== '') body.covers = Number(covers);
 
       if (navigator.onLine) {
         try {
@@ -54,16 +55,18 @@ export function useProcessPayment() {
 
 export function useProcessSplitPayment() {
   return useMutation({
-    mutationFn: async ({ orderId, splits, waiveServiceCharge }) => {
+    mutationFn: async ({ orderId, splits, waiveServiceCharge, covers }) => {
+      const body = { splits, waiveServiceCharge };
+      if (covers != null && covers !== '') body.covers = Number(covers);
       if (navigator.onLine) {
         try {
-          const { data } = await api.post(`/payments/${orderId}/split`, { splits, waiveServiceCharge });
+          const { data } = await api.post(`/payments/${orderId}/split`, body);
           return data;
         } catch (err) {
           if (err.response) throw err;
         }
       }
-      await enqueue('payments', 'split:POST', { orderId, splits, waiveServiceCharge });
+      await enqueue('payments', 'split:POST', { orderId, ...body });
       return { orderId, status: 'queued' };
     },
     onSuccess: invalidate('kitchen', 'tables', 'order-history', 'loyalty-customers'),

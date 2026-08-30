@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coins, Info, Clock, TicketPercent } from 'lucide-react';
+import { Coins, Info, Clock, TicketPercent, Receipt } from 'lucide-react';
 import { useEconomics, useServiceHours, useCouponEconomics } from '../hooks/useInsights';
 import { useCurrency } from '../context/CurrencyContext';
 
@@ -108,7 +108,13 @@ export default function Economics() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10, marginTop: 18 }}>
             <Stat label="Paid orders" value={data.costPerOrder.paidOrders} />
             <Stat label="Average order" value={format(data.costPerOrder.avgOrderValue)} />
-            <Stat label="Food cost / order" value={format(data.costPerOrder.foodCostPerOrder)} />
+            <Stat
+              label="Average per cover"
+              value={data.apc?.apc == null ? 'Not captured' : format(data.apc.apc)}
+              sub={data.apc?.apc == null
+                ? 'add guests at billing'
+                : `${data.apc.coveragePct}% of dine-in bills`}
+            />
             <Stat label="Discounts / order" value={format(data.costPerOrder.discountsPerOrder)}
                   sub={`${format(data.costPerOrder.discountsTotal)} given away`} />
           </div>
@@ -289,6 +295,50 @@ export default function Economics() {
                   </tbody>
                 </table>
               </div>
+            </>
+          )}
+
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '26px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+            <Receipt size={15} strokeWidth={2} /> Service charge removed
+          </h2>
+          {!data.scRemoved || data.scRemoved.applicable === 0 ? (
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mute)' }}>
+              No dine-in bill carried a service charge to remove in this window.
+            </p>
+          ) : (
+            <>
+              <p style={{ margin: '6px 0 10px', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                Of the dine-in bills where a service charge applied, the share guests asked to remove —
+                lost revenue and a service signal in one number.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10, marginBottom: 12 }}>
+                <Stat
+                  label="Removed"
+                  value={data.scRemoved.removedPct == null ? '—' : `${data.scRemoved.removedPct}%`}
+                  sub={`${data.scRemoved.waived} of ${data.scRemoved.applicable} bills`}
+                />
+                <Stat label="Est. revenue foregone" value={format(data.scRemoved.estimatedForegone)}
+                      sub="subtotal × your SC rate" />
+              </div>
+              {data.scRemoved.servers.length > 0 && data.scRemoved.waived > 0 && (
+                <div>
+                  <p style={{ margin: '4px 0 6px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mute)' }}>
+                    By server
+                  </p>
+                  {data.scRemoved.servers.filter((s) => s.waived > 0).slice(0, 6).map((s) => (
+                    <div key={s.server} style={{
+                      display: 'flex', gap: 10, alignItems: 'baseline', padding: '6px 0',
+                      borderBottom: '1px solid var(--line)', fontSize: 13,
+                    }}>
+                      <span style={{ flex: 1, color: 'var(--ink)' }}>{s.server}</span>
+                      <span style={{ color: 'var(--mute)', fontVariantNumeric: 'tabular-nums' }}>{s.waived} of {s.applicable}</span>
+                      <span style={{ width: 54, textAlign: 'right', fontWeight: 600, color: s.removedPct >= 25 ? 'var(--bad)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                        {s.removedPct}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 

@@ -503,6 +503,25 @@ function computeSubTotal(items, bill) {
   return parseFloat((discounted + taxAndSc + packagingFee).toFixed(2));
 }
 
+/* ── GuestsField ─────────────────────────────────────────── */
+// Optional guest count captured at billing — the denominator for average-per-cover
+// and per-cover attach. Blank stays blank; a missing count reads as "not captured".
+function GuestsField({ value, onChange }) {
+  return (
+    <div>
+      <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--mute)', marginBottom: 8 }}>
+        Guests <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>· optional, for per-cover figures</span>
+      </p>
+      <input
+        type="number" min="1" step="1" value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. 4"
+        style={{ width: 130, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 14 }}
+      />
+    </div>
+  );
+}
+
 /* ── SessionPaymentModal ─────────────────────────────────── */
 // Handles payment for a multi-round dining session (all orders at once).
 
@@ -512,6 +531,7 @@ function SessionPaymentModal({ orders, tableNumber, onClose }) {
   const [method,            setMethod]            = useState('cash');
   const [amountTendered,    setAmountTendered]    = useState('');
   const [waiveServiceCharge, setWaiveServiceCharge] = useState(false);
+  const [covers,            setCovers]            = useState('');
   const [submitting,        setSubmitting]        = useState(false);
   const [result,            setResult]            = useState(null);
   const [error,             setError]             = useState('');
@@ -551,10 +571,13 @@ function SessionPaymentModal({ orders, tableNumber, onClose }) {
     setError('');
     setSubmitting(true);
     try {
-      for (const order of orders) {
+      for (let i = 0; i < orders.length; i += 1) {
         const body = { method };
         if (waiveServiceCharge) body.waiveServiceCharge = true;
-        await api.post(`/payments/${order.id}`, body);
+        // The party's guest count belongs to the session, so record it once —
+        // on the first order — rather than once per round.
+        if (i === 0 && covers) body.covers = Number(covers);
+        await api.post(`/payments/${orders[i].id}`, body);
       }
       // Invalidate once after all orders are paid
       queryClient.invalidateQueries({ queryKey: ['kitchen'] });
@@ -714,6 +737,8 @@ function SessionPaymentModal({ orders, tableNumber, onClose }) {
           )}
         </div>
 
+        <GuestsField value={covers} onChange={setCovers} />
+
         <div>
           <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--mute)', marginBottom: 8 }}>
             Payment Method
@@ -769,6 +794,7 @@ export default function PaymentModal({ order, orders, tableNumber, onClose }) {
   const [quantities,        setQuantities]        = useState({});
   const [splitMethods,      setSplitMethods]      = useState({ 1: 'cash', 2: 'mobile' });
   const [waiveServiceCharge, setWaiveServiceCharge] = useState(false);
+  const [covers,            setCovers]            = useState('');
 
   const { data: bill, isLoading: billLoading } = useBill(order.id, { waiveServiceCharge });
   const [result,            setResult]            = useState(null);
@@ -824,6 +850,7 @@ export default function PaymentModal({ order, orders, tableNumber, onClose }) {
       if (method === 'cash' && amountTendered) { payload.amountTendered = parseFloat(amountTendered); }
     }
     if (waiveServiceCharge) payload.waiveServiceCharge = true;
+    if (covers) payload.covers = Number(covers);
     try {
       const data = await processPayment.mutateAsync(payload);
       setResult(data);
@@ -839,7 +866,7 @@ export default function PaymentModal({ order, orders, tableNumber, onClose }) {
       { items: bill2Items.map((i) => ({ orderItemId: i.id, quantity: i.quantity })), tenders: [{ method: splitMethods[2], amount: parseFloat(bill2Total.toFixed(4)) }] },
     ];
     try {
-      const data = await processSplitPayment.mutateAsync({ orderId: order.id, splits, waiveServiceCharge });
+      const data = await processSplitPayment.mutateAsync({ orderId: order.id, splits, waiveServiceCharge, covers: covers ? Number(covers) : undefined });
       setResult(data);
     } catch (err) { setError(err.response?.data?.error || err.message || 'Payment failed'); }
   }
@@ -924,6 +951,8 @@ export default function PaymentModal({ order, orders, tableNumber, onClose }) {
             <BillBreakdown bill={bill} billLoading={billLoading} orderId={order.id} format={format}
               waiveServiceCharge={waiveServiceCharge} onWaiveChange={setWaiveServiceCharge}
               linkedPhone={order.loyalty_customer_phone || null} />
+
+            {order.channel === 'dining' && <GuestsField value={covers} onChange={setCovers} />}
 
             <div>
               <div className="flex items-center justify-between mb-2">

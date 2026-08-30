@@ -332,7 +332,7 @@ Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 
 ## Database & Migrations
 
-Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 89 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations and reviews, email verification, and the later analytics tables — settlements and payouts, ingredient nutrition, the message outbox and consent, and prep logs for waste prediction.
+Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 90 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations and reviews, email verification, and the later analytics tables — settlements and payouts, ingredient nutrition, the message outbox and consent, prep logs for waste prediction, and per-cover / service-charge-removed billing capture.
 
 ```bash
 npm run migrate          # dev database

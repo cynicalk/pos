@@ -6,6 +6,7 @@ const hours = require('../modules/dinein/hours');
 const economics = require('../modules/economics/unit-economics');
 const couponEconomics = require('../modules/economics/coupon-economics');
 const attachRate = require('../modules/menu/attach-rate');
+const billingMetrics = require('../modules/economics/billing-metrics');
 const labourHours = require('../modules/labour/hours');
 const labourService = require('../labour/labour.service');
 const { validateTimezone } = require('../shared/timezone');
@@ -140,7 +141,18 @@ async function getEconomics(restaurantId, daysRaw) {
     hasDelivery: reconciledOrders > 0,
   });
 
-  return { ...base, labour, primeCost, delivery, operatingMargin };
+  // Wave 3 — per-cover and service-charge-removed, from the billing capture. Both
+  // abstain until the flow has recorded a guest count / a service charge to remove.
+  const [apcRow, scRow, scByServer, scRate] = await Promise.all([
+    repo.getApc(restaurantId, periodDays),
+    repo.getScRemoved(restaurantId, periodDays),
+    repo.getScRemovedByServer(restaurantId, periodDays),
+    repo.getServiceChargeRate(restaurantId),
+  ]);
+  const apc = billingMetrics.buildApc(apcRow);
+  const scRemoved = billingMetrics.buildScRemoved(scRow, scByServer, { scRate });
+
+  return { ...base, labour, primeCost, delivery, operatingMargin, apc, scRemoved };
 }
 
 /** Coupon contribution: net revenue kept per code, after discount and delivery commission. */

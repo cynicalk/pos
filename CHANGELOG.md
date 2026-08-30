@@ -25,6 +25,13 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   hour** (revenue ÷ completed shift hours, abstaining where no roster is logged).
   Both average across only the outlets that could report, and appear as totals
   tiles and columns on the Group page.
+- **Operator intelligence — Wave 3** (the two billing capture points; migration
+  090). An optional **guest count** at billing unlocks **average per cover** on
+  the Economics page (with the share of bills that carried a count); and a
+  persisted **service-charge-removed** flag turns the existing "waive" control
+  into a measured leak — the removed rate, an estimate of the rupees foregone,
+  and a breakdown by server. Both abstain until the flow has captured a guest
+  count / a service charge to remove.
 - **Waste Prediction** (catalogue: shell → built), in two phases. Phase 1 captures
   how much of each dish is prepped — a pre-service plan nudged from the forecast and
   a post-service actual (`prep_logs`, migration 089) — and reconciles it against

@@ -8,7 +8,7 @@ const getByOrderId = (orderId) =>
 const create = ({
   orderId, amount, method,
   subtotal, taxRate, taxAmount,
-  serviceChargeRate, serviceChargeAmount,
+  serviceChargeRate, serviceChargeAmount, serviceChargeWaived = false,
   discountAmount, couponDiscountAmount = 0, loyaltyDiscountAmount = 0,
   packagingFee = 0, totalCharged, tenders = null,
 }, runner = db) =>
@@ -16,15 +16,15 @@ const create = ({
     `INSERT INTO payments
        (order_id, amount, method, status,
         subtotal, tax_rate, tax_amount,
-        service_charge_rate, service_charge_amount,
+        service_charge_rate, service_charge_amount, service_charge_waived,
         discount_amount, coupon_discount_amount, loyalty_discount_amount,
         packaging_fee, total_charged, tenders)
-     VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING *`,
     [
       orderId, amount, method,
       subtotal, taxRate, taxAmount,
-      serviceChargeRate, serviceChargeAmount,
+      serviceChargeRate, serviceChargeAmount, serviceChargeWaived === true,
       discountAmount ?? 0, couponDiscountAmount ?? 0, loyaltyDiscountAmount ?? 0,
       packagingFee ?? 0, totalCharged ?? amount,
       tenders ? JSON.stringify(tenders) : null,
