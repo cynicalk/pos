@@ -291,6 +291,12 @@ export default function DemandForecast() {
             {f.closedDaysExcluded > 0
               ? `${f.closedDaysExcluded} closed day(s) excluded — a shut kitchen is not a day of no demand`
               : 'No closures in the window'}
+            {f.promoDaysExcluded > 0 && (
+              <>
+                <br />
+                {`${f.promoDaysExcluded} promo day(s) set aside — a discount spike is not the normal baseline`}
+              </>
+            )}
           </div>
         </div>
       </div>

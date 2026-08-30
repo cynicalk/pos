@@ -62,32 +62,6 @@ const layouts = {
     ],
   },
 
-  promo: {
-    filters: ['Date range', 'Platform'],
-    kpis: [
-      { label: 'Offers live' },
-      { label: 'Measured uplift', hint: 'What happened last time you ran this' },
-      { label: 'Discount you fund' },
-      { label: 'Net contribution' },
-    ],
-    chart: { title: 'Traded volume around each offer', x: 'Day', y: 'Orders' },
-    table: {
-      title: 'Offers and their measured effect',
-      columns: ['Offer', 'Platform', 'Times run', 'Measured uplift', 'Discount funded', 'Net'],
-    },
-    panels: [
-      {
-        title: 'Uplift measured, not elasticity predicted',
-        body:
-          'Prices do not move at random — they are raised when demand is strong and cut when it is ' +
-          'weak, so a model fitted to your own history concludes that raising prices raises sales. ' +
-          'That sign error does not improve with more data. This screen reports what happened when ' +
-          'you ran an offer before. It will not predict what a price change would do.',
-      },
-    ],
-  },
-
-
   waste: {
     filters: ['Date range', 'Station', 'Reason'],
     kpis: [

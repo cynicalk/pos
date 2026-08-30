@@ -64,14 +64,6 @@ export const PLANNED_FEATURES = [
       ' This one also needs a local events feed on top of the forecast it adjusts.',
   },
   {
-    slug: 'promo', path: '/forecast/promo', group: 'Forecasting',
-    title: 'Promo-aware Forecast',
-    summary:
-      "Tomorrow's offers reflected in tomorrow's expected demand, before the prep list is " +
-      'written rather than after the queue forms.',
-    reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
-  },
-  {
     slug: 'waste', path: '/forecast/waste', group: 'Forecasting',
     title: 'Waste Prediction',
     summary:

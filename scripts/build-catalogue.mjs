@@ -117,7 +117,7 @@ const PATCH = {
   'demand-forecasting':           ['forecast', 3, 'addon', 'built', 'Tier 0 (seasonal naive) shipped this session at /forecast/demand.'],
   'prep-sheet-generator':         ['forecast', 3, 'addon', 'built', 'Shipped this session at /forecast/prep-sheet.'],
   'weather-event-forecasting':    ['forecast', 3, 'addon', 'shell', 'Needs a local events + weather feed on top of the forecast.'],
-  'promo-aware-forecast':         ['forecast', 3, 'addon', 'shell', 'History-gated; also needs promo attribution.'],
+  'promo-aware-forecast':         ['forecast', 3, 'addon', 'built', 'Detects promo days from coupon redemptions and excludes them from the baseline, like closed days; reports which and why. No uplift is predicted.'],
   'waste-prediction':             ['forecast', 3, 'addon', 'shell', 'Needs prep-vs-sold capture to score against.'],
   'inventory-forecasting':        ['forecast', 3, 'addon', 'built', 'Tier 0 stock projection shipped this session at /forecast/inventory — stock walked down against the forecast.'],
   'auto-reorder-suggestions':     ['forecast', 3, 'addon', 'built', 'Tier 0 reorder plan (h=3) shipped this session at /forecast/reorder — the projection read at the lead time.'],
@@ -229,7 +229,6 @@ const SHELL_SLUG = {
   'new-competitor-alerts':         'new-competitors',
   'collection-gap-finder':         'collection-gaps',
   'weather-event-forecasting':     'weather',
-  'promo-aware-forecast':          'promo',
   'waste-prediction':              'waste',
 };
 for (const f of out) {

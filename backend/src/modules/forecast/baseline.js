@@ -87,6 +87,21 @@ function quantile(values, q) {
 const isClosed = (d) => Number(d.orders) === 0 && Number(d.value) === 0;
 
 /**
+ * A day whose demand was distorted by a promotion.
+ *
+ * A past promo day is real trade, but it is not the *baseline* the operator
+ * wants a normal Tuesday forecast built from — a 40%-off Friday in the history
+ * would inflate every future Friday's level. So a promo day is excluded from the
+ * level and weekday factors exactly as a closed day is, and reported (never
+ * dropped silently), so the screen can say "3 promo days set aside". The flag is
+ * set upstream from the promo signal; a series without it behaves as before.
+ */
+const isPromo = (d) => d.promo === true;
+
+/** Days that should not shape the normal-demand baseline: closures and promos. */
+const isExcluded = (d) => isClosed(d) || isPromo(d);
+
+/**
  * Syntetos–Boylan–Croston classification (§III.5).
  *
  * The point of this is what it protects against: averaging a dish that sells
@@ -145,7 +160,7 @@ function weekdayFactors(trading) {
 
 /** The model's own point estimate for one date, given the history before it. */
 function pointFor(history, targetDate) {
-  const trading = history.filter((d) => !isClosed(d));
+  const trading = history.filter((d) => !isExcluded(d));
   if (trading.length < MIN_TRADING_DAYS) return null;
 
   const level = median(trading.slice(-LEVEL_WINDOW_DAYS).map((d) => d.value));
@@ -168,7 +183,7 @@ function backtest(series) {
   const residuals = [];
   for (let i = MIN_TRADING_DAYS; i < series.length; i++) {
     const actualDay = series[i];
-    if (isClosed(actualDay)) continue;             // nothing to score on a closed day
+    if (isExcluded(actualDay)) continue;           // don't score on a closed or promo day
     const point = pointFor(series.slice(0, i), actualDay.date);
     if (point === null || !(point > 0)) continue;
     residuals.push({
@@ -202,7 +217,8 @@ function weightedMape(residuals) {
  */
 function forecastDay(series, targetDate, { residuals = null } = {}) {
   const closedDays = series.filter(isClosed).length;
-  const trading = series.filter((d) => !isClosed(d));
+  const promoDays = series.filter(isPromo).length;
+  const trading = series.filter((d) => !isExcluded(d));
 
   if (trading.length < MIN_TRADING_DAYS) {
     return {
@@ -214,6 +230,7 @@ function forecastDay(series, targetDate, { residuals = null } = {}) {
       tradingDays: trading.length,
       requiredDays: MIN_TRADING_DAYS,
       closedDaysExcluded: closedDays,
+      promoDaysExcluded: promoDays,
       basis: 'seasonal_naive',
     };
   }
@@ -256,6 +273,9 @@ function forecastDay(series, targetDate, { residuals = null } = {}) {
     overallLevel: overall,
     tradingDays: trading.length,
     closedDaysExcluded: closedDays,
+    // Promo days set aside so a past discount spike does not inflate the normal
+    // baseline. Reported, not hidden — the screen says how many and why.
+    promoDaysExcluded: promoDays,
     historyIsThin: trading.length < PREFERRED_TRADING_DAYS,
     bandBasis,
     residualCount: used.length,
@@ -271,6 +291,8 @@ module.exports = {
   median,
   quantile,
   isClosed,
+  isPromo,
+  isExcluded,
   dayOfWeek,
   MIN_TRADING_DAYS,
   PREFERRED_TRADING_DAYS,

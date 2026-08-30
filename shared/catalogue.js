@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 8 partial, 54 built, 8 shell, 9 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 8 partial, 55 built, 7 shell, 9 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -733,11 +733,10 @@ export const CATALOGUE = [
     "family": "Forecasting & ML",
     "phase": 3,
     "tier": "addon",
-    "status": "shell",
+    "status": "built",
     "surface": "",
     "archivedStatus": "history-gated",
-    "note": "History-gated; also needs promo attribution.",
-    "shellSlug": "promo"
+    "note": "Detects promo days from coupon redemptions and excludes them from the baseline, like closed days; reports which and why. No uplift is predicted."
   },
   {
     "slug": "purchase-order-generator",

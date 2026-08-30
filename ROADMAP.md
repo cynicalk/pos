@@ -16,9 +16,9 @@ _Last updated: 2026-08-29._
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| built | **54** | Works against real data today |
+| built | **55** | Works against real data today |
 | partial | 8 | Core built; one honest gap named in the catalogue note |
-| shell | 8 | Honest empty screen on a real route; needs data or infra |
+| shell | 7 | Honest empty screen on a real route; needs data or infra |
 | absent | 9 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |

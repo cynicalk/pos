@@ -34,6 +34,26 @@ const getDailySeries = (restaurantId, tz, days) =>
   ).then((r) => r.rows);
 
 /**
+ * Coupon redemptions per trading day, the promo signal the forecast excludes on.
+ *
+ * Grouped by the same local date the daily series uses, so a redemption and the
+ * day it distorted line up. Days with no redemptions simply do not appear —
+ * `detectPromoDays` treats a missing date as zero.
+ */
+const getPromoRedemptionsByDay = (restaurantId, tz, days) =>
+  db.query(
+    `SELECT to_char((created_at AT TIME ZONE $2)::date, 'YYYY-MM-DD') AS date,
+            COUNT(*)::int AS redemptions
+       FROM coupon_redemptions
+      WHERE restaurant_id = $1
+        AND (created_at AT TIME ZONE $2)::date >= (now() AT TIME ZONE $2)::date - $3::int
+        AND (created_at AT TIME ZONE $2)::date <  (now() AT TIME ZONE $2)::date
+      GROUP BY 1
+      ORDER BY 1`,
+    [restaurantId, tz, days],
+  ).then((r) => r.rows);
+
+/**
  * Recipes keyed by the menu item they belong to, with per-line quantities.
  *
  * `menu_items.name` is the key because that is what `item_sales` records — a
@@ -166,6 +186,7 @@ const getRoleHoursMix = (restaurantId, days) =>
 
 module.exports = {
   getDailySeries,
+  getPromoRedemptionsByDay,
   getRecipesByDish,
   getCapacitySignal,
   getIngredientsStock,

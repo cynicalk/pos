@@ -6,6 +6,7 @@ const mix = require('../modules/forecast/item-mix');
 const prep = require('../modules/forecast/prep');
 const inventory = require('../modules/forecast/inventory');
 const staffing = require('../modules/forecast/staffing');
+const promo = require('../modules/forecast/promo');
 
 /**
  * Tier 0 demand forecast and the prep sheet that falls out of it.
@@ -55,6 +56,9 @@ const asMetric = (series, metric) => series.map((d) => ({
   date: d.date,
   orders: d.orders,
   items: d.items,
+  // Carried through so the baseline sees which days were promo/closed on every
+  // metric, not just the one the flag was computed on.
+  promo: d.promo,
   value: metric === 'revenue' ? Number(d.value)
     : metric === 'orders' ? Number(d.orders)
       : Object.values(d.items || {}).reduce((s, q) => s + Number(q), 0),
@@ -64,8 +68,17 @@ async function context(restaurantId) {
   // Same lookup the snapshot collector uses, so the forecast and the snapshots
   // it reads can never disagree about which timezone the day belongs to.
   const tz = validateTimezone(await snapshotsRepo.getTimezone(restaurantId), 'UTC');
-  const series = await repo.getDailySeries(restaurantId, tz, HISTORY_DAYS);
-  return { tz, series };
+  const raw = await repo.getDailySeries(restaurantId, tz, HISTORY_DAYS);
+
+  // Flag promo-distorted days from coupon redemptions, so the baseline sets them
+  // aside instead of learning a discount spike as normal demand. Every consumer
+  // of the series (demand, prep, inventory) inherits this in one place.
+  const redemptions = await repo.getPromoRedemptionsByDay(restaurantId, tz, HISTORY_DAYS);
+  const byDate = Object.fromEntries(redemptions.map((r) => [r.date, Number(r.redemptions)]));
+  const { promoDates, detail } = promo.detectPromoDays(raw, byDate);
+  const series = promo.flagPromoDays(raw, promoDates);
+
+  return { tz, series, promo: { days: detail, count: detail.length } };
 }
 
 /** `YYYY-MM-DD` for tomorrow in the restaurant's own timezone. */
@@ -96,7 +109,7 @@ async function loadRecipeMap(restaurantId) {
  * The outlet-total forecast for one date, with the accuracy it has earned.
  */
 async function getDemand(restaurantId, { date } = {}) {
-  const { tz, series } = await context(restaurantId);
+  const { tz, series, promo: promoContext } = await context(restaurantId);
   const target = date || tomorrowIn(tz);
 
   const revenueSeries = asMetric(series, 'revenue');
@@ -110,7 +123,9 @@ async function getDemand(restaurantId, { date } = {}) {
   // is deliberately absent rather than borrowed from this one.
   const wmape = baseline.weightedMape(residuals.slice(-56));
 
-  const trading = series.filter((d) => !baseline.isClosed(d));
+  // Excludes promo days too, so the displayed weekday shape matches the baseline
+  // the point estimate was actually built from.
+  const trading = series.filter((d) => !baseline.isExcluded(d));
   const { factors, samples } = baseline.weekdayFactors(trading);
 
   return {
@@ -120,6 +135,9 @@ async function getDemand(restaurantId, { date } = {}) {
     isBaselineModel: true,
     forecast,
     orders,
+    // Promo days found in the history and set aside from the baseline. The screen
+    // uses this to say "3 promo days excluded" rather than leaving it implicit.
+    promo: promoContext,
     accuracy: {
       grain: 'outlet_total',
       wmape,
@@ -131,7 +149,8 @@ async function getDemand(restaurantId, { date } = {}) {
     weekdayShape: factors.map((factor, dow) => ({ dow, factor, samples: samples[dow] })),
     history: {
       tradingDays: trading.length,
-      closedDays: series.length - trading.length,
+      closedDays: series.filter(baseline.isClosed).length,
+      promoDays: promoContext.count,
       firstDay: series[0]?.date ?? null,
       lastDay: series[series.length - 1]?.date ?? null,
     },

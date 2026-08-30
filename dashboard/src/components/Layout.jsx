@@ -176,6 +176,7 @@ const ALL_NAV = [
     // breadcrumb, both of which come from the nav.
     children: [
       { to: '/forecast/demand',     label: 'Demand Forecast',    Icon: LineChart },
+      { to: '/forecast/promo',      label: 'Promo-aware',        Icon: Tag },
       { to: '/forecast/prep-sheet', label: 'Prep Sheet',         Icon: ClipboardList },
       { to: '/forecast/inventory',  label: 'Inventory Forecast', Icon: Package },
       { to: '/forecast/reorder',    label: 'Auto Reorder',       Icon: ShoppingCart },
