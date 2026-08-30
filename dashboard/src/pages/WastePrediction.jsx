@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Trash2, Info, Save, CheckCircle2, AlertTriangle, ArrowUpRight } from 'lucide-react';
-import { usePrepPlan, usePrepReconciliation, useSavePrepPlan, useSavePrepActual } from '../hooks/usePrep';
+import { Trash2, Info, Save, AlertTriangle, TrendingDown } from 'lucide-react';
+import { usePrepPlan, usePrepReconciliation, usePrepForecast, useSavePrepPlan, useSavePrepActual } from '../hooks/usePrep';
 import { useCurrency } from '../context/CurrencyContext';
 import { CARD, LABEL, th, td, tdNum } from '../lib/ui';
 
@@ -24,11 +24,25 @@ const STATUS = {
   not_logged: { label: 'Not logged', color: 'var(--mute)', bg: 'var(--paper-3)' },
 };
 
+// Forward-forecast statuses (Phase 2).
+const FSTATUS = {
+  chronic:      { label: 'Chronic',   color: 'var(--bad)',  bg: 'var(--bad-soft)' },
+  occasional:   { label: 'Sometimes', color: 'var(--warn)', bg: 'var(--warn-soft)' },
+  lean:         { label: 'Lean',      color: 'var(--ok)',   bg: 'var(--ok-soft)' },
+  insufficient: { label: 'Learning',  color: 'var(--mute)', bg: 'var(--paper-3)' },
+};
+
+const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const pillStyle = (s) => ({ padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.color, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' });
+
 function Pill({ status }) {
-  const s = STATUS[status] || STATUS.not_logged;
-  return (
-    <span style={{ padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.color, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>{s.label}</span>
-  );
+  return <span style={pillStyle(STATUS[status] || STATUS.not_logged)}>{(STATUS[status] || STATUS.not_logged).label}</span>;
+}
+
+function FPill({ status }) {
+  const s = FSTATUS[status] || FSTATUS.insufficient;
+  return <span style={pillStyle(s)}>{s.label}</span>;
 }
 
 const qtyInput = {
@@ -51,8 +65,16 @@ export default function WastePrediction() {
   const { data: plan, isLoading } = usePrepPlan(date);
   const isPast = date < iso(new Date());
   const { data: recon } = usePrepReconciliation(isPast ? date : null);
+  // The forward over-prep forecast is for a service that hasn't happened yet.
+  const { data: forecast } = usePrepForecast(isPast ? null : date);
   const savePlan = useSavePrepPlan();
   const saveActual = useSavePrepActual();
+
+  // Dishes the forecast can actually speak to, heaviest surplus first.
+  const flagged = useMemo(
+    () => (forecast?.dishes || []).filter((d) => d.status !== 'insufficient' && d.predictedSurplus > 0),
+    [forecast],
+  );
 
   // Reconciliation figures per dish (sold/unsold/status), when the day is past.
   const reconByItem = useMemo(
@@ -104,7 +126,7 @@ export default function WastePrediction() {
       <div>
         <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 10 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999, background: 'var(--paper-3)', color: 'var(--mute)', fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em' }}>
-            <Trash2 size={12} strokeWidth={2.2} /> Phase 1 · prep vs sold
+            <Trash2 size={12} strokeWidth={2.2} /> prep · sold · surplus
           </span>
         </div>
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.01em' }}>Waste Prediction</h1>
@@ -114,14 +136,89 @@ export default function WastePrediction() {
         </p>
       </div>
 
-      {/* ── Honest Phase-2 marker ───────────────────────────────────────── */}
-      <div style={{ padding: '13px 16px', borderLeft: '2px solid var(--info)', background: 'var(--paper-2)', borderRadius: '0 8px 8px 0' }}>
-        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: 'var(--mute)' }}>
-          <strong style={{ color: 'var(--ink-2)', fontWeight: 600 }}>Measured first, predicted later.</strong>{' '}
-          Once a few weeks of prep-vs-sold accumulate, this will forecast which dishes are likely to be
-          over-prepped tomorrow. Until then it reports what actually happened — no invented forecast of waste.
-        </p>
-      </div>
+      {/* ── Forward forecast: likely over-prep for this service (Phase 2) ── */}
+      {!isPast && forecast && (
+        forecast.summary.predicted > 0 ? (
+          <div style={{ ...CARD, borderTop: '2px solid var(--warn)' }}>
+            <div className="flex items-center gap-2 flex-wrap" style={{ justifyContent: 'space-between' }}>
+              <div style={{ ...LABEL, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <TrendingDown size={13} strokeWidth={2.2} /> Likely over-prep · {WEEKDAY[forecast.targetDow]}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--mute)' }}>
+                learned from {Math.max(...(forecast.dishes || []).map((d) => d.samples || 0))} days of prep history
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginTop: 14 }}>
+              {[
+                ['Likely unsold', `${forecast.summary.totalSurplusPortions}`, 'portions across the menu'],
+                ['At risk', forecast.summary.totalSurplusValue != null ? format(forecast.summary.totalSurplusValue) : '—',
+                  forecast.summary.valueCoveragePct != null ? `${forecast.summary.valueCoveragePct}% of dishes costed` : 'no dish costs yet'],
+                ['Chronic over-preppers', `${forecast.summary.chronic}`, 'over most days, by a real margin'],
+                ['Still learning', `${forecast.summary.insufficient}`, 'too little history to forecast'],
+              ].map(([label, value, sub]) => (
+                <div key={label}>
+                  <div style={LABEL}>{label}</div>
+                  <div className="mono num" style={{ marginTop: 6, fontSize: 21, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
+                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--mute)', lineHeight: 1.5 }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {flagged.length > 0 && (
+              <div style={{ overflowX: 'auto', marginTop: 16 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Dish</th>
+                      <th style={{ ...th, textAlign: 'right' }}>Forecast sell</th>
+                      <th style={{ ...th, textAlign: 'right' }}>You usually prep</th>
+                      <th style={{ ...th, textAlign: 'right' }}>Likely surplus</th>
+                      <th style={{ ...th, textAlign: 'right' }}>At risk</th>
+                      <th style={th}>Pattern</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flagged.slice(0, 12).map((d) => (
+                      <tr key={d.menuItemId} style={{ borderTop: '1px solid var(--line)' }}>
+                        <td style={{ ...td, fontWeight: 500 }}>
+                          {d.chronic && <AlertTriangle size={12} strokeWidth={2.2} style={{ color: 'var(--bad)', marginRight: 5, verticalAlign: -1 }} />}
+                          {d.name}
+                        </td>
+                        <td style={{ ...tdNum, color: 'var(--mute)' }} className="mono num">{d.forecastQty ?? '—'}</td>
+                        <td style={tdNum} className="mono num">{d.typicalPrepped ?? '—'}</td>
+                        <td style={{ ...tdNum, fontWeight: 600, color: 'var(--warn)' }} className="mono num">
+                          {d.predictedSurplus}
+                          {d.surplusLo != null && d.surplusHi != null && d.surplusHi > d.surplusLo && (
+                            <span style={{ color: 'var(--mute)', fontWeight: 400, fontSize: 11 }}> ({d.surplusLo}–{d.surplusHi})</span>
+                          )}
+                        </td>
+                        <td style={tdNum} className="mono num">{d.valuedSurplus != null ? format(d.valuedSurplus) : '—'}</td>
+                        <td style={td}><FPill status={d.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <p style={{ display: 'flex', gap: 7, alignItems: 'flex-start', margin: '14px 0 0', fontSize: 11.5, lineHeight: 1.6, color: 'var(--mute)' }}>
+              <Info size={13} strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>This is the surplus you'd likely leave if you prep as usual — not a prep instruction.
+                Trimming toward the forecast is the operator's call: only you know what carries to the next
+                service and what can't run out. "At risk" values the surplus at recipe cost.</span>
+            </p>
+          </div>
+        ) : (
+          <div style={{ padding: '13px 16px', borderLeft: '2px solid var(--info)', background: 'var(--paper-2)', borderRadius: '0 8px 8px 0' }}>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: 'var(--mute)' }}>
+              <strong style={{ color: 'var(--ink-2)', fontWeight: 600 }}>Measured first, predicted later.</strong>{' '}
+              Not enough prep history yet to forecast over-prep for this service. Keep logging prep vs sold;
+              once a few weeks accumulate, the likely surplus per dish appears here — no invented forecast until then.
+            </p>
+          </div>
+        )
+      )}
 
       {/* ── Date + actions ──────────────────────────────────────────────── */}
       <div style={{ ...CARD, display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>

@@ -6,7 +6,7 @@ truth for *what exists*; this file records *what is next and why*, and the
 decisions that shape it. Where the two disagree, the catalogue wins — it is
 generated from the code.
 
-_Last updated: 2026-08-29._
+_Last updated: 2026-08-30._
 
 ---
 
@@ -16,8 +16,8 @@ _Last updated: 2026-08-29._
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| built | **55** | Works against real data today |
-| partial | 9 | Core built; one honest gap named in the catalogue note |
+| built | **56** | Works against real data today |
+| partial | 8 | Core built; one honest gap named in the catalogue note |
 | shell | 6 | Honest empty screen on a real route; needs data or infra |
 | absent | 9 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
@@ -59,7 +59,18 @@ Outbox** pass — waitlist notifications and winback offers now record intended
 guest messages in a persisted outbox, with honest `queued` / `skipped` /
 `failed` / `sent` states and an admin read screen at `/outbox`. There is still
 no WhatsApp sender worker, so this is queue groundwork rather than a claimed
-delivery channel.
+delivery channel; and **Waste Prediction** (shell → built, in two phases) — the
+number the waste picture always lacked is *how much of each dish was prepped*,
+now captured at two points (a pre-service plan nudged from the forecast, a
+post-service actual; `prep_logs`, migration 089) and reconciled against what sold
+and what was binned, so over-prep is measured per dish, not guessed (Phase 1);
+then the per-dish/weekday over-prep pattern is projected onto the next service —
+likely surplus in portions and rupees, chronic over-preppers flagged, abstaining
+per dish below a history floor (Phase 2), all on one page at `/forecast/waste`.
+It forecasts the surplus and never a prep quantity: choosing how much to make
+weighs the cost of running out against the cost of binning, which needs
+shelf-life and stockout-cost data the POS does not hold — the same line the prep
+sheet already draws.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -106,21 +117,6 @@ Ordered by leverage against data and infrastructure that already exist.
    enqueue path.
 
 ---
-
-## In progress
-
-- **Waste Prediction — Phase 1 shipped (shell → partial).** The number the waste
-  picture always lacked — how much of each dish was prepped — is now captured at
-  two points: a pre-service **plan** (nudged from the forecast) and a post-service
-  **actual** (`prep_logs`, migration 089). Reconciliation joins the logged prep
-  against what sold and what was binned, so over-prep is *measured* per dish
-  (over / short / on-target), not guessed — on a real page at `/forecast/waste`.
-  It abstains honestly: a dish with no prep log reads "not logged", never zero,
-  and the screen states the forward prediction is Phase 2, not yet built.
-  **Phase 2** (partial → built): once weeks of prep-vs-sold accumulate, learn the
-  per-dish/weekday over-prep pattern and forecast tomorrow's likely surplus —
-  flagging chronic over-preppers, not prescribing a newsvendor optimum (shelf-life
-  and stockout-cost data the POS doesn't hold).
 
 ## Gated / later
 

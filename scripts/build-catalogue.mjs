@@ -118,7 +118,7 @@ const PATCH = {
   'prep-sheet-generator':         ['forecast', 3, 'addon', 'built', 'Shipped this session at /forecast/prep-sheet.'],
   'weather-event-forecasting':    ['forecast', 3, 'addon', 'shell', 'Needs a local events + weather feed on top of the forecast.'],
   'promo-aware-forecast':         ['forecast', 3, 'addon', 'built', 'Detects promo days from coupon redemptions and excludes them from the baseline, like closed days; reports which and why. No uplift is predicted.'],
-  'waste-prediction':             ['forecast', 3, 'addon', 'partial', 'Phase 1 built: prep logged pre/post-service and reconciled against sales (over-prep measured). The forward prediction is Phase 2, gated on accumulated prep history.'],
+  'waste-prediction':             ['forecast', 3, 'addon', 'built', 'Prep logged pre/post-service and reconciled against sales (Phase 1), then the per-dish/weekday over-prep pattern is projected onto the next service (Phase 2) at /forecast/waste — likely surplus in portions and rupees, chronic over-preppers flagged, abstaining per dish below a history floor. It forecasts the surplus, never a prep quantity (that needs shelf-life + stockout cost the POS lacks).'],
   'inventory-forecasting':        ['forecast', 3, 'addon', 'built', 'Tier 0 stock projection shipped this session at /forecast/inventory — stock walked down against the forecast.'],
   'auto-reorder-suggestions':     ['forecast', 3, 'addon', 'built', 'Tier 0 reorder plan (h=3) shipped this session at /forecast/reorder — the projection read at the lead time.'],
   'shift-planning':               ['forecast', 3, 'addon', 'built', 'Tier 0 shift plan shipped this session at /forecast/shift-planning — forecast covers ÷ learned covers-per-labour-hour.'],

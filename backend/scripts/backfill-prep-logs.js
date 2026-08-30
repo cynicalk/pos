@@ -16,7 +16,9 @@
  */
 const db = require('../src/shared/db');
 
-const DEFAULT_DAYS = 14;
+// Phase 2 learns a per-dish/weekday over-prep pattern, so the demo needs enough
+// depth for each weekday to clear its sample floor (~8 weeks ≈ 8 per weekday).
+const DEFAULT_DAYS = 56;
 
 // A small deterministic PRNG so a re-run writes the same history.
 function seeded(str) {

@@ -29,4 +29,8 @@ router.get('/reconciliation', authenticate, authorize('admin'), asyncHandler(asy
   res.json(await service.getReconciliation(req.user.restaurantId, { date: req.query.date }));
 }));
 
+router.get('/forecast', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.getPrepForecast(req.user.restaurantId, { date: req.query.date }));
+}));
+
 module.exports = router;

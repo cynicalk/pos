@@ -21,6 +21,14 @@ export const usePrepReconciliation = (date) =>
     ...common,
   });
 
+// Phase 2 — the forward over-prep forecast for the next service (or a given date).
+export const usePrepForecast = (date) =>
+  useQuery({
+    queryKey: ['prep', 'forecast', date ?? null],
+    queryFn: async () => (await api.get(`/prep/forecast${date ? `?date=${date}` : ''}`)).data,
+    ...common,
+  });
+
 const invalidate = () => {
   queryClient.invalidateQueries({ queryKey: ['prep'] });
 };

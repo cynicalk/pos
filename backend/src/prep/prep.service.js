@@ -2,6 +2,7 @@ const repo = require('./prep.repository');
 const forecastService = require('../forecast/forecast.service');
 const snapshotsRepo = require('../snapshots/snapshots.repository');
 const reconcile = require('../modules/forecast/prep-reconcile');
+const prepWaste = require('../modules/forecast/prep-waste');
 const { validateTimezone, localDate } = require('../shared/timezone');
 const { ValidationError } = require('../shared/errors');
 
@@ -148,4 +149,58 @@ async function getReconciliation(restaurantId, { date } = {}) {
   };
 }
 
-module.exports = { getPlanningSheet, savePlanned, saveActual, getReconciliation };
+/** Days of prep history the surplus forecast reads back over. */
+const HISTORY_DAYS = 90;
+
+function tomorrowLocal(tz) {
+  const today = localDate(new Date(), tz);
+  const [y, m, d] = today.split('-').map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+/**
+ * Phase 2 — forecast tomorrow's likely over-prep per dish, from the prep history
+ * Phase 1 has been accumulating. Abstains, per dish, below a history floor; it
+ * never fills the gap with a zero. The forecast quantity for the day rides along
+ * so the screen can show the measured surplus against what the model expects to
+ * sell — the reference point the operator trims toward, since the system still
+ * refuses to prescribe a prep number of its own.
+ */
+async function getPrepForecast(restaurantId, { date } = {}) {
+  const tz = await timezoneFor(restaurantId);
+  const targetDate = date || tomorrowLocal(tz);
+  assertDate(targetDate);
+
+  const [history, costs, forecast] = await Promise.all([
+    repo.getPrepHistory(restaurantId, tz, HISTORY_DAYS),
+    repo.getDishUnitCosts(restaurantId),
+    forecastService.getPrepSheet(restaurantId, { date: targetDate }).catch(() => ({ items: [] })),
+  ]);
+
+  const costByItem = new Map(costs.map((c) => [c.menu_item_id, c.unit_cost == null ? null : Number(c.unit_cost)]));
+  const forecastByName = new Map((forecast.items || []).map((i) => [i.name, i.qty]));
+
+  // Group the flat history rows into per-dish day series.
+  const byDish = new Map();
+  for (const row of history) {
+    if (!byDish.has(row.menu_item_id)) {
+      byDish.set(row.menu_item_id, { menuItemId: row.menu_item_id, name: row.menu_item_name, days: [] });
+    }
+    byDish.get(row.menu_item_id).days.push({ date: row.service_date, prepped: row.prepped, sold: row.sold });
+  }
+
+  const dishes = [...byDish.values()].map((d) => ({
+    ...d,
+    unitCost: costByItem.has(d.menuItemId) ? costByItem.get(d.menuItemId) : null,
+    forecastQty: forecastByName.has(d.name) ? Math.round(forecastByName.get(d.name)) : null,
+  }));
+
+  return {
+    timezone: tz,
+    forecastAvailable: (forecast.items || []).length > 0,
+    ...prepWaste.buildPrepForecast({ dishes, targetDate }),
+  };
+}
+
+module.exports = { getPlanningSheet, savePlanned, saveActual, getReconciliation, getPrepForecast };
