@@ -1,10 +1,16 @@
 # CookLyt Roadmap
 
-Forward-looking companion to the feature catalogue. The catalogue
-(`shared/catalogue.js`, surfaced in-app at **/feature-status**) is the source of
-truth for *what exists*; this file records *what is next and why*, and the
-decisions that shape it. Where the two disagree, the catalogue wins — it is
-generated from the code.
+The single roadmap for CookLyt. Forward-looking companion to the feature
+catalogue (`shared/catalogue.js`, surfaced in-app at **/feature-status**), which
+is the source of truth for *what exists*; this file records *what is next and
+why*, and the decisions that shape it. Where the two disagree, the catalogue wins
+— it is generated from the code. For *what already shipped*, see
+[`CHANGELOG.md`](CHANGELOG.md); for the deeper design, [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+This file consolidates every planning doc into one place. It supersedes the
+earlier `MERGE_PLAN.md` (the back-office → POS merge, now complete) and
+`FULL_APP_REVIEW_CONTINUATION.md` (the P0/P1 review handoff, now shipped) —
+their still-live content is folded in below, under **Origins** and **Next up**.
 
 _Last updated: 2026-08-30._
 
@@ -99,6 +105,29 @@ model could only guess.
 
 ---
 
+## Origins — how we got here
+
+CookLyt POS is the merge target: an Express + Postgres + React/Vite POS
+(WebSocket, KDS, payments, modifiers/combos/coupons/loyalty, super-admin, guest
+app, Jest suite) that a Next.js + Prisma operator back-office was ported *into*
+in August 2026. The direction was deliberate: the back-office learned about sales
+by ingesting day-old CSVs; the POS **generates** that data live, so every ported
+feature reads live rows instead of an upload. Two rules governed the merge and
+still govern new work:
+
+- **No Prisma in the backend.** Every ported query became a POS repository method
+  on the `Router → Service → Repository → SQL` spine — the largest line-item of
+  the merge, paid on purpose (see [`ARCHITECTURE.md`](ARCHITECTURE.md)).
+- **A real answer or an honest shell — never a fake number.** A feature that
+  can't yet produce a truthful figure gets a navigable, self-explaining empty
+  screen, not mocked-up data. This is the same discipline the catalogue's
+  `shell` status and the abstention rule above enforce.
+
+The merge is complete; the counts in **Where we are** are the current reconciled
+state, not the pre-merge 77-feature catalog.
+
+---
+
 ## Decisions on record
 
 - **ETA engine — kept and enhanced, not rebuilt.** The `Cooklyt_ETA_Engine`
@@ -121,6 +150,18 @@ model could only guess.
   `Cooklyt_Deep_Feature_Roadmap` (~150 items: AI agents, digital twin,
   knowledge graph) are a direction, not a backlog. Items from them enter this
   roadmap only when they become concrete and buildable on data we hold.
+- **Numerize / operator-intelligence teardown — assemble, don't rebuild.** A
+  competitor scan (Numerize's "Friday" agent) and a multi-outlet operator's
+  weekly sheet were analysed against our data model
+  ([research brief](https://claude.ai/code/artifact/03ecc932-db4a-45d0-b642-25a1df80994c)).
+  Finding: their headline moves — telling an operator which coupon quietly loses
+  money, and reading category attach-rate to the first decimal — are computable
+  from tables CookLyt already holds. The differentiator isn't the maths, it's
+  **delivery**: a plain-language nudge pushed to the right person, not a dashboard
+  to remember to open. We already have the machinery for that (rules → ranked
+  actions → message outbox), so these become the **operator-intelligence** backlog
+  under *Next up*, not a new product. Their real dependency is the same WhatsApp
+  channel worker already on the list.
 
 ---
 
@@ -128,13 +169,38 @@ model could only guess.
 
 Ordered by leverage against data and infrastructure that already exist.
 
-1. **WhatsApp send channel.** The persisted outbox now exists, waitlist / winback
-   route through it, and loyalty-customer consent (`whatsapp_opt_in`) is captured
-   at customer creation and order-link time — so messages already resolve to
-   `queued` (opted in) or `skipped` (not). Still missing: the channel worker —
-   wire WhatsApp Business API credentials/config, drain `queued` rows to `sent`
-   or `failed`, then route Smart Alerts and Staff Task nudges through the same
-   enqueue path.
+### 1. Operator intelligence — the per-cover margin layer
+
+From the [competitor / operator teardown](https://claude.ai/code/artifact/03ecc932-db4a-45d0-b642-25a1df80994c).
+Most of these need no new capture — the maths runs on tables we already hold —
+and each keeps the abstention discipline (per-cover metrics abstain until a cover
+count exists; year-on-year abstains until a year of history does). Delivered
+first as Insights panels and action-centre rules, then pushed through the outbox.
+
+| Metric | Data today | Status | First build |
+| --- | --- | --- | --- |
+| **Coupon contribution** | `coupons` + `orders` (revenue, discount) + `payouts` settlement commission | ✅ ship now | Rank codes by ₹ kept per order after discount + commission; raise an action on any loss-making code. This is Numerize's headline insight, computable today. |
+| **Category attach rate** (the "0.1") | `order_items → menu_items.category` | ✅ ship now | Desserts/drinks per order and % of orders carrying each category, benchmarked across outlets; extends Menu Insights + cross-sell. Per-cover once covers land. |
+| **Same-store sales growth (SSSG)** | `daily_snapshots` + the `group` module | ✅ ship now | WoW / 4-week / QoQ growth per outlet in the group view; YoY abstains until ≥1 yr history. |
+| **Sales per labour hour (SPLH)** | `labour` module + cost-based scheduling | ✅ ship now | SPLH and labour-% vs forecast now; station-level planned-vs-actual headcount needs station tags on the schedule (smaller follow-on). |
+| **APC / per-cover average** | revenue yes; covers only at waitlist/reservation intake (`party_size`), not per bill | ⚠ needs capture | Ship AOV (per order) now; add an optional cover count at billing for true APC, computed where known, abstaining otherwise. |
+| **Service-charge-removed %** | `service_charge_amount` stored per payment; no waive event | ⚠ needs capture | Add a "waive service charge" control at billing that flags the bill; then the % and its rupee value compute per outlet and per server. |
+| **Always-on delivery** ("Friday" layer) | rules/actions engine + AI narration + message outbox | 🔗 assemble | Wire the findings above as rules → ranked actions → outbox messages. Gated on the WhatsApp worker (item 2). |
+
+**Sequencing:** Wave 1 — coupon contribution + category attach (no migration).
+Wave 2 — SSSG + SPLH in the group view (read-layer on existing tables). Wave 3 —
+covers-on-the-bill + SC-removed capture (2 migrations + billing UI). Wave 4 —
+route it all through the agent we already have.
+
+### 2. WhatsApp send channel
+
+The persisted outbox now exists, waitlist / winback route through it, and
+loyalty-customer consent (`whatsapp_opt_in`) is captured at customer creation and
+order-link time — so messages already resolve to `queued` (opted in) or `skipped`
+(not). Still missing: the channel worker — wire WhatsApp Business API
+credentials/config, drain `queued` rows to `sent` or `failed`, then route Smart
+Alerts, Staff Task nudges, and the operator-intelligence actions above through the
+same enqueue path. This is the one dependency the "always-on delivery" item shares.
 
 ---
 
@@ -179,12 +245,18 @@ their catalogue notes are due a refresh even though the honest status stays
 
 ## Source documents
 
-Strategy and specs this roadmap reconciles (kept locally, not in the repo):
+Strategy, specs, and research this roadmap reconciles:
 
 | Doc | Role here |
 | --- | --- |
+| [Margin in the Decimals](https://claude.ai/code/artifact/03ecc932-db4a-45d0-b642-25a1df80994c) | Numerize + operator-metrics teardown → the operator-intelligence backlog |
+| `MERGE_PLAN.md` *(folded in)* | Back-office → POS merge plan; complete — its live content is now **Origins** above |
+| `FULL_APP_REVIEW_CONTINUATION.md` *(folded in)* | P0/P1 review handoff; shipped — remainder is the WhatsApp worker in **Next up** |
 | `Cooklyt_ETA_Engine_Spec_v3` | Assessed → keep & enhance the existing engine |
 | `CookLyt_LoopAI_Feature_Gaps` | Concrete near-term gaps (F-01/04/06/07); F-07 shipped |
 | `cooklyt-recsys-context` + algorithms table | Guest recommender design; gated on Phase 0 logging |
 | `Cooklyt_V2_Strategic_Features` | Long-range vision (AI OS, agents) |
 | `Cooklyt_Deep_Feature_Roadmap` | ~150-item vision catalogue; several already built |
+
+The specs marked without a link are kept locally, not in the repo. The two
+*folded-in* docs have been consolidated here and removed as standalone files.
