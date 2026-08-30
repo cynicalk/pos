@@ -180,6 +180,7 @@ const ALL_NAV = [
       { to: '/forecast/prep-sheet', label: 'Prep Sheet',         Icon: ClipboardList },
       { to: '/forecast/inventory',  label: 'Inventory Forecast', Icon: Package },
       { to: '/forecast/reorder',    label: 'Auto Reorder',       Icon: ShoppingCart },
+      { to: '/forecast/waste',      label: 'Waste Prediction',   Icon: Trash2 },
       { to: '/forecast/shift-planning', label: 'Shift Planning',      Icon: Users },
       { to: '/forecast/scheduling',     label: 'Cost Scheduling',     Icon: Coins },
       ...(PLANNED_BY_GROUP['Forecasting'] || []),

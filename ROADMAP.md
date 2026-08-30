@@ -17,8 +17,8 @@ _Last updated: 2026-08-29._
 | Status | Count | Meaning |
 | --- | --- | --- |
 | built | **55** | Works against real data today |
-| partial | 8 | Core built; one honest gap named in the catalogue note |
-| shell | 7 | Honest empty screen on a real route; needs data or infra |
+| partial | 9 | Core built; one honest gap named in the catalogue note |
+| shell | 6 | Honest empty screen on a real route; needs data or infra |
 | absent | 9 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
@@ -106,6 +106,21 @@ Ordered by leverage against data and infrastructure that already exist.
    enqueue path.
 
 ---
+
+## In progress
+
+- **Waste Prediction — Phase 1 shipped (shell → partial).** The number the waste
+  picture always lacked — how much of each dish was prepped — is now captured at
+  two points: a pre-service **plan** (nudged from the forecast) and a post-service
+  **actual** (`prep_logs`, migration 089). Reconciliation joins the logged prep
+  against what sold and what was binned, so over-prep is *measured* per dish
+  (over / short / on-target), not guessed — on a real page at `/forecast/waste`.
+  It abstains honestly: a dish with no prep log reads "not logged", never zero,
+  and the screen states the forward prediction is Phase 2, not yet built.
+  **Phase 2** (partial → built): once weeks of prep-vs-sold accumulate, learn the
+  per-dish/weekday over-prep pattern and forecast tomorrow's likely surplus —
+  flagging chronic over-preppers, not prescribing a newsvendor optimum (shelf-life
+  and stockout-cost data the POS doesn't hold).
 
 ## Gated / later
 

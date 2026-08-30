@@ -63,14 +63,6 @@ export const PLANNED_FEATURES = [
       HISTORY_BLOCKER +
       ' This one also needs a local events feed on top of the forecast it adjusts.',
   },
-  {
-    slug: 'waste', path: '/forecast/waste', group: 'Forecasting',
-    title: 'Waste Prediction',
-    summary:
-      'Which items are likely to be over-prepped and binned, flagged before they are prepped ' +
-      'rather than counted afterwards.',
-    reason: REASON.COLLECTING, blocker: HISTORY_BLOCKER,
-  },
   // ── Needs scraping infrastructure (4) ────────────────────────────────────
   {
     slug: 'competitor-prices', path: '/market/competitor-prices', group: 'Market Intel',

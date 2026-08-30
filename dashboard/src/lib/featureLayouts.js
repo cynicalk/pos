@@ -62,29 +62,6 @@ const layouts = {
     ],
   },
 
-  waste: {
-    filters: ['Date range', 'Station', 'Reason'],
-    kpis: [
-      { label: 'Predicted waste value' },
-      { label: 'Predicted waste weight' },
-      { label: 'Dishes flagged' },
-      { label: 'Share of food cost' },
-    ],
-    chart: { title: 'Predicted against logged waste', x: 'Day', y: 'Value' },
-    table: {
-      title: 'Where the surplus is expected',
-      columns: ['Item', 'Prepped', 'Forecast demand', 'Likely surplus', 'Value at risk', 'Shelf life'],
-    },
-    panels: [
-      {
-        title: 'Logged waste is the check on this, not its input',
-        body:
-          'Waste already recorded on the prep sheet is what a prediction gets scored against. Until ' +
-          'there is enough of both to compare, this screen would be marking its own homework.',
-      },
-    ],
-  },
-
   // ── Market Intel ─────────────────────────────────────────────────────────
 
   'competitor-prices': {

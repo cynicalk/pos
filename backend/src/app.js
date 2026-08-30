@@ -100,6 +100,7 @@ app.use('/api/snapshots',     require('./snapshots/snapshots.router'));
 app.use('/api/actions',       require('./actions/actions.router'));
 app.use('/api/insights',      require('./insights/insights.router'));
 app.use('/api/forecast',      require('./forecast/forecast.router'));
+app.use('/api/prep',          require('./prep/prep.router'));
 app.use('/api/procurement',   require('./procurement/procurement.router'));
 app.use('/api/labour',        require('./labour/labour.router'));
 app.use('/api/compliance',    require('./compliance/compliance.router'));

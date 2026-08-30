@@ -25,8 +25,8 @@ import { PLANNED_FEATURES } from '../src/lib/plannedFeatures.js';
 const EXPECTED_TOTAL = 86;
 const EXPECTED_BY_STATUS = {
   built: 55,
-  partial: 8,
-  shell: 7,
+  partial: 9,
+  shell: 6,
   absent: 9,
   external: 4,
   'blocked-ext': 3,
