@@ -70,7 +70,15 @@ per dish below a history floor (Phase 2), all on one page at `/forecast/waste`.
 It forecasts the surplus and never a prep quantity: choosing how much to make
 weighs the cost of running out against the cost of binning, which needs
 shelf-life and stockout-cost data the POS does not hold — the same line the prep
-sheet already draws.
+sheet already draws; and **Admin Feature Toggles** — an admin can switch whole
+modules of the app on or off for their restaurant at `/feature-toggles`, hiding
+them from the sidebar and gating their routes (a typed URL to a switched-off page
+lands on an honest "turned off" panel). Flags are one `feature_flags` setting
+(JSON of only the OFF entries; empty means everything on), keyed by the same nav
+paths the sidebar renders so the list cannot drift; core POS and admin screens
+are protected so an admin cannot lock the till or themselves out. This is UI-level
+today — the operator app hides the feature, but the API routes still answer if
+called directly (server-side enforcement is the next item below).
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -116,9 +124,42 @@ Ordered by leverage against data and infrastructure that already exist.
    or `failed`, then route Smart Alerts and Staff Task nudges through the same
    enqueue path.
 
+2. **Feature-toggle backend enforcement.** The admin toggles hide and gate
+   features in the operator app, but a switched-off module's API still answers a
+   direct call. Close that with a small `requireFeature(key)` middleware that
+   reads the restaurant's `feature_flags` and returns `403 feature_disabled` when
+   off, mounted on the routers whose feature is toggleable. The real work is the
+   map from a toggle key (a nav path like `/reviews`) to its backend router
+   prefix(es) — some features span more than one router, and protected features
+   must always pass — so it is a deliberate, mostly mechanical pass rather than a
+   one-liner. Flags are already per-restaurant in `settings`, so the middleware
+   reads what the UI writes; no new storage. Until then the toggle is honestly
+   documented as a UI-level control.
+
 ---
 
 ## Gated / later
+
+After Waste Prediction Phase 2, the feature toggles, and the enforcement pass
+above, essentially everything left is **externally gated** — it needs a
+credential, a hardware feed, or a network the product deliberately does not run,
+not more code against data we hold. The non-built catalogue features (partial,
+shell, absent, external, blocked-ext — the catalogue holds the exact counts), by
+what each waits on:
+
+| Gate | Features waiting on it |
+| --- | --- |
+| **WhatsApp Business API** (outbox is the groundwork; needs the channel worker) | Smart Alerts delivery, Staff Task nudge, Repeat-Rate & Winback send, WhatsApp Assistant, Automated Winback Campaigns, Per-employee Data Entry |
+| **Aggregator scraping** (product does not run it) | Collection Gap Finder, Competitor Price / Offer Tracker, New Competitor Alerts |
+| **Other third-party creds / APIs** | Tally auto-sync (creds), AI Review Reply *posting* (Google), Invoice Parser (OCR), Platform Connections (Swiggy/Zomato auto-connect), Weather & Event Forecasting (weather+events feed) |
+| **Cameras + a CV model** | Allergen Cross-Contamination, Cross-Contamination / Handwash / Headgear-Glove / Spill-Pest Detection |
+| **A multi-outlet network** (unlearnable on one restaurant) | Menu Modelling, Pricing Prediction, Wholesale Pricing |
+| **Separate guest-app repo** (off-limits here) | E-Waiter, Joined Cart, Personalized Ordering, Smart Upsells |
+
+Outcome Tracking is already built (demo-empty only); Smart Alerts and
+Repeat-Rate & Winback now route through the real outbox rather than a stub, so
+their catalogue notes are due a refresh even though the honest status stays
+`partial` until the channel worker lands.
 
 - **Recsys learning pipeline** — Phase 0 event logging first, then logistic
   regression → content embeddings → LambdaMART. Guest recommender + co-order
