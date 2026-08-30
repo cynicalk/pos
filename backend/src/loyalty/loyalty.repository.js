@@ -12,13 +12,15 @@ const findById = (restaurantId, id) =>
     [restaurantId, id],
   ).then((r) => r.rows[0] || null);
 
-const findOrCreate = async (restaurantId, phone, name) => {
+const findOrCreate = async (restaurantId, phone, name, whatsappOptIn = false) => {
   const res = await db.query(
-    `INSERT INTO loyalty_customers (restaurant_id, phone, name)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (restaurant_id, phone) DO UPDATE SET name = COALESCE(EXCLUDED.name, loyalty_customers.name)
+    `INSERT INTO loyalty_customers (restaurant_id, phone, name, whatsapp_opt_in)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (restaurant_id, phone) DO UPDATE
+        SET name = COALESCE(EXCLUDED.name, loyalty_customers.name),
+            whatsapp_opt_in = loyalty_customers.whatsapp_opt_in OR EXCLUDED.whatsapp_opt_in
      RETURNING *`,
-    [restaurantId, phone, name || null],
+    [restaurantId, phone, name || null, !!whatsappOptIn],
   );
   return res.rows[0];
 };
@@ -78,6 +80,12 @@ const updateName = (restaurantId, id, name) =>
     [name, restaurantId, id],
   ).then((r) => r.rows[0] || null);
 
+const updateWhatsappConsent = (restaurantId, id, whatsappOptIn) =>
+  db.query(
+    'UPDATE loyalty_customers SET whatsapp_opt_in = $1 WHERE restaurant_id = $2 AND id = $3 RETURNING *',
+    [!!whatsappOptIn, restaurantId, id],
+  ).then((r) => r.rows[0] || null);
+
 // --- Tiers ---
 
 const listTiers = (restaurantId) =>
@@ -132,5 +140,6 @@ const replaceRewards = (restaurantId, rewards) =>
 
 module.exports = {
   findByPhone, findById, findOrCreate, list, getTransactions, addTransaction, remove, updateName,
+  updateWhatsappConsent,
   listTiers, replaceTiers, listRewards, replaceRewards,
 };

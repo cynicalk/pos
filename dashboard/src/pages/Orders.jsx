@@ -511,13 +511,21 @@ function CustomerLinker({ orderId, linkedId, linkedName, linkedPhone, linkedTier
   const [creating, setCreating] = useState(false);
   const [newName,  setNewName]  = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newWhatsappOptIn, setNewWhatsappOptIn] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const inputRef   = useRef(null);
   const nameRef    = useRef(null);
   const { mutate: link } = useLinkCustomerToOrder();
 
   useEffect(() => {
-    if (!open) { setQuery(''); setResults([]); setSearched(false); setCreating(false); return; }
+    if (!open) {
+      setQuery('');
+      setResults([]);
+      setSearched(false);
+      setCreating(false);
+      setNewWhatsappOptIn(false);
+      return;
+    }
     inputRef.current?.focus();
   }, [open]);
 
@@ -549,6 +557,7 @@ function CustomerLinker({ orderId, linkedId, linkedName, linkedPhone, linkedTier
     const looksLikePhone = /^[\d\s+\-()+]+$/.test(query.trim());
     setNewPhone(looksLikePhone ? query.trim() : '');
     setNewName(!looksLikePhone ? query.trim() : '');
+    setNewWhatsappOptIn(false);
     setCreating(true);
     setTimeout(() => nameRef.current?.focus(), 0);
   }
@@ -561,6 +570,7 @@ function CustomerLinker({ orderId, linkedId, linkedName, linkedPhone, linkedTier
       const { data: customer } = await api.post('/loyalty/customers', {
         phone: newPhone.trim(),
         name: newName.trim() || null,
+        whatsappOptIn: newWhatsappOptIn,
       });
       link({ orderId, loyaltyCustomerId: customer.id });
       setOpen(false);
@@ -678,6 +688,15 @@ function CustomerLinker({ orderId, linkedId, linkedName, linkedPhone, linkedTier
                   className="input"
                   style={{ fontSize: 12, padding: '5px 8px' }}
                 />
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 11.5, color: 'var(--mute)', lineHeight: 1.35, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={newWhatsappOptIn}
+                    onChange={(e) => setNewWhatsappOptIn(e.target.checked)}
+                    style={{ marginTop: 1 }}
+                  />
+                  Guest explicitly consented to WhatsApp messages
+                </label>
                 <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
                   <button
                     type="button"

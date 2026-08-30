@@ -6,7 +6,7 @@ truth for *what exists*; this file records *what is next and why*, and the
 decisions that shape it. Where the two disagree, the catalogue wins — it is
 generated from the code.
 
-_Last updated: 2026-08-28._
+_Last updated: 2026-08-29._
 
 ---
 
@@ -54,7 +54,12 @@ takings exported as balanced double-entry vouchers, either Tally-importable XML
 or a journal CSV, produced server-side with no credentials (that is the separate
 blocked Tally auto-sync). Every voucher balances by construction (the discount is
 the billed-minus-collected plug), and where that plug disagrees with the POS's
-own discount total the gap is shown, not swallowed.
+own discount total the gap is shown, not swallowed; and the first **Message
+Outbox** pass — waitlist notifications and winback offers now record intended
+guest messages in a persisted outbox, with honest `queued` / `skipped` /
+`failed` / `sent` states and an admin read screen at `/outbox`. There is still
+no WhatsApp sender worker, so this is queue groundwork rather than a claimed
+delivery channel.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -92,13 +97,13 @@ model could only guess.
 
 Ordered by leverage against data and infrastructure that already exist.
 
-1. **WhatsApp send channel.** The single highest-leverage unlock: four *partial*
-   features are blocked only on this — Smart Alerts delivery, Staff Task
-   Assignment nudge, Repeat-Rate & Winback campaign send, Outcome Tracking. Build
-   the channel abstraction + a persisted outbox so these become send-ready and
-   honestly show "queued — pending channel connection" instead of a `console.log`
-   stub. Readies the two absent WhatsApp features too. It would also connect the
-   churn segment below to an actual nudge.
+1. **WhatsApp send channel.** The persisted outbox now exists, waitlist / winback
+   route through it, and loyalty-customer consent (`whatsapp_opt_in`) is captured
+   at customer creation and order-link time — so messages already resolve to
+   `queued` (opted in) or `skipped` (not). Still missing: the channel worker —
+   wire WhatsApp Business API credentials/config, drain `queued` rows to `sent`
+   or `failed`, then route Smart Alerts and Staff Task nudges through the same
+   enqueue path.
 
 ---
 

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const repo = require('./winback.repository');
 const couponsRepo = require('../coupons/coupons.repository');
+const messaging = require('../messaging/messaging.service');
 const churn = require('../modules/guests/churn');
 const winback = require('../modules/guests/winback');
 const { ValidationError, NotFoundError } = require('../shared/errors');
@@ -13,6 +14,11 @@ const { ValidationError, NotFoundError } = require('../shared/errors');
  * The discount is a real coupon, so it applies at the till through the same
  * engine as any other code — a winback offer is not a parallel discount system,
  * just a coupon issued for a named guest with its own reason.
+ *
+ * There is not yet a loyalty-customer WhatsApp consent flag, so creating an
+ * offer records the intended message as skipped rather than pretending to send
+ * it. Once consent capture and the channel worker exist, this same enqueue path
+ * becomes the delivery route.
  */
 
 // Long enough to include guests who have genuinely lapsed, matching the churn view.
@@ -52,6 +58,7 @@ async function guestChurnRecord(restaurantId, customerId) {
     customerId: row.customer_id,
     phone: row.phone,
     name: row.name,
+    whatsappOptIn: row.whatsapp_opt_in === true,
     orderDates: row.order_dates,
     totalSpend: Number(row.total_spend),
   }]);
@@ -96,13 +103,24 @@ async function createOffer(restaurantId, customerId, userId) {
     expiresAt,
   });
 
-  await repo.insertOffer(restaurantId, {
+  const offer = await repo.insertOffer(restaurantId, {
     customerId, couponId: coupon.id, churnStatus: guest.status, userId,
   });
 
+  try {
+    await messaging.enqueue(restaurantId, {
+      kind: 'winback',
+      recipient: guest.phone,
+      recipientName: guest.name,
+      body: `We miss you! Use ${code} for ${formatOfferForMessage(terms)}. Valid until ${formatDateForMessage(expiresAt)}.`,
+      refId: offer.id,
+      optIn: guest.whatsappOptIn === true,
+    });
+  } catch (e) { console.error('[winback][offer] enqueue failed', e?.message); }
+
   return {
     code,
-    guest: { customerId, name: guest.name, phone: guest.phone },
+    guest: { customerId, name: guest.name, phone: guest.phone, whatsappOptIn: guest.whatsappOptIn },
     discountType: terms.discountType,
     discountValue: terms.discountValue,
     minOrderAmount: terms.minOrderAmount,
@@ -113,12 +131,28 @@ async function createOffer(restaurantId, customerId, userId) {
   };
 }
 
+function formatOfferForMessage(terms) {
+  if (terms.discountType === 'percent') {
+    return `${terms.discountValue}% off${terms.minOrderAmount > 0 ? ` on orders over ₹${terms.minOrderAmount}` : ''}`;
+  }
+  return `₹${terms.discountValue} off${terms.minOrderAmount > 0 ? ` on orders over ₹${terms.minOrderAmount}` : ''}`;
+}
+
+function formatDateForMessage(iso) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 async function listOffers(restaurantId) {
   const rows = await repo.listOffers(restaurantId);
   const offers = rows.map((r) => ({
     id: r.id,
     code: r.code,
-    guest: { customerId: r.customer_id, name: r.name, phone: r.phone },
+    guest: {
+      customerId: r.customer_id,
+      name: r.name,
+      phone: r.phone,
+      whatsappOptIn: r.whatsapp_opt_in === true,
+    },
     discountType: r.discount_type,
     discountValue: Number(r.discount_value),
     minOrderAmount: Number(r.min_order_amount),

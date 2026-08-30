@@ -5,9 +5,9 @@ async function lookupCustomer(restaurantId, phone) {
   return repo.findByPhone(restaurantId, phone);
 }
 
-async function getOrCreateCustomer(restaurantId, phone, name) {
+async function getOrCreateCustomer(restaurantId, phone, name, whatsappOptIn = false) {
   if (!phone) throw new ValidationError('phone is required');
-  return repo.findOrCreate(restaurantId, phone.trim(), name);
+  return repo.findOrCreate(restaurantId, phone.trim(), name, whatsappOptIn === true);
 }
 
 async function listCustomers(restaurantId, query = {}) {
@@ -97,6 +97,13 @@ async function updateCustomerName(restaurantId, customerId, name) {
   return updated;
 }
 
+async function updateWhatsappConsent(restaurantId, customerId, whatsappOptIn) {
+  if (typeof whatsappOptIn !== 'boolean') throw new ValidationError('whatsappOptIn must be true or false');
+  const updated = await repo.updateWhatsappConsent(restaurantId, customerId, whatsappOptIn);
+  if (!updated) throw new NotFoundError('Customer');
+  return updated;
+}
+
 async function listTiers(restaurantId) {
   return repo.listTiers(restaurantId);
 }
@@ -121,6 +128,6 @@ module.exports = {
   lookupCustomer, getOrCreateCustomer, listCustomers, getCustomer,
   getTransactionHistory, adjustPoints,
   earnPoints, deductPoints, validateRedemption,
-  deleteCustomer, updateCustomerName,
+  deleteCustomer, updateCustomerName, updateWhatsappConsent,
   listTiers, saveTiers, listRewards, saveRewards,
 };

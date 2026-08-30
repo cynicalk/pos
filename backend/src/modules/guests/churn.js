@@ -67,6 +67,7 @@ function buildChurnPredictions(rows = [], now = Date.now()) {
       customerId: row.customerId,
       phone: row.phone,
       name: row.name || null,
+      whatsappOptIn: row.whatsappOptIn === true,
       visits,
       lastVisit: lastVisit === null ? null : new Date(lastVisit).toISOString(),
       daysSince,

@@ -4,9 +4,9 @@ import {
   Pencil, Trash2, ShoppingCart, Gift, Percent, Coffee,
   Settings2, TrendingUp, ArrowUpDown, Save, Check,
   Star, Ticket, Pizza, UtensilsCrossed, IceCream, Wine, Sandwich,
-  Cookie, Apple, Cake,
+  Cookie, Apple, Cake, MessageCircle,
 } from 'lucide-react';
-import { useLoyaltyCustomers, useCreateLoyaltyCustomer, useLoyaltyTransactions, useAdjustPoints, useDeleteLoyaltyCustomer, useUpdateLoyaltyCustomerName, useLoyaltyTiers, useLoyaltyRewards, useSaveLoyaltyTiers, useSaveLoyaltyRewards } from '../hooks/useLoyalty';
+import { useLoyaltyCustomers, useCreateLoyaltyCustomer, useLoyaltyTransactions, useAdjustPoints, useDeleteLoyaltyCustomer, useUpdateLoyaltyCustomerName, useUpdateWhatsappConsent, useLoyaltyTiers, useLoyaltyRewards, useSaveLoyaltyTiers, useSaveLoyaltyRewards } from '../hooks/useLoyalty';
 import { useSettings, useUpdateSetting } from '../hooks/useSettings';
 import Modal from '../components/Modal';
 import { fmtDate } from '../utils/dateUtils';
@@ -24,7 +24,7 @@ const TIER_PALETTE = [
 
 const LABEL = { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--mute)', display: 'block', marginBottom: 5 };
 const INPUT = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--paper-2)', color: 'var(--fg)', fontSize: 14, boxSizing: 'border-box' };
-const COL   = '1.6fr 1fr .9fr .9fr .8fr 96px';
+const COL   = '1.6fr 1fr .9fr .8fr .9fr .8fr 96px';
 
 /* ─────────────────── Helpers ─────────────────── */
 
@@ -83,6 +83,22 @@ function PhoneCopyCell({ phone }) {
         {copied ? <Check size={11} /> : <Copy size={11} />}
       </button>
     </div>
+  );
+}
+
+function WhatsAppConsentBadge({ optedIn }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '3px 8px', borderRadius: 999,
+      fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase',
+      color: optedIn ? 'var(--ok)' : 'var(--mute)',
+      background: optedIn ? 'var(--ok-soft)' : 'var(--paper-3)',
+      whiteSpace: 'nowrap',
+    }}>
+      <MessageCircle size={11} strokeWidth={2.2} />
+      {optedIn ? 'Opted in' : 'No consent'}
+    </span>
   );
 }
 
@@ -190,6 +206,7 @@ function DetailPanel({ customer, sortedTiers, rewards, onAdjust, onAddPoints, on
         </h2>
         <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--mute)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <TierBadge tier={tier} />
+          <WhatsAppConsentBadge optedIn={customer.whatsapp_opt_in} />
           <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#c0bab3', flexShrink: 0 }} />
           <span>{memberId}</span>
           <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#c0bab3', flexShrink: 0 }} />
@@ -634,7 +651,7 @@ export default function Loyalty() {
   const [tierFilter, setTierFilter]   = useState('all');
   const [selected, setSelected]       = useState(null);
   const [addOpen, setAddOpen]         = useState(false);
-  const [addForm, setAddForm]         = useState({ phone: '', name: '' });
+  const [addForm, setAddForm]         = useState({ phone: '', name: '', whatsappOptIn: false });
   const [addError, setAddError]       = useState('');
   const [adjustOpen, setAdjustOpen]   = useState(false);
   const [adjustForm, setAdjustForm]   = useState({ points: '', description: '' });
@@ -654,6 +671,7 @@ export default function Loyalty() {
   const adjustMutation = useAdjustPoints(selected?.id);
   const deleteCustomer = useDeleteLoyaltyCustomer();
   const renameMutation = useUpdateLoyaltyCustomerName();
+  const consentMutation = useUpdateWhatsappConsent();
   const { data: rawTiers  = [] } = useLoyaltyTiers();
   const { data: rewards   = [] } = useLoyaltyRewards();
   const saveTiersMutation   = useSaveLoyaltyTiers();
@@ -694,8 +712,12 @@ export default function Loyalty() {
     e.preventDefault();
     setAddError('');
     try {
-      await createC.mutateAsync({ phone: addForm.phone.trim(), name: addForm.name.trim() || undefined });
-      setAddForm({ phone: '', name: '' });
+      await createC.mutateAsync({
+        phone: addForm.phone.trim(),
+        name: addForm.name.trim() || undefined,
+        whatsappOptIn: addForm.whatsappOptIn === true,
+      });
+      setAddForm({ phone: '', name: '', whatsappOptIn: false });
       setAddOpen(false);
     } catch (err) {
       setAddError(err?.response?.data?.error || 'Failed to create customer');
@@ -882,7 +904,7 @@ export default function Loyalty() {
             {/* List header — desktop only */}
             <div className="hidden sm:grid" style={{ gridTemplateColumns: COL, gap: 14, padding: '8px 16px', background: 'var(--paper-2)', fontSize: 10, fontWeight: 700, letterSpacing: '.07em', color: 'var(--mute)', textTransform: 'uppercase', borderBottom: '1px solid var(--line-2)' }}>
               <div>Member</div><div>Phone</div><div>Tier</div>
-              <div style={{ textAlign: 'right' }}>Points</div><div>Since</div>
+              <div>WhatsApp</div><div style={{ textAlign: 'right' }}>Points</div><div>Since</div>
               <div style={{ textAlign: 'right' }}>Actions</div>
             </div>
 
@@ -918,6 +940,13 @@ export default function Loyalty() {
                     { label: 'View Details',  fn: () => { setSelected(c); setMenuOpen(null); } },
                     { label: 'Adjust Points', fn: () => { setSelected(c); openAdjust(); setMenuOpen(null); } },
                     { label: 'Edit Name',     fn: () => { setRenameTarget(c); setRenameName(c.name || ''); setMenuOpen(null); } },
+                    {
+                      label: c.whatsapp_opt_in ? 'Remove WhatsApp consent' : 'Mark WhatsApp opted in',
+                      fn: () => {
+                        consentMutation.mutate({ id: c.id, whatsappOptIn: !c.whatsapp_opt_in });
+                        setMenuOpen(null);
+                      },
+                    },
                     { label: 'Delete',        fn: () => { setDeleteTarget(c); setMenuOpen(null); }, danger: true },
                   ].map(({ label, fn, danger }) => (
                     <button key={label} onClick={fn} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: danger ? 'var(--bad)' : 'var(--ink)' }}
@@ -943,6 +972,7 @@ export default function Loyalty() {
                           {c.name || <span style={{ color: 'var(--mute)', fontStyle: 'italic' }}>No name</span>}
                         </div>
                         <div style={{ fontSize: 11.5, color: 'var(--mute)', marginTop: 1 }}>{c.phone}</div>
+                        <div style={{ marginTop: 5 }}><WhatsAppConsentBadge optedIn={c.whatsapp_opt_in} /></div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <TierBadge tier={tier} />
@@ -977,6 +1007,7 @@ export default function Loyalty() {
                     </div>
                     <PhoneCopyCell phone={c.phone} />
                     <div><TierBadge tier={tier} /></div>
+                    <div><WhatsAppConsentBadge optedIn={c.whatsapp_opt_in} /></div>
                     <div style={{ textAlign: 'right' }}>
                       <div className="mono num" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{c.points_balance.toLocaleString()}</div>
                       <div style={{ fontSize: 10, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '.07em' }}>pts</div>
@@ -1027,6 +1058,15 @@ export default function Loyalty() {
               <label style={LABEL}>Name (optional)</label>
               <input className="input w-full" placeholder="Customer name" value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 10, border: '1px solid var(--line-2)', borderRadius: 10, background: 'var(--paper-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={addForm.whatsappOptIn} onChange={(e) => setAddForm((f) => ({ ...f, whatsappOptIn: e.target.checked }))} style={{ marginTop: 2 }} />
+              <span>
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Guest consented to WhatsApp messages</span>
+                <span style={{ display: 'block', marginTop: 3, fontSize: 12, color: 'var(--mute)', lineHeight: 1.5 }}>
+                  Use only when the guest explicitly opted in; otherwise winback messages stay skipped in the outbox.
+                </span>
+              </span>
+            </label>
             {addError && <p style={{ color: 'var(--bad)', fontSize: 13, margin: 0 }}>{addError}</p>}
             <div className="flex gap-2 justify-end pt-1">
               <button type="button" onClick={() => setAddOpen(false)} className="btn">Cancel</button>

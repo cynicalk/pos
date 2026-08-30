@@ -51,6 +51,7 @@ import {
   ExternalLink,
   Flame,
   FileSpreadsheet,
+  Send,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../api/client';
@@ -206,6 +207,7 @@ const ALL_NAV = [
     children: [
       { to: '/compliance', label: 'Compliance', Icon: ShieldCheck },
       { to: '/sops',       label: 'Playbook',   Icon: BookMarked },
+      { to: '/outbox',     label: 'Message Outbox', Icon: Send },
     ],
   },
   { to: '/integrations/tally', label: 'Integrations', Icon: Plug, adminOnly: true },

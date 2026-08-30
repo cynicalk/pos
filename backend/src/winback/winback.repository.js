@@ -9,7 +9,7 @@ const db = require('../shared/db');
 /** One guest's paid-order history, to re-derive their churn status server-side. */
 const getGuestForOffer = (restaurantId, customerId, windowDays) =>
   db.query(
-    `SELECT lc.id AS customer_id, lc.phone, lc.name,
+    `SELECT lc.id AS customer_id, lc.phone, lc.name, lc.whatsapp_opt_in,
             array_agg(o.created_at ORDER BY o.created_at) AS order_dates,
             COALESCE(SUM(
               (SELECT COALESCE(SUM(p.amount), 0)
@@ -22,7 +22,7 @@ const getGuestForOffer = (restaurantId, customerId, windowDays) =>
         AND o.status              = 'paid'
         AND o.created_at >= now() - ($3::int * INTERVAL '1 day')
       WHERE lc.restaurant_id = $1 AND lc.id = $2
-      GROUP BY lc.id, lc.phone, lc.name`,
+      GROUP BY lc.id, lc.phone, lc.name, lc.whatsapp_opt_in`,
     [restaurantId, customerId, windowDays],
   ).then((r) => r.rows[0] || null);
 
@@ -56,7 +56,7 @@ const insertOffer = (restaurantId, { customerId, couponId, churnStatus, userId }
 const listOffers = (restaurantId) =>
   db.query(
     `SELECT w.id, w.churn_status, w.created_at,
-            lc.id AS customer_id, lc.name, lc.phone,
+            lc.id AS customer_id, lc.name, lc.phone, lc.whatsapp_opt_in,
             c.code, c.discount_type, c.discount_value, c.min_order_amount,
             c.uses_count, c.is_active, c.expires_at,
             (SELECT MAX(cr.created_at) FROM coupon_redemptions cr WHERE cr.coupon_id = c.id) AS redeemed_at

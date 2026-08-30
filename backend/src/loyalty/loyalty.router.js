@@ -42,8 +42,8 @@ router.get('/customers', authenticate, authorize('admin', 'staff', 'cashier'), a
 
 // Get or create customer — cashier + admin
 router.post('/customers', authenticate, authorize('admin', 'staff', 'cashier'), asyncHandler(async (req, res) => {
-  const { phone, name } = req.body;
-  res.json(await service.getOrCreateCustomer(req.user.restaurantId, phone, name));
+  const { phone, name, whatsappOptIn } = req.body;
+  res.json(await service.getOrCreateCustomer(req.user.restaurantId, phone, name, whatsappOptIn));
 }));
 
 // Get single customer — admin
@@ -68,6 +68,11 @@ router.patch('/customers/:id/adjust', authenticate, authorize('admin'), asyncHan
 // Update customer name — admin
 router.patch('/customers/:id', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   res.json(await service.updateCustomerName(req.user.restaurantId, req.params.id, req.body.name));
+}));
+
+// Update WhatsApp consent — admin only, because it controls campaign eligibility
+router.patch('/customers/:id/whatsapp-consent', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.updateWhatsappConsent(req.user.restaurantId, req.params.id, req.body.whatsappOptIn));
 }));
 
 // Delete customer — admin

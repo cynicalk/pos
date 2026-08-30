@@ -75,6 +75,14 @@ export function useUpdateLoyaltyCustomerName() {
   });
 }
 
+export function useUpdateWhatsappConsent() {
+  return useMutation({
+    mutationFn: ({ id, whatsappOptIn }) =>
+      api.patch(`/loyalty/customers/${id}/whatsapp-consent`, { whatsappOptIn }).then((r) => r.data),
+    onSuccess: invalidate('loyalty-customers'),
+  });
+}
+
 export function useRemoveLoyalty(orderId) {
   return useMutation({
     mutationFn: () => api.delete(`/orders/${orderId}/loyalty`).then((r) => r.data),

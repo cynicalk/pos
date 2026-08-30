@@ -21,3 +21,8 @@
 
 # Word docs (specs/feature notes) — keep local.
 *.docx
+
+# Local dev run logs and helper (transient)
+*-dev.out.log
+*-dev.err.log
+RUN_FULL_APP_COMMANDS.txt

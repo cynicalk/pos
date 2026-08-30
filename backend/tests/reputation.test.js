@@ -14,6 +14,7 @@ const { buildTrackedQueries, buildBenchmark, MAX_COMPARABLE_GAP_DAYS } =
   require('../src/modules/reputation/rankings');
 const { buildGuestMetrics, LAPSED_AFTER_DAYS, MIN_GUESTS_FOR_RATE } =
   require('../src/modules/guests/repeat');
+const { buildChurnPredictions } = require('../src/modules/guests/churn');
 const { evaluateRankDrop } = require('../src/modules/rules/rank-drop');
 const engine = require('../src/modules/rules/engine');
 
@@ -368,6 +369,24 @@ describe('guest repeat rate and winback', () => {
   test('average spend is per visit, not per order row', () => {
     const m = buildGuestMetrics([guest(1, 4, 1, 1000)], {}, now);
     expect(m.recentGuests[0].avgSpend).toBe(250);
+  });
+
+  test('churn records preserve explicit WhatsApp consent for campaign routing', () => {
+    const day = 24 * 60 * 60 * 1000;
+    const { guests } = buildChurnPredictions([{
+      customerId: 'c1',
+      phone: '+919999999999',
+      name: 'Asha',
+      whatsappOptIn: true,
+      orderDates: [
+        new Date(now - 30 * day),
+        new Date(now - 20 * day),
+        new Date(now - 10 * day),
+      ],
+      totalSpend: 900,
+    }], now);
+
+    expect(guests[0].whatsappOptIn).toBe(true);
   });
 });
 
