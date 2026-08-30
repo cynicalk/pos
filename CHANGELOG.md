@@ -19,6 +19,12 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   (`GET /api/insights/attach`). The "0.1 metric," per order until covers land.
   Both keep the abstention discipline and are gated by the existing feature
   toggles.
+- **Operator intelligence — Wave 2.** The group view now carries two per-outlet
+  metrics: **same-store sales growth** (this window vs the prior equal window,
+  abstaining where there's no prior trade to grow from) and **sales per labour
+  hour** (revenue ÷ completed shift hours, abstaining where no roster is logged).
+  Both average across only the outlets that could report, and appear as totals
+  tiles and columns on the Group page.
 - **Waste Prediction** (catalogue: shell → built), in two phases. Phase 1 captures
   how much of each dish is prepped — a pre-service plan nudged from the forecast and
   a post-service actual (`prep_logs`, migration 089) — and reconciles it against

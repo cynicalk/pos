@@ -96,6 +96,40 @@ const getRevenue = (outletIds, days) =>
     [outletIds, days],
   ).then((r) => r.rows);
 
+/**
+ * Revenue per outlet split into the current window and the prior window of equal
+ * length — the two halves of same-store sales growth. Same completed-payment
+ * revenue definition as getRevenue, so the growth reconciles with the headline.
+ */
+const getRevenueSplit = (outletIds, days) =>
+  db.query(
+    `SELECT o.restaurant_id,
+            COALESCE(SUM(p.amount) FILTER (WHERE o.created_at >= now() - make_interval(days => $2)), 0)::float8 AS current_revenue,
+            COALESCE(SUM(p.amount) FILTER (WHERE o.created_at <  now() - make_interval(days => $2)), 0)::float8 AS prior_revenue
+       FROM payments p
+       JOIN orders o ON o.id = p.order_id
+      WHERE o.restaurant_id = ANY($1::uuid[])
+        AND p.status = 'completed'
+        AND o.created_at >= now() - make_interval(days => $2 * 2)
+      GROUP BY o.restaurant_id`,
+    [outletIds, days],
+  ).then((r) => r.rows);
+
+/** Completed labour hours (and cost) per outlet over the window — the SPLH input. */
+const getLabourHours = (outletIds, days) =>
+  db.query(
+    `SELECT restaurant_id,
+            COALESCE(SUM(hours), 0)::float8                AS labour_hours,
+            COALESCE(SUM(hours * hourly_rate), 0)::float8  AS labour_cost
+       FROM staff_shifts
+      WHERE restaurant_id = ANY($1::uuid[])
+        AND status = 'completed'
+        AND hours IS NOT NULL
+        AND work_date >= (now() - make_interval(days => $2))::date
+      GROUP BY restaurant_id`,
+    [outletIds, days],
+  ).then((r) => r.rows);
+
 /** Food cost of what sold, counting only lines with a costed recipe. */
 const getFoodCost = (outletIds, days) =>
   db.query(
@@ -210,6 +244,8 @@ module.exports = {
   listVisibleOutlets,
   getOrderStats,
   getRevenue,
+  getRevenueSplit,
+  getLabourHours,
   getFoodCost,
   getRatings,
   getActionCounts,

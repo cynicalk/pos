@@ -51,10 +51,12 @@ async function getRollup(user, { days } = {}) {
     return emptyRollup(organization, windowDays, orgOutletCount, 0);
   }
 
-  const [orderRows, revenueRows, foodRows, ratingRows, actionCountRows, openActions] =
+  const [orderRows, revenueRows, growthRows, labourRows, foodRows, ratingRows, actionCountRows, openActions] =
     await Promise.all([
       repo.getOrderStats(outletIds, windowDays),
       repo.getRevenue(outletIds, windowDays),
+      repo.getRevenueSplit(outletIds, windowDays),
+      repo.getLabourHours(outletIds, windowDays),
       repo.getFoodCost(outletIds, windowDays),
       repo.getRatings(outletIds, engine.RATING_WINDOW),
       repo.getActionCounts(outletIds),
@@ -98,6 +100,8 @@ async function getRollup(user, { days } = {}) {
   const rows = rollup.buildComparison(outlets, {
     orders,
     revenue:  byOutlet(revenueRows),
+    growth:   byOutlet(growthRows),
+    labour:   byOutlet(labourRows),
     foodCost: byOutlet(foodRows),
     ratings:  byOutlet(ratingRows),
     actions:  actionsByOutlet,

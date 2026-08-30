@@ -53,6 +53,7 @@ function averageOf(values) {
 function buildComparison(outlets, metrics = {}) {
   const {
     orders = {}, ratings = {}, foodCost = {}, actions = {}, revenue = {},
+    growth = {}, labour = {},
   } = metrics;
 
   return outlets.map((outlet) => {
@@ -61,6 +62,8 @@ function buildComparison(outlets, metrics = {}) {
     const f = foodCost[outlet.id];
     const a = actions[outlet.id];
     const rev = revenue[outlet.id];
+    const g = growth[outlet.id];
+    const l = labour[outlet.id];
 
     const totalOrders = o ? Number(o.total_orders) : 0;
     const cancelled = o ? Number(o.cancelled_orders) : 0;
@@ -68,6 +71,24 @@ function buildComparison(outlets, metrics = {}) {
     const itemRevenue = f ? Number(f.item_revenue) : 0;
     const costed = f ? Number(f.items_costed) : 0;
     const itemsTotal = f ? Number(f.items_total) : 0;
+
+    const revenueNum = rev ? Number(rev.revenue) : 0;
+
+    // Same-store sales growth: this window against the prior window of equal
+    // length. Null when there is no prior trade to grow from — a new outlet does
+    // not have "0% growth", it has no comparison yet.
+    const priorRevenue = g ? Number(g.prior_revenue) : 0;
+    const currentRevenue = g ? Number(g.current_revenue) : 0;
+    const salesGrowthPct = priorRevenue > 0
+      ? Math.round(((currentRevenue - priorRevenue) / priorRevenue) * 1000) / 10
+      : null;
+
+    // Sales per labour hour. Null when no completed shifts were logged — an
+    // outlet with no roster data has no productivity figure, not an infinite one.
+    const labourHours = l ? Number(l.labour_hours) : 0;
+    const salesPerLabourHour = labourHours > 0
+      ? Math.round((revenueNum / labourHours) * 100) / 100
+      : null;
 
     return {
       outletId: outlet.id,
@@ -103,6 +124,11 @@ function buildComparison(outlets, metrics = {}) {
       // of "there is barely anything wrong".
       atStake: a ? Math.round(Number(a.at_stake || 0) * 100) / 100 : 0,
       unquantifiedActions: a ? Number(a.unquantified || 0) : 0,
+      // Same-store sales growth and sales-per-labour-hour (Wave 2). Both null
+      // rather than zero where the comparison or the roster is missing.
+      salesGrowthPct,
+      salesPerLabourHour,
+      labourHours: Math.round(labourHours * 10) / 10,
     };
   });
 }
@@ -119,6 +145,8 @@ function buildTotals(rows) {
   const cancellation = averageOf(rows.map((r) => r.cancellationPct));
   const foodCost = averageOf(rows.map((r) => r.foodCostPct));
   const rating = averageOf(rows.map((r) => r.avgRating));
+  const growth = averageOf(rows.map((r) => r.salesGrowthPct));
+  const splh = averageOf(rows.map((r) => r.salesPerLabourHour));
 
   return {
     outlets: rows.length,
@@ -135,6 +163,10 @@ function buildTotals(rows) {
     foodCostReporting: foodCost.reporting,
     avgRating: round1(rating.value),
     ratingReporting: rating.reporting,
+    avgSalesGrowthPct: round1(growth.value),
+    salesGrowthReporting: growth.reporting,
+    avgSalesPerLabourHour: splh.value === null ? null : Math.round(splh.value * 100) / 100,
+    splhReporting: splh.reporting,
   };
 }
 

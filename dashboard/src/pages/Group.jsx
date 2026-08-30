@@ -143,6 +143,18 @@ export default function Group() {
                   sub={coverageNote(data.totals.ratingReporting, data.totals.outlets)}
                 />
                 <Stat
+                  value={data.totals.avgSalesGrowthPct === null
+                    ? '—' : `${data.totals.avgSalesGrowthPct > 0 ? '+' : ''}${data.totals.avgSalesGrowthPct}%`}
+                  label={`avg growth vs prior ${days}d`}
+                  sub={coverageNote(data.totals.salesGrowthReporting, data.totals.outlets)}
+                />
+                <Stat
+                  value={data.totals.avgSalesPerLabourHour === null
+                    ? '—' : format(data.totals.avgSalesPerLabourHour)}
+                  label="avg sales / labour hr"
+                  sub={coverageNote(data.totals.splhReporting, data.totals.outlets)}
+                />
+                <Stat
                   value={data.totals.openActions}
                   label="open findings"
                   sub={data.totals.atStake > 0
@@ -169,10 +181,12 @@ export default function Group() {
               </p>
 
               <div style={{ overflowX: 'auto', marginBottom: 26 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 880 }}>
                   <thead><tr style={{ borderBottom: '1px solid var(--line-2)' }}>
                     <th style={th}>Outlet</th>
                     <th style={th}>Revenue</th>
+                    <th style={th}>Growth</th>
+                    <th style={th}>Sales/hr</th>
                     <th style={th}>Orders</th>
                     <th style={th}>Cancelled</th>
                     <th style={th}>Food cost</th>
@@ -195,6 +209,20 @@ export default function Group() {
                           )}
                         </td>
                         <td style={tdNum}>{format(o.revenue)}</td>
+                        <td style={tdNum}>
+                          {o.salesGrowthPct === null
+                            ? <Unknown title="No prior window to compare against yet" />
+                            : (
+                              <span style={{ color: o.salesGrowthPct > 0 ? 'var(--ok)' : o.salesGrowthPct < 0 ? 'var(--bad)' : 'var(--mute)' }}>
+                                {o.salesGrowthPct > 0 ? '+' : ''}{o.salesGrowthPct}%
+                              </span>
+                            )}
+                        </td>
+                        <td style={tdNum}>
+                          {o.salesPerLabourHour === null
+                            ? <Unknown title="No completed shifts logged in this window" />
+                            : format(o.salesPerLabourHour)}
+                        </td>
                         <td style={tdNum}>{o.orders}</td>
                         <td style={tdNum}>
                           {o.cancellationPct === null

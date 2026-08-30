@@ -78,6 +78,37 @@ describe('buildComparison', () => {
     expect(row.atStake).toBe(4200);
     expect(row.unquantifiedActions).toBe(9);
   });
+
+  test('same-store growth compares this window to the prior one', () => {
+    const [row] = buildComparison([outlets[0]], {
+      growth: { a: { current_revenue: 11000, prior_revenue: 10000 } },
+    });
+    expect(row.salesGrowthPct).toBe(10);
+  });
+
+  test('an outlet with no prior trade has no growth figure, not 0%', () => {
+    const [row] = buildComparison([outlets[0]], {
+      growth: { a: { current_revenue: 8000, prior_revenue: 0 } },
+    });
+    expect(row.salesGrowthPct).toBeNull();
+  });
+
+  test('sales per labour hour divides revenue by logged hours', () => {
+    const [row] = buildComparison([outlets[0]], {
+      revenue: { a: { revenue: 48000 } },
+      labour: { a: { labour_hours: 120 } },
+    });
+    expect(row.salesPerLabourHour).toBe(400);
+    expect(row.labourHours).toBe(120);
+  });
+
+  test('no roster logged means no productivity figure, not an infinite one', () => {
+    const [row] = buildComparison([outlets[0]], {
+      revenue: { a: { revenue: 48000 } },
+      labour: { a: { labour_hours: 0 } },
+    });
+    expect(row.salesPerLabourHour).toBeNull();
+  });
 });
 
 describe('buildTotals', () => {
@@ -88,6 +119,12 @@ describe('buildTotals', () => {
       // c has no orders at all
     },
     revenue: { a: { revenue: 50000 }, b: { revenue: 450000 } },
+    growth: {
+      a: { current_revenue: 50000, prior_revenue: 40000 }, // +25%
+      b: { current_revenue: 450000, prior_revenue: 500000 }, // -10%
+      // c has no prior trade
+    },
+    labour: { a: { labour_hours: 125 }, b: { labour_hours: 900 } },
     ratings: {
       a: { avg_rating: '3.00', review_count: 10 },
       b: { avg_rating: '4.60', review_count: 10 },
@@ -122,6 +159,16 @@ describe('buildTotals', () => {
     expect(t.avgRating).toBe(3.8);
     expect(t.ratingReporting).toBe(2);
     expect(t.outlets).toBe(3);
+  });
+
+  test('growth and SPLH average over the outlets that could report', () => {
+    const t = buildTotals(rows());
+    // +25% and -10% average to +7.5%, over the two outlets with a prior window.
+    expect(t.avgSalesGrowthPct).toBe(7.5);
+    expect(t.salesGrowthReporting).toBe(2);
+    // 50000/125 = 400, 450000/900 = 500 → 450 across two outlets.
+    expect(t.avgSalesPerLabourHour).toBe(450);
+    expect(t.splhReporting).toBe(2);
   });
 
   test('an empty group reports nothing rather than zeroes', () => {
