@@ -65,6 +65,12 @@ app.get('/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date().toISOString() }),
 );
 
+// Server-side enforcement of the admin feature toggles — refuses a switched-off
+// feature's API even on a direct call. Sits before the routers; passes through
+// everything that isn't a gated, disabled feature. See shared/feature-routes.js.
+const { featureGate } = require('./shared/middleware/featureGate');
+app.use(featureGate);
+
 // Routers
 app.use('/admin',           require('./admin/admin.router'));
 app.use('/api/auth',        require('./auth/auth.router'));

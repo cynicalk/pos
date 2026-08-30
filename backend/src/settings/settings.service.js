@@ -1,6 +1,7 @@
 const repo = require('./settings.repository');
 const { ValidationError, AppError } = require('../shared/errors');
 const { validateTimezone } = require('../shared/timezone');
+const { bustFeatureFlags } = require('../shared/middleware/featureGate');
 
 const ALLOWED_KEYS = new Set([
   'timezone', 'currency', 'tax_rate', 'service_charge', 'packaging_fee',
@@ -178,6 +179,9 @@ async function update(key, value, restaurantId) {
     }
   }
   await repo.set(restaurantId, key, value);
+  // A toggle change must take effect on the very next request, not after the
+  // gate's short cache expires.
+  if (key === 'feature_flags') bustFeatureFlags(restaurantId);
   return repo.getAll(restaurantId);
 }
 

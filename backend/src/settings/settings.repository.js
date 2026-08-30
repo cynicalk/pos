@@ -5,6 +5,11 @@ const getAll = (restaurantId) =>
     .query('SELECT key, value FROM settings WHERE restaurant_id = $1', [restaurantId])
     .then((r) => Object.fromEntries(r.rows.map((row) => [row.key, row.value])));
 
+const getValue = (restaurantId, key) =>
+  db
+    .query('SELECT value FROM settings WHERE restaurant_id = $1 AND key = $2', [restaurantId, key])
+    .then((r) => r.rows[0]?.value ?? null);
+
 const set = (restaurantId, key, value) =>
   db.query(
     `INSERT INTO settings (restaurant_id, key, value) VALUES ($1, $2, $3)
@@ -12,4 +17,4 @@ const set = (restaurantId, key, value) =>
     [restaurantId, key, value],
   );
 
-module.exports = { getAll, set };
+module.exports = { getAll, getValue, set };

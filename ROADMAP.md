@@ -76,9 +76,16 @@ them from the sidebar and gating their routes (a typed URL to a switched-off pag
 lands on an honest "turned off" panel). Flags are one `feature_flags` setting
 (JSON of only the OFF entries; empty means everything on), keyed by the same nav
 paths the sidebar renders so the list cannot drift; core POS and admin screens
-are protected so an admin cannot lock the till or themselves out. This is UI-level
-today — the operator app hides the feature, but the API routes still answer if
-called directly (server-side enforcement is the next item below).
+are protected so an admin cannot lock the till or themselves out. Enforcement is
+**both client and server**: a small `featureGate` middleware maps each toggle key
+to its dedicated API prefix and returns `403 feature_disabled` on a direct call to
+a switched-off feature, reading the flag from the caller's own token claim and a
+short per-restaurant cache that a toggle write busts at once. Features whose API
+prefix is shared with another (still-enabled) feature stay client-side for now —
+gating a shared router would switch off more than asked — so the server-enforced
+set is the dedicated-router subset (Reviews, Rankings, Coupons, Payouts,
+Accounting, Compliance, Outbox, Procurement, the Recipe-Mgmt routers, and
+Forecasting at the section level); the rest are listed honestly in the code.
 
 The discipline every item here inherits: **a number we cannot establish is not
 zero.** Coverage, abstention and "still learning" states survive to the screen;
@@ -124,17 +131,14 @@ Ordered by leverage against data and infrastructure that already exist.
    or `failed`, then route Smart Alerts and Staff Task nudges through the same
    enqueue path.
 
-2. **Feature-toggle backend enforcement.** The admin toggles hide and gate
-   features in the operator app, but a switched-off module's API still answers a
-   direct call. Close that with a small `requireFeature(key)` middleware that
-   reads the restaurant's `feature_flags` and returns `403 feature_disabled` when
-   off, mounted on the routers whose feature is toggleable. The real work is the
-   map from a toggle key (a nav path like `/reviews`) to its backend router
-   prefix(es) — some features span more than one router, and protected features
-   must always pass — so it is a deliberate, mostly mechanical pass rather than a
-   one-liner. Flags are already per-restaurant in `settings`, so the middleware
-   reads what the UI writes; no new storage. Until then the toggle is honestly
-   documented as a UI-level control.
+2. **Feature-toggle enforcement — widen the map.** The `featureGate` middleware
+   now enforces the dedicated-router subset server-side (see *Recently shipped*).
+   What remains is the harder half of the map: features whose API prefix is shared
+   between two nav entries (Loyalty vs Guests both read `/api/loyalty`; History and
+   the Costing/Variance/Economics analytics pages over `/api/reports` and friends).
+   Enforcing those needs either per-route gating inside the shared router or a
+   finer key→sub-path map, decided feature by feature. Until then they are
+   client-side only, and that boundary is documented in `feature-routes.js`.
 
 ---
 
