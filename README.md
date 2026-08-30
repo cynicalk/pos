@@ -18,16 +18,18 @@ numbers in their place.
 | **Menu & recipes** | Menu management, recipe costing linked to live ingredient prices, live food-cost per dish, combo meals, per-dish gross-margin reporting. |
 | **Inventory & procurement** | Stock counts, an append-only inventory ledger, supplier management, usage-based purchase orders, and food-cost variance (theoretical vs. counted usage). |
 | **Waste intelligence** | Waste logged per ingredient, shift and reason, costed against live recipe data — the product's core differentiator. |
-| **Payments & reconciliation** | Aggregator settlement import, payout reconciliation against the order record, per-order leakage detection, an auditor-ready transaction log, prime cost, cost-per-order and cancellation-cost analysis. |
-| **Forecasting** | Demand forecast and an automatically-derived prep sheet (seasonal-naive baseline), with measured uncertainty bands and an explicit refusal to answer below sufficient history. |
+| **Payments & reconciliation** | Aggregator settlement import, payout reconciliation against the order record, per-order leakage detection, an auditor-ready transaction log, prime cost, cost-per-order and cancellation-cost analysis, and a balanced double-entry accounting export (Tally-importable XML or journal CSV). |
+| **Forecasting** | Demand forecast, an auto-derived prep sheet, inventory forecast, auto-reorder, shift planning and cost-based scheduling — one seasonal-naive engine with measured uncertainty bands and an explicit refusal to answer below sufficient history. Promo-aware (past discount days are excluded from the baseline like closed days) and **waste prediction**: prep logged pre/post-service and reconciled against sales, then the per-dish/weekday over-prep pattern projected onto the next service. |
 | **Rules & actions** | A deterministic rules engine that raises ranked, rupee-scored actions from the restaurant's own data, with staff assignment and outcome tracking. |
 | **Reviews & reputation** | First-party guest reviews with local-LLM theme classification, an action centre that routes complaints, and AI-drafted reply suggestions. |
 | **Guests & dine-in** | Waitlist with live wait estimation, learned table turnover, peak/dead-hour detection, stalled-table alerts, and repeat-rate / winback tracking. |
-| **Guest menu** | Public QR ordering with dietary filters, ingredient and allergen disclosure, and cached menu translation for tourists. |
+| **Guest menu** | Public QR ordering with dietary filters, ingredient and allergen disclosure, per-serving calories and macros exploded from recipes (abstaining on any undeclared ingredient), and cached menu translation for tourists. |
 | **Guest dine-in app** | A separate reservation-first guest app runs against a dedicated `/api/guest` adapter — group recommender, shared "join the table" cart, live kitchen status, service calls, pay-at-table and receipt, all landing as real dining orders in the POS. |
 | **Compliance & SOPs** | FSSAI licence tracking, hygiene and shift checklists, staff-certification records, a testing calendar, an on-demand audit evidence pack, and SOP generation with version control and drift detection. |
 | **Multi-outlet** | A group dashboard benchmarking outlets against each other on the same metrics, with per-outlet rate averaging. |
 | **AI assistant** | A local-LLM assistant that answers operational questions grounded in live waste, stock, recipe and sales data — and only narrates the numbers, never invents them. |
+| **Messaging & retention** | A persisted message outbox for guest notifications (waitlist, winback) with honest `queued` / `skipped` / `failed` / `sent` states and WhatsApp opt-in consent capture. The delivery worker is the one honest gap — messages queue but are not yet sent. |
+| **Administration** | Per-restaurant **feature toggles** to hide unused modules from the whole team — enforced both in the app (nav + routes) and at the API — user management, and centralised white-label branding. |
 
 ---
 
@@ -76,7 +78,7 @@ Router  →  Service  →  Repository  →  PostgreSQL
 
 Each domain lives in its own self-contained folder under `backend/src/`. Cross-module calls go service → service; there is no separate adapter layer.
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the deeper design, [`ROADMAP.md`](ROADMAP.md) for what is next and the decisions behind it, and the in-app **Feature Status** page (`/feature-status`) for the live build state of all 86 catalogued features.
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the deeper design, [`ROADMAP.md`](ROADMAP.md) for what is next and the decisions behind it, [`CHANGELOG.md`](CHANGELOG.md) for recent releases, and the in-app **Feature Status** page (`/feature-status`) for the live build state of all 86 catalogued features.
 
 Shared helpers live in `backend/src/shared/`:
 
@@ -118,7 +120,7 @@ The role list is defined once in `shared/roles.js` so auth and admin can't drift
 
 ## Backend Modules
 
-Twenty-eight routers are mounted in `backend/src/app.js`:
+Forty-four routers are mounted in `backend/src/app.js`:
 
 | Mount | Module | Purpose |
 |---|---|---|
@@ -147,6 +149,22 @@ Twenty-eight routers are mounted in `backend/src/app.js`:
 | `/api/reviews` | `reviews/` | Customer reviews |
 | `/api/eta` | `eta/` | Order ETA estimation |
 | `/api/waitlist` | `waitlist/` | Walk-in waitlist and notifications |
+| `/api/reputation` | `reputation/` | Review theme classification, rankings, competitor tracking, guest churn |
+| `/api/winback` | `winback/` | Single-use winback offers for lapsed guests |
+| `/api/loyalty` | `loyalty/` | Loyalty points, tiers, rewards, WhatsApp consent |
+| `/api/messaging` | `messaging/` | Persisted guest-message outbox (queued / skipped / failed / sent) |
+| `/api/payouts` | `payouts/` | Aggregator settlement import and payout reconciliation |
+| `/api/accounting` | `accounting/` | Balanced double-entry export (Tally XML / journal CSV) |
+| `/api/insights` | `insights/` | Menu insights, economics, cross-sell, new-item performance |
+| `/api/actions` | `actions/` | Rules-driven action centre with assignment and outcome tracking |
+| `/api/forecast` | `forecast/` | Seasonal-naive demand engine (prep sheet, inventory, reorder, staffing) |
+| `/api/prep` | `prep/` | Prep logging and waste-prediction reconciliation/forecast |
+| `/api/procurement` | `procurement/` | Purchase orders and supplier management |
+| `/api/labour` | `labour/` | Labour hours and cost-based scheduling inputs |
+| `/api/compliance` | `compliance/` | FSSAI, hygiene, certifications, testing calendar, SOPs/playbook |
+| `/api/group` | `group/` | Multi-outlet benchmarking |
+| `/api/guestmenu` | `guestmenu/` | Guest QR-menu configuration, declarations, nutrition, translations |
+| `/api/snapshots` | `snapshots/` | Daily metric snapshots the analytics and forecasts read |
 | `/api/ai` | `ai/` | LLM-backed insights and summaries |
 | `/api/public` | `public/` | Unauthenticated endpoints for the QR menu app |
 | `/api/guest` | `guest/` | Unauthenticated adapter for the guest dine-in app (menu, recommender, shared table, order, status, pay, receipt, feedback) |
@@ -297,7 +315,7 @@ Production builds:
 
 ## Running Tests
 
-Tests use Jest + Supertest against the test database (`pos_test` on port `5433`). The `test` script sets `DATABASE_URL`, `JWT_SECRET`, and `NODE_ENV` for you.
+Tests use Jest + Supertest against the test database (`pos_test`). The `test` script sets `DATABASE_URL`, `JWT_SECRET`, and `NODE_ENV` for you, so run it after migrating the test database.
 
 ```bash
 cd backend
@@ -306,9 +324,7 @@ npm run migrate:test
 npm test
 ```
 
-Tests run serially (`--runInBand`) to avoid database race conditions. Suites in `backend/tests/`:
-
-`auth` · `menu` · `orders` · `payments` · `tables` · `kitchen` · `reports` · `stocktake` · `variance` · `waitlist` · `waste-insights` · `eta` · `rateLimit`
+Tests run serially (`--runInBand`) to avoid database race conditions. There are **46 suites / 676 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
 
 Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 
@@ -316,7 +332,7 @@ Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 
 ## Database & Migrations
 
-Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 71 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations, reviews, and email verification.
+Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 89 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations and reviews, email verification, and the later analytics tables — settlements and payouts, ingredient nutrition, the message outbox and consent, and prep logs for waste prediction.
 
 ```bash
 npm run migrate          # dev database
@@ -393,7 +409,7 @@ Later migrations add columns to these tables (multi-tenancy, discounts, split pa
 
 All endpoints are prefixed with `/api` and require a valid JWT in the `Authorization: Bearer <token>` header, except `POST /api/auth/login`, `/health`, and everything under `/api/public` and `/api/guest`.
 
-> The reference below covers the original core modules. The other twenty-odd modules follow the same conventions — see [Backend Modules](#backend-modules) and the routers under `backend/src/`.
+> The reference below covers the original core modules. The other forty-odd modules follow the same conventions — see [Backend Modules](#backend-modules) and the routers under `backend/src/`.
 
 ### Health Check
 
