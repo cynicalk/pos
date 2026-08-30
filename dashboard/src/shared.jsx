@@ -6,7 +6,7 @@ export const DEMO_EMAIL = "hello@cooklyt.in";
 export const MAILTO_HREF = `mailto:${DEMO_EMAIL}?subject=${encodeURIComponent("CookLyt POS – Demo Request")}&body=${encodeURIComponent("Hi,\n\nI'm interested in a live demo of CookLyt POS for my restaurant.\n\nName:\nRestaurant name:\nNumber of locations:\nBest time to reach me:\n\nThanks,")}`;
 export const WHATSAPP_HREF = `https://wa.me/919873665365?text=${encodeURIComponent("Hi, I'd like a CookLyt demo for my restaurant.")}`;
 
-export const SEC   = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--mute)", fontFamily: '"Geist Mono", monospace' };
+export const SEC   = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--lp-accent, var(--mute))", fontWeight: 600, fontFamily: '"Geist Mono", monospace' };
 export const SEC_H2 = { fontSize: "clamp(28px, 4vw, 44px)", letterSpacing: "-.025em", lineHeight: 1.05, margin: "8px 0 12px", fontWeight: 600 };
 export const SEC_P  = { color: "var(--mute)", margin: 0, fontSize: 15, lineHeight: 1.55, maxWidth: 520 };
 
@@ -99,15 +99,13 @@ export function PageFooter() {
               href={WHATSAPP_HREF}
               target="_blank"
               rel="noreferrer"
+              className="lp-btn-accent"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
-                height: 34, padding: "0 14px", borderRadius: 6,
-                fontSize: 12.5, fontWeight: 500,
-                background: "var(--ink)", color: "var(--accent-on)",
-                textDecoration: "none", transition: "background .08s",
+                height: 34, padding: "0 14px", borderRadius: 7,
+                fontSize: 12.5, fontWeight: 600,
+                color: "#fff", textDecoration: "none",
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--ink-2)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--ink)"; }}
             >
               <MessageCircle size={12} />
               Request a demo
@@ -162,8 +160,9 @@ export function PageFooter() {
 
 export function PageCTA() {
   return (
-    <section style={{ textAlign: "center", background: "var(--paper-2)", borderTop: "1px solid var(--line)", padding: "80px 0" }}>
-      <div className="lp-container" style={{ maxWidth: 860, margin: "0 auto" }}>
+    <section style={{ position: "relative", overflow: "hidden", textAlign: "center", background: "var(--paper-2)", borderTop: "1px solid var(--line)", padding: "80px 0" }}>
+      <div className="lp-hero-wash" style={{ opacity: 0.6 }} />
+      <div className="lp-container reveal" style={{ maxWidth: 860, margin: "0 auto", position: "relative", zIndex: 1 }}>
         <h2 style={{ fontSize: "clamp(26px, 4vw, 42px)", letterSpacing: "-.025em", lineHeight: 1.1, margin: "0 0 14px", fontWeight: 600 }}>
           Ready to see it live?
         </h2>
@@ -174,11 +173,8 @@ export function PageCTA() {
           href={WHATSAPP_HREF}
           target="_blank"
           rel="noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 44, padding: "0 20px", borderRadius: 6, fontSize: 13.5, fontWeight: 500, background: "var(--ink)", color: "var(--accent-on)", textDecoration: "none", transition: "background .08s, transform .08s, box-shadow .12s" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "var(--ink-2)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(10,10,10,.18)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-          onMouseDown={e => { e.currentTarget.style.transform = "scale(0.98)"; }}
-          onMouseUp={e => { e.currentTarget.style.transform = "translateY(-1px)"; }}
+          className="lp-btn-accent"
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 46, padding: "0 22px", borderRadius: 8, fontSize: 13.5, fontWeight: 600, color: "#fff", textDecoration: "none" }}
         >
           <MessageCircle size={14} />
           Request a demo on WhatsApp

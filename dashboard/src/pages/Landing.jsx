@@ -99,43 +99,42 @@ export default function Landing() {
       </Helmet>
 
       {/* ── Hero ── */}
-      <section className="hero-section">
-        <div className="lp-container" style={{ maxWidth: 1180, margin: "0 auto" }}>
+      <section className="hero-section" style={{ position: "relative", overflow: "hidden" }}>
+        <div className="lp-hero-wash" />
+        <div className="lp-container" style={{ maxWidth: 1180, margin: "0 auto", position: "relative", zIndex: 1 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 64, alignItems: "center" }} className="hero-grid">
             <div>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minHeight: 26, padding: "4px 12px", border: "1px solid var(--line-2)", borderRadius: 999, fontSize: 11.5, color: "var(--ink-2)", flexWrap: "wrap" }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--ink)", display: "inline-block" }} />
-                <span className="mono" style={{ letterSpacing: ".06em" }}>CookLyt · 01</span>
+              <span className="lp-up lp-up-1" style={{ display: "inline-flex", alignItems: "center", gap: 8, minHeight: 26, padding: "4px 12px", border: "1px solid color-mix(in srgb, var(--lp-accent) 40%, var(--line-2))", background: "var(--lp-accent-soft)", borderRadius: 999, fontSize: 11.5, color: "var(--lp-accent-deep)", flexWrap: "wrap" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--lp-accent)", display: "inline-block", boxShadow: "0 0 0 3px color-mix(in srgb, var(--lp-accent) 22%, transparent)" }} />
+                <span className="mono" style={{ letterSpacing: ".06em" }}>Waste-aware POS · Built in India</span>
               </span>
-              <h1 style={{ fontSize: "clamp(40px, 7.5vw, 88px)", lineHeight: 0.98, letterSpacing: "-.035em", fontWeight: 600, margin: "16px 0 24px" }}>
+              <h1 className="lp-up lp-up-2" style={{ fontSize: "clamp(40px, 7.5vw, 88px)", lineHeight: 0.98, letterSpacing: "-.035em", fontWeight: 600, margin: "16px 0 24px" }}>
                 The POS your<br />restaurant{" "}
-                <em style={{ fontStyle: "italic", fontWeight: 500, color: "var(--ink-2)", backgroundImage: "linear-gradient(transparent 78%, rgba(10,10,10,.16) 78%, rgba(10,10,10,.16) 88%, transparent 88%)" }}>actually</em>
+                <em style={{ fontStyle: "italic", fontWeight: 500, color: "var(--lp-accent-deep)", backgroundImage: "linear-gradient(transparent 76%, color-mix(in srgb, var(--lp-accent) 42%, transparent) 76%, color-mix(in srgb, var(--lp-accent) 42%, transparent) 92%, transparent 92%)" }}>actually</em>
                 <br />deserves.
               </h1>
-              <p style={{ fontSize: 17, lineHeight: 1.55, color: "var(--ink-2)", maxWidth: 480, margin: "0 0 28px" }}>
+              <p className="lp-up lp-up-3" style={{ fontSize: 17, lineHeight: 1.55, color: "var(--ink-2)", maxWidth: 480, margin: "0 0 28px" }}>
                 One quiet system that runs every part of service — and watches every rupee of waste — so your team can focus on the food.
               </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <a href={MAILTO_HREF} style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 42, padding: "0 18px", borderRadius: 6, fontSize: 13.5, fontWeight: 500, background: "var(--ink)", color: "var(--accent-on)", textDecoration: "none", transition: "background .08s", whiteSpace: "nowrap" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "var(--ink-2)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "var(--ink)"; }}>
+              <div className="lp-up lp-up-3" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <a href={MAILTO_HREF} className="lp-btn-accent" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 44, padding: "0 20px", borderRadius: 8, fontSize: 13.5, fontWeight: 600, color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}>
                   <Mail size={14} />Request a demo
                 </a>
-                <a href="/problem" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 42, padding: "0 18px", borderRadius: 6, fontSize: 13.5, fontWeight: 500, border: "1px solid var(--line-2)", color: "var(--ink)", background: "transparent", textDecoration: "none", transition: "background .08s", whiteSpace: "nowrap" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "var(--hover)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                <a href="/problem" className="lp-link-ghost" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 44, padding: "0 18px", borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: "1px solid var(--line-2)", color: "var(--ink)", background: "transparent", textDecoration: "none", transition: "background .12s, border-color .12s, gap .12s", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--lp-accent-soft)"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--lp-accent) 45%, var(--line-2))"; e.currentTarget.style.gap = "11px"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--line-2)"; e.currentTarget.style.gap = "8px"; }}>
                   See the waste it catches<ArrowRight size={14} />
                 </a>
               </div>
-              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 28 }}>
+              <div className="lp-up lp-up-4" style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 28 }}>
                 {["No credit card", "Full-access demo", "Ready in 24 hrs"].map(t => (
                   <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--mute)", fontSize: 12.5 }}>
-                    <Check size={13} style={{ opacity: 0.7 }} />{t}
+                    <Check size={13} style={{ color: "var(--lp-secondary)", opacity: 0.9 }} />{t}
                   </span>
                 ))}
               </div>
             </div>
-            <div className="hero-preview" style={{ paddingBottom: 32, paddingRight: 32 }}>
+            <div className="hero-preview lp-up lp-up-4" style={{ paddingBottom: 32, paddingRight: 32 }}>
               <DevicePreview />
             </div>
           </div>
@@ -143,11 +142,11 @@ export default function Landing() {
       </section>
 
       {/* ── Stats strip ── */}
-      <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+      <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", background: "color-mix(in srgb, var(--lp-accent-soft) 40%, var(--paper))" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }} className="stats-grid">
           {[{ value: "< 3s", label: "Order to kitchen" }, { value: "100%", label: "Real-time sync, offline-tolerant" }, { value: "24 h", label: "From email to working demo" }].map(({ value, label }, i) => (
-            <div key={label} style={{ padding: "36px 28px", borderRight: i < 2 ? "1px solid var(--line)" : 0 }}>
-              <div className="mono" style={{ fontSize: 38, fontWeight: 500, letterSpacing: "-.02em", lineHeight: 1 }}>{value}</div>
+            <div key={label} className={`reveal reveal-d${i + 1}`} style={{ padding: "36px 28px", borderRight: i < 2 ? "1px solid var(--line)" : 0 }}>
+              <div className="mono" style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-.02em", lineHeight: 1, background: "var(--lp-grad)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "var(--lp-accent-deep)", width: "fit-content" }}>{value}</div>
               <div style={{ fontSize: 11, color: "var(--mute)", textTransform: "uppercase", letterSpacing: ".08em", marginTop: 10 }}>{label}</div>
             </div>
           ))}
@@ -167,6 +166,7 @@ export default function Landing() {
               <a
                 key={href}
                 href={href}
+                className={`lp-card reveal reveal-d${(i % 3) + 1}`}
                 style={{
                   display: "block",
                   padding: "28px 28px 32px",
@@ -174,17 +174,14 @@ export default function Landing() {
                   borderBottom: "1px solid var(--line)",
                   textDecoration: "none",
                   color: "var(--ink)",
-                  transition: "background .08s",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = "var(--paper-2)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
               >
-                <span style={{ display: "inline-grid", placeItems: "center", width: 26, height: 26, color: "var(--ink)", marginBottom: 12 }}>
-                  <Icon size={20} strokeWidth={1.4} />
+                <span className="lp-card-icon" style={{ display: "inline-grid", placeItems: "center", width: 26, height: 26, color: "var(--ink)", marginBottom: 12 }}>
+                  <Icon size={20} strokeWidth={1.5} />
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <h3 style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-.005em", margin: 0 }}>{label}</h3>
-                  <ArrowRight size={13} style={{ color: "var(--mute)", flexShrink: 0 }} />
+                  <ArrowRight size={13} style={{ color: "var(--lp-accent)", flexShrink: 0 }} />
                 </div>
                 <p style={{ color: "var(--mute)", margin: 0, fontSize: 13, lineHeight: 1.5 }}>{sub}</p>
               </a>
@@ -194,8 +191,9 @@ export default function Landing() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="final-cta" style={{ textAlign: "center", background: "var(--paper-2)", borderTop: "1px solid var(--line)", padding: "120px 0" }}>
-        <div className="lp-container" style={{ maxWidth: 1180, margin: "0 auto" }}>
+      <section className="final-cta" style={{ position: "relative", overflow: "hidden", textAlign: "center", background: "var(--paper-2)", borderTop: "1px solid var(--line)", padding: "120px 0" }}>
+        <div className="lp-hero-wash" style={{ opacity: 0.7 }} />
+        <div className="lp-container reveal" style={{ maxWidth: 1180, margin: "0 auto", position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 36 }}>
             {LOGO_SVG(44, 44)}
             {WORDMARK_SVG(136, 24)}
@@ -206,9 +204,7 @@ export default function Landing() {
           <p style={{ color: "var(--mute)", fontSize: 15, maxWidth: 480, margin: "0 auto 32px" }}>
             No sales call. No slideshow. Just a working demo of your restaurant running on CookLyt.
           </p>
-          <a href={MAILTO_HREF} className="cta-email" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 22px", maxWidth: "100%", boxSizing: "border-box", background: "var(--ink)", color: "var(--accent-on)", fontFamily: '"Geist Mono", monospace', fontSize: 14, borderRadius: 8, textDecoration: "none", transition: "transform .12s ease, background .12s ease", wordBreak: "break-all" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "var(--ink-2)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.transform = "none"; }}>
+          <a href={MAILTO_HREF} className="cta-email lp-btn-accent" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 22px", maxWidth: "100%", boxSizing: "border-box", color: "#fff", fontFamily: '"Geist Mono", monospace', fontSize: 14, borderRadius: 10, textDecoration: "none", wordBreak: "break-all" }}>
             <Mail size={16} style={{ flexShrink: 0 }} />{DEMO_EMAIL}
           </a>
           <p style={{ display: "block", marginTop: 18, color: "var(--mute-2)", fontSize: 12 }}>We reply within a few hours.</p>

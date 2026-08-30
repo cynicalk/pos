@@ -87,6 +87,28 @@ export default function LandingLayout({ children }) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Scroll-reveal: fade sections up as they enter the viewport. Respects
+  // reduced-motion (the observer simply reveals everything immediately then).
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll(".reveal"));
+    if (!els.length) return undefined;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach((el) => el.classList.add("reveal-in"));
+      return undefined;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("reveal-in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   // Dismiss the dropdown on an outside tap. It's a compact menu now, not a
   // full-screen overlay, so the page behind stays scrollable and interactive.
   useEffect(() => {
@@ -120,7 +142,7 @@ export default function LandingLayout({ children }) {
   const mobileLeave = (e) => { e.currentTarget.style.background = "transparent"; };
 
   return (
-    <div style={{ background: "var(--paper)", color: "var(--ink)", minHeight: "100vh" }}>
+    <div className="lp-root" style={{ color: "var(--ink)", minHeight: "100vh" }}>
       <header style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(250,250,248,.78)", backdropFilter: "blur(14px) saturate(140%)", WebkitBackdropFilter: "blur(14px) saturate(140%)", borderBottom: "1px solid var(--line)" }}>
         <div className="nav-inner" style={{ maxWidth: 1180, margin: "0 auto", padding: "0 28px", height: 56, display: "flex", alignItems: "center", gap: 18 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "var(--ink)", flexShrink: 0 }}>
@@ -135,10 +157,8 @@ export default function LandingLayout({ children }) {
             <button onClick={() => navigate(user ? "/overview" : "/login")} className="nav-text-link" style={nlBase} onMouseEnter={nlHover} onMouseLeave={nlLeave}>
               {user ? "Dashboard" : "Sign in"}
             </button>
-            <a href={MAILTO_HREF}
-              style={{ ...nlBase, background: "var(--ink)", color: "var(--accent-on)", padding: "0 14px", height: 34, gap: 6 }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--ink-2)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--ink)"; }}
+            <a href={MAILTO_HREF} className="lp-btn-accent"
+              style={{ ...nlBase, color: "#fff", padding: "0 14px", height: 34, gap: 6 }}
             >
               <Mail size={13} /><span className="nav-demo-label">Request a demo</span>
             </a>
@@ -215,6 +235,83 @@ export default function LandingLayout({ children }) {
       <PageFooter />
 
       <style>{`
+        /* ── Landing colour system (scoped to .lp-root so the POS is untouched) ──
+           A warm terracotta primary with a forest-green secondary on the warm
+           paper — an earthy, food-brand palette, not the monochrome default. */
+        .lp-root {
+          --lp-accent: #C2683A;
+          --lp-accent-deep: #9C4C26;
+          --lp-accent-soft: #F5E6DC;
+          --lp-secondary: #2F6B57;
+          --lp-secondary-soft: #E2ECE7;
+          --lp-grad: linear-gradient(135deg, #CE7040 0%, #9C4C26 100%);
+          --lp-ink: var(--ink);
+          background: var(--paper);
+        }
+        :root[data-theme="dark"] .lp-root,
+        :root:not([data-theme="light"]) .lp-root { }
+        @media (prefers-color-scheme: dark) {
+          :root:not([data-theme="light"]) .lp-root {
+            --lp-accent: #E08A5C;
+            --lp-accent-deep: #C2683A;
+            --lp-accent-soft: #33221A;
+            --lp-secondary: #5FA98D;
+            --lp-secondary-soft: #1B2A24;
+          }
+        }
+        :root[data-theme="dark"] .lp-root {
+          --lp-accent: #E08A5C;
+          --lp-accent-deep: #C2683A;
+          --lp-accent-soft: #33221A;
+          --lp-secondary: #5FA98D;
+          --lp-secondary-soft: #1B2A24;
+        }
+
+        /* Warm wash behind the hero, fading into the page. */
+        .lp-hero-wash {
+          position: absolute; inset: 0; z-index: 0; pointer-events: none;
+          background:
+            radial-gradient(900px 460px at 78% -6%, color-mix(in srgb, var(--lp-accent) 20%, transparent), transparent 62%),
+            radial-gradient(720px 420px at 6% 8%, color-mix(in srgb, var(--lp-secondary) 12%, transparent), transparent 60%);
+          opacity: .9;
+        }
+
+        /* Accent button — gradient fill, lifts on hover. */
+        .lp-btn-accent {
+          background: var(--lp-grad); background-size: 140% 140%;
+          border: 0; box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--lp-accent-deep) 55%, transparent);
+          transition: transform .14s ease, box-shadow .14s ease, background-position .5s ease;
+        }
+        .lp-btn-accent:hover {
+          transform: translateY(-1px); background-position: 100% 100%;
+          box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--lp-accent-deep) 65%, transparent);
+        }
+
+        /* Scroll-reveal. */
+        .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); }
+        .reveal.reveal-in { opacity: 1; transform: none; }
+        .reveal-d1 { transition-delay: .06s; } .reveal-d2 { transition-delay: .12s; }
+        .reveal-d3 { transition-delay: .18s; } .reveal-d4 { transition-delay: .24s; }
+        @media (prefers-reduced-motion: reduce) {
+          .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+          .lp-btn-accent { transition: none; }
+        }
+
+        /* Hero entrance (fires once on load, independent of scroll). */
+        @keyframes lpUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+        .lp-up { opacity: 0; animation: lpUp .7s cubic-bezier(.2,.7,.2,1) forwards; }
+        .lp-up-1 { animation-delay: .05s; } .lp-up-2 { animation-delay: .14s; }
+        .lp-up-3 { animation-delay: .23s; } .lp-up-4 { animation-delay: .32s; }
+        @media (prefers-reduced-motion: reduce) { .lp-up { opacity: 1; animation: none; } }
+
+        /* Interactive card lift with an accent edge. */
+        .lp-card { transition: background .16s ease, transform .16s ease, box-shadow .16s ease; position: relative; }
+        .lp-card::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--lp-accent); transform: scaleY(0); transform-origin: bottom; transition: transform .18s ease; }
+        .lp-card:hover { background: var(--lp-accent-soft); transform: translateY(-2px); box-shadow: 0 16px 34px -22px color-mix(in srgb, var(--lp-accent-deep) 60%, transparent); }
+        .lp-card:hover::after { transform: scaleY(1); }
+        .lp-card:hover .lp-card-icon { color: var(--lp-accent); transform: translateY(-1px); }
+        .lp-card-icon { transition: color .16s ease, transform .16s ease; }
+
         .lp-container { padding-left: 28px; padding-right: 28px; }
         .footer-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
