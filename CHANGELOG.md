@@ -10,6 +10,15 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-30
 
 #### Added
+- **Operator intelligence — Wave 1** (from the per-cover margin research). Two
+  new Insights, no migration: **coupon contribution** on the Economics page ranks
+  each code by net revenue kept per order after the discount given and, for
+  delivery redemptions, the platform's cut (`GET /api/insights/coupon-economics`);
+  and **category attach rate** on Menu Insights — items sold per order by
+  category with the change vs the prior window, high-margin categories flagged
+  (`GET /api/insights/attach`). The "0.1 metric," per order until covers land.
+  Both keep the abstention discipline and are gated by the existing feature
+  toggles.
 - **Waste Prediction** (catalogue: shell → built), in two phases. Phase 1 captures
   how much of each dish is prepped — a pre-service plan nudged from the forecast and
   a post-service actual (`prep_logs`, migration 089) — and reconciles it against

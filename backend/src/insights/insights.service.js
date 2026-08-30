@@ -4,6 +4,8 @@ const crossSell = require('../modules/menu/cross-sell');
 const newItems = require('../modules/menu/new-items');
 const hours = require('../modules/dinein/hours');
 const economics = require('../modules/economics/unit-economics');
+const couponEconomics = require('../modules/economics/coupon-economics');
+const attachRate = require('../modules/menu/attach-rate');
 const labourHours = require('../modules/labour/hours');
 const labourService = require('../labour/labour.service');
 const { validateTimezone } = require('../shared/timezone');
@@ -141,7 +143,28 @@ async function getEconomics(restaurantId, daysRaw) {
   return { ...base, labour, primeCost, delivery, operatingMargin };
 }
 
+/** Coupon contribution: net revenue kept per code, after discount and delivery commission. */
+async function getCouponEconomics(restaurantId, daysRaw) {
+  const days = parseDays(daysRaw);
+  const [rows, commissionRate] = await Promise.all([
+    repo.getCouponEconomics(restaurantId, days),
+    repo.getAvgCommissionRate(restaurantId),
+  ]);
+  return { days, commissionRate, ...couponEconomics.buildCouponEconomics(rows, { commissionRate }) };
+}
+
+/** Category attach rate (items per order) vs the prior equal-length window. */
+async function getAttachRate(restaurantId, daysRaw) {
+  const days = parseDays(daysRaw);
+  const [categoryRows, totals] = await Promise.all([
+    repo.getCategoryAttach(restaurantId, days),
+    repo.getPeriodOrderTotals(restaurantId, days),
+  ]);
+  return { days, ...attachRate.buildAttachRate({ categoryRows, totals }) };
+}
+
 module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
+  getCouponEconomics, getAttachRate,
 };

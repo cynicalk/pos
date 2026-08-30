@@ -123,6 +123,85 @@ const getEconomicsTotals = (restaurantId, days) =>
       AND o.created_at >= now() - make_interval(days => $2)
   `, [restaurantId, days]).then((r) => r.rows[0]);
 
+/**
+ * Per-coupon economics over the window: how many orders each code drove, what was
+ * collected on them, what was given away, and how much of that collection came on
+ * a commissioned (delivery) channel. Same completed-payment revenue basis as
+ * everything else here.
+ */
+const getCouponEconomics = (restaurantId, days) =>
+  db.query(`
+    SELECT
+      c.id,
+      c.code,
+      c.discount_type                                   AS "discountType",
+      c.discount_value                                  AS "discountValue",
+      COUNT(*)::int                                     AS orders,
+      COALESCE(SUM(p.amount), 0)::float8                AS collected,
+      COALESCE(SUM(cr.discount_amount), 0)::float8      AS discount,
+      COALESCE(SUM(CASE WHEN o.channel = 'delivery' THEN p.amount ELSE 0 END), 0)::float8
+                                                        AS "deliveryCollected"
+    FROM coupon_redemptions cr
+    JOIN orders o    ON o.id = cr.order_id AND o.restaurant_id = $1
+    JOIN payments p  ON p.order_id = o.id AND p.status = 'completed'
+    JOIN coupons c   ON c.id = cr.coupon_id
+    WHERE cr.restaurant_id = $1
+      AND o.created_at >= now() - make_interval(days => $2)
+    GROUP BY c.id, c.code, c.discount_type, c.discount_value
+  `, [restaurantId, days]).then((r) => r.rows);
+
+/** Average contracted delivery commission (a fraction), applied to delivery redemptions. */
+const getAvgCommissionRate = (restaurantId) =>
+  db.query(
+    `SELECT COALESCE(AVG(commission_rate), 0)::float8 AS rate
+       FROM platform_contracts WHERE restaurant_id = $1`,
+    [restaurantId],
+  ).then((r) => Number(r.rows[0]?.rate || 0));
+
+/**
+ * Category items sold and baskets carrying each category, split into the current
+ * window and the prior window of equal length, for the attach-rate delta.
+ */
+const getCategoryAttach = (restaurantId, days) =>
+  db.query(`
+    WITH paid AS (
+      SELECT o.id,
+        CASE
+          WHEN o.created_at >= now() - make_interval(days => $2) THEN 'cur'
+          ELSE 'prev'
+        END AS period
+      FROM orders o
+      JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
+      WHERE o.restaurant_id = $1
+        AND o.created_at >= now() - make_interval(days => $2 * 2)
+    )
+    SELECT
+      paid.period,
+      COALESCE(mi.category, 'Uncategorised')       AS category,
+      COALESCE(SUM(oi.quantity), 0)::int           AS items,
+      COUNT(DISTINCT paid.id)::int                 AS "ordersWith"
+    FROM paid
+    JOIN order_items oi ON oi.order_id = paid.id AND oi.status IS DISTINCT FROM 'cancelled'
+    JOIN menu_items mi  ON mi.id = oi.menu_item_id
+    GROUP BY paid.period, COALESCE(mi.category, 'Uncategorised')
+  `, [restaurantId, days]).then((r) => r.rows);
+
+/** Paid-order counts for the current and prior windows, the attach denominator. */
+const getPeriodOrderTotals = (restaurantId, days) =>
+  db.query(`
+    SELECT
+      CASE
+        WHEN o.created_at >= now() - make_interval(days => $2) THEN 'cur'
+        ELSE 'prev'
+      END AS period,
+      COUNT(DISTINCT o.id)::int AS "totalOrders"
+    FROM orders o
+    JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
+    WHERE o.restaurant_id = $1
+      AND o.created_at >= now() - make_interval(days => $2 * 2)
+    GROUP BY 1
+  `, [restaurantId, days]).then((r) => r.rows);
+
 /** Cancellations and the revenue that walked out with them. */
 const getCancellationTotals = (restaurantId, days) =>
   db.query(`
@@ -232,4 +311,5 @@ module.exports = {
   getEconomicsTotals, getCancellationTotals, getFoodCostTotals,
   getDeliveryCostTotals, getDeliveryOrderCount,
   getAllItemQuantities, getTimezone,
+  getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
 };

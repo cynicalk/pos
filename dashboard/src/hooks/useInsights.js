@@ -27,3 +27,9 @@ export const useNewItems = () =>
 
 export const useServiceHours = (days = 30) =>
   useQuery({ queryKey: ['insights', 'service-hours', days], queryFn: get('/insights/service-hours', { days }), ...common });
+
+export const useCouponEconomics = (days = 30) =>
+  useQuery({ queryKey: ['insights', 'coupon-economics', days], queryFn: get('/insights/coupon-economics', { days }), ...common });
+
+export const useAttachRate = (days = 30) =>
+  useQuery({ queryKey: ['insights', 'attach', days], queryFn: get('/insights/attach', { days }), ...common });

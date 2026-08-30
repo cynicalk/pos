@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Coins, Info, Clock } from 'lucide-react';
-import { useEconomics, useServiceHours } from '../hooks/useInsights';
+import { Coins, Info, Clock, TicketPercent } from 'lucide-react';
+import { useEconomics, useServiceHours, useCouponEconomics } from '../hooks/useInsights';
 import { useCurrency } from '../context/CurrencyContext';
 
 /**
@@ -79,6 +79,7 @@ export default function Economics() {
   const { format } = useCurrency();
   const { data, isLoading } = useEconomics(days);
   const { data: sh } = useServiceHours(days);
+  const { data: coupons } = useCouponEconomics(days);
 
   const food = data?.foodCost;
   const tone = FOOD_COST_TONE[food?.status || 'unknown'];
@@ -233,6 +234,63 @@ export default function Economics() {
             <Stat label="Revenue lost" value={format(data.cancellation.lostRevenue)} />
             <Stat label="Average per cancellation" value={format(data.cancellation.avgLostPerCancellation)} />
           </div>
+
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '26px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+            <TicketPercent size={15} strokeWidth={2} /> Coupon contribution
+          </h2>
+          {!coupons || coupons.summary.activeCodes === 0 ? (
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mute)' }}>
+              No coupons redeemed in this window.
+            </p>
+          ) : (
+            <>
+              <p style={{ margin: '6px 0 10px', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                What each code keeps per order after the discount you gave
+                {coupons.summary.commissionApplies ? ' and the delivery platform’s cut' : ''} — ranked
+                cheapest-kept first. Net revenue kept, not profit (food cost isn’t subtracted here).
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10, marginBottom: 12 }}>
+                <Stat label="Active codes" value={coupons.summary.activeCodes} sub={`${coupons.summary.totalOrders} orders`} />
+                <Stat label="Discount given" value={format(coupons.summary.totalDiscount)} sub="across all codes" />
+                <Stat label="Avg net kept / order" value={coupons.summary.avgNetPerOrder == null ? '—' : format(coupons.summary.avgNetPerOrder)} />
+                <Stat label="Heavy discounters" value={coupons.summary.heavyCodes} sub="≥40% off gross" />
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520, fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: 'var(--mute)', fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '0 10px 8px', fontWeight: 600 }}>Code</th>
+                      <th style={{ padding: '0 10px 8px', textAlign: 'right', fontWeight: 600 }}>Orders</th>
+                      <th style={{ padding: '0 10px 8px', textAlign: 'right', fontWeight: 600 }}>Discount</th>
+                      <th style={{ padding: '0 10px 8px', fontWeight: 600 }}>Weight</th>
+                      <th style={{ padding: '0 10px 8px', textAlign: 'right', fontWeight: 600 }}>Kept / order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coupons.codes.filter((c) => c.orders > 0).map((c) => {
+                      const tone = c.weight === 'heavy' ? 'var(--bad)' : c.weight === 'moderate' ? 'var(--warn)' : 'var(--mute)';
+                      const bg = c.weight === 'heavy' ? 'var(--bad-soft)' : c.weight === 'moderate' ? 'var(--warn-soft)' : 'var(--paper-3)';
+                      return (
+                        <tr key={c.id} style={{ borderTop: '1px solid var(--line)' }}>
+                          <td style={{ padding: '9px 10px', fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--mono, monospace)' }}>{c.code}</td>
+                          <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--mute)', fontVariantNumeric: 'tabular-nums' }}>{c.orders}</td>
+                          <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--ink-2)', fontVariantNumeric: 'tabular-nums' }}>{format(c.discountPerOrder)}<span style={{ color: 'var(--mute-2)' }}>/order</span></td>
+                          <td style={{ padding: '9px 10px' }}>
+                            <span style={{ padding: '2px 8px', borderRadius: 999, background: bg, color: tone, fontSize: 10.5, fontWeight: 600, textTransform: 'capitalize' }}>
+                              {c.weight} · {Math.round(c.discountRate * 100)}%
+                            </span>
+                          </td>
+                          <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                            {c.netPerOrder == null ? '—' : format(c.netPerOrder)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '26px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
             <Clock size={15} strokeWidth={2} /> Peak &amp; quiet hours

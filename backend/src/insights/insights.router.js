@@ -30,4 +30,12 @@ router.get('/service-hours', ...adminOnly, asyncHandler(async (req, res) => {
   ));
 }));
 
+router.get('/coupon-economics', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getCouponEconomics(req.user.restaurantId, req.query.days));
+}));
+
+router.get('/attach', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getAttachRate(req.user.restaurantId, req.query.days));
+}));
+
 module.exports = router;

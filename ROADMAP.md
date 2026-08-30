@@ -179,18 +179,18 @@ first as Insights panels and action-centre rules, then pushed through the outbox
 
 | Metric | Data today | Status | First build |
 | --- | --- | --- | --- |
-| **Coupon contribution** | `coupons` + `orders` (revenue, discount) + `payouts` settlement commission | ✅ ship now | Rank codes by ₹ kept per order after discount + commission; raise an action on any loss-making code. This is Numerize's headline insight, computable today. |
-| **Category attach rate** (the "0.1") | `order_items → menu_items.category` | ✅ ship now | Desserts/drinks per order and % of orders carrying each category, benchmarked across outlets; extends Menu Insights + cross-sell. Per-cover once covers land. |
+| **Coupon contribution** | `coupons` + `orders` (revenue, discount) + delivery commission rate | ✅ **shipped** | Codes ranked by ₹ kept per order after discount + (delivery) commission, on the Economics page (`GET /api/insights/coupon-economics`). Numerize's headline insight. Next: raise an action on loss-making codes. |
+| **Category attach rate** (the "0.1") | `order_items → menu_items.category` | ✅ **shipped** | Items per order by category + penetration, with the delta vs the prior window and high-margin categories flagged, on Menu Insights (`GET /api/insights/attach`). Per-cover once covers land. |
 | **Same-store sales growth (SSSG)** | `daily_snapshots` + the `group` module | ✅ ship now | WoW / 4-week / QoQ growth per outlet in the group view; YoY abstains until ≥1 yr history. |
 | **Sales per labour hour (SPLH)** | `labour` module + cost-based scheduling | ✅ ship now | SPLH and labour-% vs forecast now; station-level planned-vs-actual headcount needs station tags on the schedule (smaller follow-on). |
 | **APC / per-cover average** | revenue yes; covers only at waitlist/reservation intake (`party_size`), not per bill | ⚠ needs capture | Ship AOV (per order) now; add an optional cover count at billing for true APC, computed where known, abstaining otherwise. |
 | **Service-charge-removed %** | `service_charge_amount` stored per payment; no waive event | ⚠ needs capture | Add a "waive service charge" control at billing that flags the bill; then the % and its rupee value compute per outlet and per server. |
 | **Always-on delivery** ("Friday" layer) | rules/actions engine + AI narration + message outbox | 🔗 assemble | Wire the findings above as rules → ranked actions → outbox messages. Gated on the WhatsApp worker (item 2). |
 
-**Sequencing:** Wave 1 — coupon contribution + category attach (no migration).
-Wave 2 — SSSG + SPLH in the group view (read-layer on existing tables). Wave 3 —
-covers-on-the-bill + SC-removed capture (2 migrations + billing UI). Wave 4 —
-route it all through the agent we already have.
+**Sequencing:** Wave 1 — coupon contribution + category attach (no migration)
+✅ **shipped**. Wave 2 — SSSG + SPLH in the group view (read-layer on existing
+tables). Wave 3 — covers-on-the-bill + SC-removed capture (2 migrations + billing
+UI). Wave 4 — route it all through the agent we already have.
 
 ### 2. WhatsApp send channel
 

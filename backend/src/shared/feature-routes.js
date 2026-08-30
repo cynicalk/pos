@@ -61,8 +61,8 @@ const FEATURE_API_ROUTES = {
   '/variance': ['/api/reports/food-cost-variance'],
 
   // Insights router — split by sub-path between Economics and Menu Insights.
-  '/economics':     ['/api/insights/economics'],
-  '/menu-insights': ['/api/insights/menu', '/api/insights/cross-sell', '/api/insights/new-items', '/api/insights/service-hours'],
+  '/economics':     ['/api/insights/economics', '/api/insights/coupon-economics'],
+  '/menu-insights': ['/api/insights/menu', '/api/insights/cross-sell', '/api/insights/new-items', '/api/insights/service-hours', '/api/insights/attach'],
 
   // Compliance router — Playbook (SOPs) owns its sub-tree; the rest is Compliance.
   '/compliance': ['/api/compliance'],

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Grid2X2, Sparkles, Link2, AlertCircle } from 'lucide-react';
-import { useMenuInsights, useCrossSell, useNewItems } from '../hooks/useInsights';
+import { Grid2X2, Sparkles, Link2, AlertCircle, Coffee, ArrowUp, ArrowDown } from 'lucide-react';
+import { useMenuInsights, useCrossSell, useNewItems, useAttachRate } from '../hooks/useInsights';
 import { useCurrency } from '../context/CurrencyContext';
 
 /**
@@ -72,6 +72,7 @@ export default function MenuInsights() {
   const { data, isLoading } = useMenuInsights(days);
   const { data: cross } = useCrossSell(days);
   const { data: newItems } = useNewItems();
+  const { data: attach } = useAttachRate(days);
 
   const matrix = data?.matrix;
 
@@ -175,6 +176,55 @@ export default function MenuInsights() {
                   </span>
                   <span style={{ color: VERDICT_COLOR[i.verdict] || 'var(--mute)', width: 118, textAlign: 'right' }}>
                     {i.verdict}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '28px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+            <Coffee size={15} strokeWidth={2} /> Category attach
+          </h2>
+          {!attach || attach.categories.length === 0 ? (
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mute)' }}>
+              No category orders in this window yet.
+            </p>
+          ) : (
+            <>
+              <p style={{ margin: '6px 0 10px', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                Items sold per order, by category — the high-margin add-ons that hide in the top line.
+                {attach.summary.hasPrior
+                  ? ` Change is against the previous ${days} days.`
+                  : ' No prior window yet, so change is not shown — it will appear once there is one.'}
+                {' '}Per order, not per cover: the bill doesn't yet carry a guest count.
+              </p>
+              {attach.categories.map((c) => (
+                <div key={c.category} style={{
+                  display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0',
+                  borderBottom: '1px solid var(--line)', fontSize: 13,
+                }}>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    {c.highMargin && <span title="High-margin add-on" style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--ok)', flexShrink: 0 }} />}
+                    <span style={{ color: 'var(--ink)', fontWeight: c.highMargin ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.category}</span>
+                  </span>
+                  <span style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums', fontWeight: 600, width: 46, textAlign: 'right' }}>
+                    {c.attach == null ? '—' : c.attach.toFixed(2)}
+                  </span>
+                  <span style={{ color: 'var(--mute-2)', fontVariantNumeric: 'tabular-nums', width: 72, textAlign: 'right' }}>
+                    {c.penetration == null ? '' : `${Math.round(c.penetration * 100)}% of orders`}
+                  </span>
+                  <span style={{
+                    width: 66, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3,
+                    color: c.trend === 'up' ? 'var(--ok)' : c.trend === 'down' ? 'var(--bad)' : 'var(--mute-2)',
+                  }}>
+                    {c.delta == null ? '·' : (
+                      <>
+                        {c.trend === 'up' && <ArrowUp size={12} strokeWidth={2.4} />}
+                        {c.trend === 'down' && <ArrowDown size={12} strokeWidth={2.4} />}
+                        {c.delta > 0 ? '+' : ''}{c.delta.toFixed(2)}
+                      </>
+                    )}
                   </span>
                 </div>
               ))}
