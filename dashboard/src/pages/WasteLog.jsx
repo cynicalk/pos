@@ -10,6 +10,7 @@ import { useRecipes } from '../hooks/useRecipes';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/Modal';
 import SelectField from '../components/SelectField';
+import AiOfflineNotice from '../components/AiOfflineNotice';
 import { useCurrency } from '../context/CurrencyContext';
 
 const REASONS = ['SPOILAGE', 'SPILL', 'OVERPREP', 'DAMAGED', 'OTHER'];
@@ -595,6 +596,9 @@ function WasteInsights({ format }) {
 
   return (
     <div className="space-y-4">
+      {/* The narrated summary falls back to a rule-based write-up when the model
+          is offline; the correlations themselves are computed either way. */}
+      <AiOfflineNotice feature="The narrated waste summary" />
       <div className="flex items-center gap-3 flex-wrap">
         <p style={{ fontSize: 12.5, color: 'var(--mute)' }}>
           {insight

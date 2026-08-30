@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import ReviewInsights from '../components/ReviewInsights';
+import AiOfflineNotice from '../components/AiOfflineNotice';
 import { Star, UtensilsCrossed } from 'lucide-react';
 import SelectField from '../components/SelectField';
 import { useReviews } from '../hooks/useReviews';
@@ -178,6 +179,10 @@ export default function Reviews() {
 
   return (
     <div className="space-y-5">
+
+      {/* Reply drafts and review insights fall back to templates when the model
+          is cold or offline — say so rather than passing a fallback off as AI. */}
+      <AiOfflineNotice feature="Reply drafts and review insights" />
 
       {/* Header + filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
