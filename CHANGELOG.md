@@ -7,6 +7,26 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 
 ## [Unreleased]
 
+### 2026-08-31
+
+#### Added
+- **AI assistant reaches the analytics.** Four new grounded read-tools let the
+  local-LLM assistant answer the operator-margin questions it previously couldn't:
+  `get_unit_economics` (revenue, average per cover, food-cost %, prime cost,
+  operating margin, service-charge-removed), `get_coupon_economics` (net kept per
+  code — Numerize's headline question), `get_category_attach` (the 0.1 attach
+  metric), and `get_peak_hours`. Each reads the same figures the Insights pages
+  show and inherits their abstention, so the assistant narrates real numbers or
+  says it can't — never invents one.
+
+#### Changed
+- **Landing pages — colourful, interactive redesign.** A scoped terracotta +
+  forest-green palette on the warm ground (the POS tokens are untouched): hero
+  wash and entrance animation, gradient accent buttons, gradient stat numerals,
+  hover-lift section cards, and scroll-reveal (respecting reduced-motion). The
+  shared nav/footer/CTA and section labels carry the accent, so every subpage
+  inherits the new chrome.
+
 ### 2026-08-30
 
 #### Added
