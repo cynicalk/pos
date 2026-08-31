@@ -55,7 +55,7 @@ async function gatherSignals(restaurantId) {
 
   const safe = (p) => p.catch(() => null);
 
-  const [series, headline, economics, actions, waste, hours, coupons] = await Promise.all([
+  const [series, headline, economics, actions, waste, hours, coupons, recoPerf] = await Promise.all([
     safe(snapshotsRepo.getRevenueSeries(restaurantId, tz, HISTORY_DAYS)),
     safe(briefRepo.getDayHeadline(restaurantId, yesterday, tz)),
     safe(insightsService.getEconomics(restaurantId, WINDOW_DAYS)),
@@ -63,6 +63,7 @@ async function gatherSignals(restaurantId) {
     safe(aiRepo.getWasteSummary(restaurantId, WASTE_DAYS)),
     safe(insightsService.getServiceHours(restaurantId, WINDOW_DAYS)),
     safe(insightsService.getCouponEconomics(restaurantId, WINDOW_DAYS)),
+    safe(insightsService.getRecoPerformance(restaurantId, WINDOW_DAYS)),
   ]);
 
   // ── Yesterday, judged against normal (today excluded from judgement) ────────
@@ -123,7 +124,19 @@ async function gatherSignals(restaurantId) {
     couponFlag = { code: worst.code, discountRate: round2(worst.discountRate), netPerOrder: round2(worst.netPerOrder) };
   }
 
-  return { date: yesterday, timezone: tz, sales, topActions, margin, waste: wasteSignal, peakHour, couponFlag };
+  // ── Recommender health (only once the funnel has enough sessions) ────────────
+  let reco = null;
+  if (recoPerf?.funnel?.enoughData) {
+    const underShown = (recoPerf.promote || []).filter((p) => !p.featured).length;
+    reco = {
+      acceptancePct: recoPerf.funnel.acceptanceRate,
+      verdict: recoPerf.margin?.verdict ?? null,
+      highMarginSharePct: recoPerf.margin?.highMarginShare ?? null,
+      underShownHighMargin: underShown,
+    };
+  }
+
+  return { date: yesterday, timezone: tz, sales, topActions, margin, waste: wasteSignal, peakHour, couponFlag, reco };
 }
 
 // ── Narration ─────────────────────────────────────────────────────────────────
@@ -143,9 +156,11 @@ function buildMessages(signals) {
     'revenue for comparison — it is NOT yesterday\'s takings. If sales.traded is false, yesterday ' +
     'had no trade: say exactly that and state no revenue, order count, or covers for the day. ' +
     'margin.* covers the last ' + WINDOW_DAYS + ' days, not one day — never present a window ' +
-    'figure as a daily one. Lead with how yesterday traded versus normal, then the single most ' +
-    'important action, then one margin or waste note if present. Do not list every field. Sound ' +
-    'like a trusted manager, not a dashboard.';
+    'figure as a daily one. reco.* is the guest recommender over the last ' + WINDOW_DAYS + ' days: ' +
+    'acceptancePct is the share of cart adds that came from a pick, and verdict "margin_leak" means the ' +
+    'picks skew to low-margin dishes — mention it only if present and worth a line. Lead with how ' +
+    'yesterday traded versus normal, then the single most important action, then one margin, waste, or ' +
+    'recommender note if present. Do not list every field. Sound like a trusted manager, not a dashboard.';
   return [
     { role: 'system', content: system },
     { role: 'user', content: JSON.stringify(signals) },
@@ -185,6 +200,16 @@ function fallbackNarrative(signals) {
   }
   if (signals.waste && signals.waste.totalCost) {
     parts.push(`Waste this week is ${inr(signals.waste.totalCost)}, most of it ${String(signals.waste.topReason || '').toLowerCase()}.`);
+  }
+  if (signals.reco) {
+    const r = signals.reco;
+    if (r.verdict === 'margin_leak') {
+      let line = `The guest recommender is leaking margin — only ${r.highMarginSharePct}% of accepted picks are high-margin`;
+      if (r.underShownHighMargin > 0) line += `, and ${r.underShownHighMargin} high-margin dish${r.underShownHighMargin === 1 ? '' : 'es'} go unfeatured`;
+      parts.push(`${line}.`);
+    } else if (r.acceptancePct != null) {
+      parts.push(`Guests accepted ${r.acceptancePct}% of the recommender's picks this week.`);
+    }
   }
 
   return parts.join(' ');

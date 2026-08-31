@@ -46,6 +46,19 @@ describe('buildComparison', () => {
     expect(row.cancellationPct).toBe(15);
   });
 
+  test('reco acceptance is per outlet and abstains below the session floor', () => {
+    const [enough] = buildComparison([outlets[0]], {
+      reco: { a: { sessions_saw_recos: 40, dish_adds: 80, dish_adds_reco: 52 } },
+    });
+    expect(enough.recoAcceptancePct).toBe(65); // 52 / 80
+    const [thin] = buildComparison([outlets[0]], {
+      reco: { a: { sessions_saw_recos: 8, dish_adds: 20, dish_adds_reco: 15 } },
+    });
+    expect(thin.recoAcceptancePct).toBeNull(); // too few sessions saw picks
+    // No reco activity at all → null, never 0%.
+    expect(buildComparison([outlets[0]], {})[0].recoAcceptancePct).toBeNull();
+  });
+
   test('food cost carries the share of sold lines it is based on', () => {
     const [row] = buildComparison([outlets[0]], {
       foodCost: {

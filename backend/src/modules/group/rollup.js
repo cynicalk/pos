@@ -23,6 +23,10 @@
 // Ranking order for the merged queue, matching the actions engine's own.
 const PRIORITY_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
 
+// Sessions that must have seen picks before an outlet's acceptance rate is real
+// rather than noise — the same floor the single-outlet reco funnel uses.
+const RECO_SESSION_FLOOR = 20;
+
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 const round1 = (n) => (n === null ? null : Math.round(n * 10) / 10);
 
@@ -53,7 +57,7 @@ function averageOf(values) {
 function buildComparison(outlets, metrics = {}) {
   const {
     orders = {}, ratings = {}, foodCost = {}, actions = {}, revenue = {},
-    growth = {}, labour = {},
+    growth = {}, labour = {}, reco = {},
   } = metrics;
 
   return outlets.map((outlet) => {
@@ -64,6 +68,7 @@ function buildComparison(outlets, metrics = {}) {
     const rev = revenue[outlet.id];
     const g = growth[outlet.id];
     const l = labour[outlet.id];
+    const rc = reco[outlet.id];
 
     const totalOrders = o ? Number(o.total_orders) : 0;
     const cancelled = o ? Number(o.cancelled_orders) : 0;
@@ -88,6 +93,15 @@ function buildComparison(outlets, metrics = {}) {
     const labourHours = l ? Number(l.labour_hours) : 0;
     const salesPerLabourHour = labourHours > 0
       ? Math.round((revenueNum / labourHours) * 100) / 100
+      : null;
+
+    // Pick-acceptance per outlet: reco-sourced adds ÷ all adds. Null below the
+    // session floor — an outlet whose guests barely used the app has no rate,
+    // not a 0%, the same abstention the single-outlet funnel keeps.
+    const recoSaw = rc ? Number(rc.sessions_saw_recos) : 0;
+    const recoAdds = rc ? Number(rc.dish_adds) : 0;
+    const recoAcceptancePct = recoSaw >= RECO_SESSION_FLOOR && recoAdds > 0
+      ? Math.round((Number(rc.dish_adds_reco) / recoAdds) * 1000) / 10
       : null;
 
     return {
@@ -129,6 +143,7 @@ function buildComparison(outlets, metrics = {}) {
       salesGrowthPct,
       salesPerLabourHour,
       labourHours: Math.round(labourHours * 10) / 10,
+      recoAcceptancePct,
     };
   });
 }
@@ -147,6 +162,7 @@ function buildTotals(rows) {
   const rating = averageOf(rows.map((r) => r.avgRating));
   const growth = averageOf(rows.map((r) => r.salesGrowthPct));
   const splh = averageOf(rows.map((r) => r.salesPerLabourHour));
+  const recoAcceptance = averageOf(rows.map((r) => r.recoAcceptancePct));
 
   return {
     outlets: rows.length,
@@ -167,6 +183,8 @@ function buildTotals(rows) {
     salesGrowthReporting: growth.reporting,
     avgSalesPerLabourHour: splh.value === null ? null : Math.round(splh.value * 100) / 100,
     splhReporting: splh.reporting,
+    avgRecoAcceptancePct: round1(recoAcceptance.value),
+    recoAcceptanceReporting: recoAcceptance.reporting,
   };
 }
 

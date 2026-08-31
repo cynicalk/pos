@@ -88,6 +88,27 @@ const DEFAULT_RULES = [
     messageTemplate: '{name}: {detail}',
   },
   {
+    // Funnel-level, restaurant-wide: the recommender is verifiably steering carts
+    // to low-margin dishes (its high-margin share is below the leak threshold).
+    // One standing action, tracked by that share recovering.
+    ruleType: 'reco_margin_leak',
+    condition: { field: 'reco_high_margin_share', op: '<', value: 40 },
+    severity: 'medium',
+    messageTemplate:
+      'The recommender is steering carts to low-margin dishes: only {high_margin_share}% '
+      + 'of accepted picks are high-margin. Feature high-margin dishes to rebalance it.',
+  },
+  {
+    // Acceptance fell week-over-week by more than the threshold, both windows
+    // above the session floor. Tracked by acceptance recovering.
+    ruleType: 'reco_acceptance_drop',
+    condition: { field: 'acceptance_drop', op: '>=', value: 10 },
+    severity: 'medium',
+    messageTemplate:
+      'Guests are accepting the picks less: acceptance fell from {prior_acceptance}% to '
+      + '{acceptance}% ({acceptance_drop} points) versus the previous {window_days} days.',
+  },
+  {
     ruleType: 'rank_drop',
     // Three places, not one. Manual readings are taken at slightly different
     // times of day against a ranking that reshuffles constantly; a one-place
@@ -440,6 +461,56 @@ function evaluateRecoUnderexposed(rules, { recoPromote, recoActive }) {
 }
 
 /**
+ * Funnel-level reco health — two restaurant-wide signals, each gated on the
+ * recommender actually being active so a quiet week never trips them:
+ *   - margin leak: the aggregate high-margin share is below the leak threshold
+ *     (the same verdict the Recommendations page shows).
+ *   - acceptance drop: acceptance fell week-over-week past the threshold, and the
+ *     funnel builder only supplies that delta when BOTH windows had enough
+ *     sessions — so this can't fire on a thin prior window.
+ */
+const RECO_ACCEPTANCE_DROP_POINTS = 10;
+function evaluateRecoHealth(rules, { recoFunnel, recoMargin, windowDays }) {
+  if (!recoFunnel || !recoFunnel.enoughData) return [];
+  const out = [];
+  const round1 = (n) => Math.round(Number(n) * 10) / 10;
+
+  for (const rule of rules.filter((r) => r.rule_type === 'reco_margin_leak')) {
+    if (recoMargin && recoMargin.verdict === 'margin_leak' && recoMargin.highMarginShare != null) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: 'reco_margin_leak',
+        title: 'Your recommender is leaking margin',
+        description:
+          `Only ${round1(recoMargin.highMarginShare)}% of accepted picks are high-margin dishes; the rest `
+          + 'are plowhorses — popular but thin. Feature high-margin dishes on the Recommendations page to '
+          + 'rebalance what the picks push.',
+        priority: 'medium',
+      });
+    }
+  }
+
+  for (const rule of rules.filter((r) => r.rule_type === 'reco_acceptance_drop')) {
+    const drop = recoFunnel.acceptanceDelta;
+    if (drop != null && drop <= -RECO_ACCEPTANCE_DROP_POINTS) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: 'reco_acceptance_drop',
+        title: 'Guests are accepting the picks less',
+        description:
+          `Acceptance fell from ${round1(recoFunnel.priorAcceptanceRate)}% to `
+          + `${round1(recoFunnel.acceptanceRate)}% — ${round1(Math.abs(drop))} points lower than the previous `
+          + `${windowDays || ''} days. Check whether a menu or availability change moved what the picks are.`,
+        priority: 'medium',
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Tables seated past the threshold with nothing ordered.
  *
  * Keyed per occupancy (table id + the moment it was seated), so once the table
@@ -548,6 +619,7 @@ function buildCandidates(rules, context, now = Date.now()) {
     ...evaluateReviewThemes(enabled, context),
     ...evaluateMenuUnderperformers(enabled, context),
     ...evaluateRecoUnderexposed(enabled, context),
+    ...evaluateRecoHealth(enabled, context),
     ...evaluateStalledTables(enabled, context, now),
     ...evaluateCostSpikes(enabled, context),
     ...expiries.evaluateLicenceExpiry(enabled, context),

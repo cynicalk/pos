@@ -28,6 +28,14 @@ describe('fallbackNarrative (weekly)', () => {
     expect(t).toContain('30.4%');
   });
 
+  test('recommender line: leak stated, else acceptance move, else nothing', () => {
+    expect(fallbackNarrative(base)).not.toMatch(/recommender|pick acceptance/i);
+    const leak = { ...base, reco: { acceptancePct: 60, acceptanceDeltaPts: -2, verdict: 'margin_leak', highMarginSharePct: 19 } };
+    expect(fallbackNarrative(leak)).toMatch(/leaned to low-margin dishes — 19%/);
+    const moved = { ...base, reco: { acceptancePct: 71, acceptanceDeltaPts: 9, verdict: 'healthy', highMarginSharePct: 64 } };
+    expect(fallbackNarrative(moved)).toMatch(/acceptance was 71%, up 9 points/);
+  });
+
   test('no prior week abstains instead of inventing a change', () => {
     const s = { ...base, revenue: { thisWeek: 120000, lastWeek: 0, changePct: null, tradedDays: 4 } };
     const t = fallbackNarrative(s);

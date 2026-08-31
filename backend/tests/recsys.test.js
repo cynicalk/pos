@@ -1,5 +1,6 @@
 const { buildRecoFunnel, MIN_SESSIONS } = require('../src/modules/recsys/funnel');
 const { buildRecoMargin, MIN_RECO_ADDS } = require('../src/modules/recsys/margin');
+const { buildAcceptancePriors, MIN_IMPRESSIONS } = require('../src/modules/recsys/prior');
 
 /**
  * Phase 0 recsys is measurement, not a model. These pin the two things the
@@ -51,6 +52,22 @@ describe('buildRecoFunnel', () => {
     expect(f.enoughData).toBe(false);
     expect(f.stages[0].count).toBe(0);
     expect(f.acceptanceRate).toBeNull();
+  });
+
+  test('week-over-week acceptance delta needs both windows above the floor', () => {
+    const cur = { sessions_saw_recos: 40, dish_adds: 80, dish_adds_reco: 40 }; // 50%
+    const fatPrior = { sessions_saw_recos: 40, dish_adds: 100, dish_adds_reco: 66 }; // 66%
+    const thinPrior = { sessions_saw_recos: 5, dish_adds: 10, dish_adds_reco: 8 };
+
+    const withPrior = buildRecoFunnel(cur, fatPrior);
+    expect(withPrior.priorAcceptanceRate).toBe(66);
+    expect(withPrior.acceptanceDelta).toBe(-16); // 50 - 66
+
+    // A thin prior window yields no delta rather than a noisy one.
+    const withThin = buildRecoFunnel(cur, thinPrior);
+    expect(withThin.acceptanceDelta).toBeNull();
+    // No prior at all → null, not zero.
+    expect(buildRecoFunnel(cur).acceptanceDelta).toBeNull();
   });
 });
 
@@ -135,5 +152,48 @@ describe('buildRecoMargin', () => {
     expect(r.dishes[0].conversion).toBe(100);
     const noImp = buildRecoMargin(stats, matrix, []);
     expect(noImp.hasImpressions).toBe(false);
+  });
+});
+
+describe('buildAcceptancePriors (learned prior)', () => {
+  test('dishes accepted above the menu average get a positive lift, below get negative', () => {
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'a', impressions: 40, adds: 20 }, // 50% acceptance
+      { menuItemId: 'b', impressions: 40, adds: 4 },  // 10%
+      { menuItemId: 'c', impressions: 40, adds: 12 }, // 30%  (mean = 30%)
+    ]);
+    expect(priors.get('a')).toBeGreaterThan(0);
+    expect(priors.get('b')).toBeLessThan(0);
+    expect(priors.get('c')).toBeCloseTo(0, 5); // at the mean → no nudge
+  });
+
+  test('a dish shown fewer than the floor is not judged at all (model unchanged)', () => {
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'a', impressions: 40, adds: 20 },
+      { menuItemId: 'b', impressions: 40, adds: 10 },
+      { menuItemId: 'c', impressions: 40, adds: 30 },
+      { menuItemId: 'thin', impressions: MIN_IMPRESSIONS - 1, adds: 5 },
+    ]);
+    expect(priors.has('thin')).toBe(false);
+  });
+
+  test('too few judged dishes to form a baseline → nothing learned yet', () => {
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'a', impressions: 40, adds: 20 },
+      { menuItemId: 'b', impressions: 40, adds: 10 },
+    ]);
+    expect(priors.size).toBe(0);
+  });
+
+  test('lift is clamped to [-1, 1] so one runaway dish cannot dominate', () => {
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'a', impressions: 40, adds: 40 }, // 100%
+      { menuItemId: 'b', impressions: 40, adds: 1 },
+      { menuItemId: 'c', impressions: 40, adds: 1 },
+    ]);
+    for (const v of priors.values()) {
+      expect(v).toBeGreaterThanOrEqual(-1);
+      expect(v).toBeLessThanOrEqual(1);
+    }
   });
 });

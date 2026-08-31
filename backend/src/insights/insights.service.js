@@ -199,8 +199,9 @@ async function getScRemoved(restaurantId, daysRaw) {
 async function getRecoPerformance(restaurantId, daysRaw) {
   const days = parseDays(daysRaw);
   const tz = await tzFor(restaurantId);
-  const [counts, dishStats, impressions, perfRows, spanDays, featuredIds] = await Promise.all([
+  const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),
+    repo.getRecoFunnelCounts(restaurantId, days, days), // the equal window before this one
     repo.getRecoDishStats(restaurantId, days),
     repo.getRecoImpressions(restaurantId, days),
     repo.getMenuPerformance(restaurantId, days),
@@ -237,7 +238,7 @@ async function getRecoPerformance(restaurantId, daysRaw) {
 
   return {
     days,
-    funnel: recsysFunnel.buildRecoFunnel(counts),
+    funnel: recsysFunnel.buildRecoFunnel(counts, priorCounts),
     margin,
     promote,
     featuredCount: featured.size,

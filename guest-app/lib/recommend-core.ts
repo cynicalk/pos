@@ -49,6 +49,10 @@ export interface Dish {
    *  high-margin dish the kitchen wants pushed surfaces more often. Never a veto:
    *  it nudges ranking, it doesn't override diet/allergy vetoes. */
   featured?: boolean;
+  /** Learned acceptance lift in [-1, 1] from the recommender's own logs (computed
+   *  server-side). Positive means guests accept this dish more than average when
+   *  it's shown; 0 when there isn't enough data yet, so the model is unchanged. */
+  recoLift?: number;
 }
 
 export interface Member {
@@ -121,6 +125,10 @@ export const FEATURE_WEIGHTS: Record<string, number> = {
   // Operator's promote lever. Sized to lift a dish within its diet/taste band
   // without steamrolling a genuinely bad fit — a nudge, not a pin to the top.
   featured: 4,
+  // What the recommender learned from its own logs: dishes accepted more than
+  // average when shown earn a small boost. Deliberately lighter than the hand-
+  // tuned signals until there's real volume behind it — it refines, not rules.
+  learnedAcceptance: 2,
 };
 
 /** Channel trust for aggregation: leader guessing for N is noisy. */
@@ -423,6 +431,10 @@ function scoreDish(
   if (dish.tags.includes('popular')) add('popularity', 1, 'Ordered by most tables tonight');
 
   if (dish.featured) add('featured', 1, "One of the kitchen's picks tonight");
+
+  // Learned from the recommender's own logs: a signed lift, multiplied straight
+  // into the weight, so a well-accepted dish rises and a poorly-accepted one dips.
+  if (dish.recoLift) add('learnedAcceptance', dish.recoLift);
 
   // Occasion rules.
   if (input.groupType) {

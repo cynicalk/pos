@@ -284,6 +284,34 @@ async function insertGuestEvents(rows) {
   return rowCount;
 }
 
+// Per-dish reco activity over the window: how often each dish was shown (unnested
+// from recommendations_shown.dishIds) and how often it was added from a pick.
+// Feeds the learned acceptance prior the recommender blends in.
+async function getRecoDishActivity(restaurantId, days = 30) {
+  const { rows } = await db.query(
+    `WITH shown AS (
+       SELECT did AS menu_item_id, COUNT(*)::int AS impressions
+       FROM guest_events ge
+       CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ge.props->'dishIds', '[]'::jsonb)) AS did
+       WHERE ge.restaurant_id = $1 AND ge.event = 'recommendations_shown'
+         AND ge.occurred_at >= now() - make_interval(days => $2)
+       GROUP BY did
+     ),
+     added AS (
+       SELECT menu_item_id::text AS menu_item_id, COUNT(*)::int AS adds
+       FROM guest_events
+       WHERE restaurant_id = $1 AND event = 'dish_added' AND source = 'reco'
+         AND menu_item_id IS NOT NULL
+         AND occurred_at >= now() - make_interval(days => $2)
+       GROUP BY menu_item_id
+     )
+     SELECT s.menu_item_id, s.impressions, COALESCE(a.adds, 0) AS adds
+     FROM shown s LEFT JOIN added a ON a.menu_item_id = s.menu_item_id`,
+    [restaurantId, days],
+  );
+  return rows;
+}
+
 // Resolves the dishIds the guest app sends (which are our menu_item ids) to the
 // live rows, so ingest can store menu_item_id/dish_name and drop ids that no
 // longer exist. Returns a Map id → name.
@@ -300,6 +328,7 @@ module.exports = {
   UUID_RE,
   resolveOutlet,
   insertGuestEvents,
+  getRecoDishActivity,
   resolveMenuItemNames,
   createSession,
   findSessionByCode,

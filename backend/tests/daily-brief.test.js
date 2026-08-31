@@ -34,6 +34,20 @@ describe('fallbackNarrative', () => {
     expect(text).toContain('31.4%'); // food cost note
   });
 
+  test('a recommender margin leak becomes an honest line; absence adds nothing', () => {
+    expect(fallbackNarrative(baseSignals)).not.toMatch(/recommender/i); // no reco signal → no line
+    const leak = { ...baseSignals, reco: { acceptancePct: 61, verdict: 'margin_leak', highMarginSharePct: 18, underShownHighMargin: 3 } };
+    const text = fallbackNarrative(leak);
+    expect(text).toMatch(/recommender is leaking margin/);
+    expect(text).toContain('18%');
+    expect(text).toContain('3 high-margin dishes go unfeatured');
+  });
+
+  test('a healthy recommender just states acceptance', () => {
+    const ok = { ...baseSignals, reco: { acceptancePct: 74, verdict: 'healthy', highMarginSharePct: 66, underShownHighMargin: 0 } };
+    expect(fallbackNarrative(ok)).toMatch(/accepted 74% of the recommender/);
+  });
+
   test('a day the outlet never traded says so instead of printing a zero', () => {
     const s = { ...baseSignals, sales: { ...baseSignals.sales, traded: false, revenue: null, orders: null, covers: null } };
     const text = fallbackNarrative(s);

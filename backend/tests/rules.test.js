@@ -263,8 +263,8 @@ describe('rule catalogue', () => {
     expect(types).toEqual([
       'attach_drop', 'cert_expiry', 'cost_spike', 'coupon_loss', 'high_cancellation',
       'license_expiry', 'menu_underperformer', 'rank_drop', 'rating_drop',
-      'reco_underexposed', 'revenue_anomaly', 'review_theme', 'sc_removal_high',
-      'stalled_table',
+      'reco_acceptance_drop', 'reco_margin_leak', 'reco_underexposed',
+      'revenue_anomaly', 'review_theme', 'sc_removal_high', 'stalled_table',
     ]);
   });
 
@@ -285,6 +285,28 @@ describe('rule catalogue', () => {
     expect(keys).toContain('reco_underexposed:c');
     expect(keys).not.toContain('reco_underexposed:b'); // already featured — lever pulled
     expect(out[0].description).toMatch(/margin/);
+  });
+
+  test('reco_margin_leak fires only on a leak verdict with an active funnel', () => {
+    const rules = [{ id: 'r', rule_type: 'reco_margin_leak', enabled: true, severity: 'medium' }];
+    const active = { enoughData: true, acceptanceRate: 70 };
+    // Leak verdict + active funnel → one restaurant-wide action.
+    const leak = engine.buildCandidates(rules, { recoFunnel: active, recoMargin: { verdict: 'margin_leak', highMarginShare: 18 } });
+    expect(leak.map((c) => c.dedupeKey)).toEqual(['reco_margin_leak']);
+    // Healthy verdict → nothing.
+    expect(engine.buildCandidates(rules, { recoFunnel: active, recoMargin: { verdict: 'healthy', highMarginShare: 72 } })).toEqual([]);
+    // Inactive funnel → nothing, even on a leak.
+    expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: false }, recoMargin: { verdict: 'margin_leak', highMarginShare: 18 } })).toEqual([]);
+  });
+
+  test('reco_acceptance_drop fires only on a real week-over-week fall', () => {
+    const rules = [{ id: 'r', rule_type: 'reco_acceptance_drop', enabled: true, severity: 'medium' }];
+    const dropped = { enoughData: true, acceptanceRate: 48, priorAcceptanceRate: 66, acceptanceDelta: -18 };
+    expect(engine.buildCandidates(rules, { recoFunnel: dropped }).map((c) => c.dedupeKey)).toEqual(['reco_acceptance_drop']);
+    // A small dip is noise, not an action.
+    expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: true, acceptanceDelta: -4 } })).toEqual([]);
+    // No prior comparison available (thin prior window) → delta null → nothing.
+    expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: true, acceptanceDelta: null } })).toEqual([]);
   });
 
   test('every default rule carries a template with no unfilled placeholder', () => {

@@ -191,6 +191,7 @@ export default function Group() {
                     <th style={th}>Cancelled</th>
                     <th style={th}>Food cost</th>
                     <th style={th}>Rating</th>
+                    <th style={th}>Picks</th>
                     <th style={th}>Findings</th>
                   </tr></thead>
                   <tbody>
@@ -254,6 +255,11 @@ export default function Group() {
                                 </span>
                               </>
                             )}
+                        </td>
+                        <td style={tdNum}>
+                          {o.recoAcceptancePct === null
+                            ? <Unknown title="Too few guests used the recommender to rate it yet" />
+                            : `${o.recoAcceptancePct}%`}
                         </td>
                         <td style={tdNum}>
                           {o.openActions}

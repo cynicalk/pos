@@ -325,7 +325,7 @@ npm run migrate:test
 npm test
 ```
 
-Tests run serially (`--runInBand`) to avoid database race conditions. There are **60 suites / 767 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules, the AI-narration signal/prompt/fallback builders, outcome-verdict direction, semantic-search ranking, the language directive, and the recommendation funnel + reco→margin loop), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
+Tests run serially (`--runInBand`) to avoid database race conditions. There are **60 suites / 778 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules, the AI-narration signal/prompt/fallback builders, outcome-verdict direction, semantic-search ranking, the language directive, and the recommendation funnel + reco→margin loop), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
 
 Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 

@@ -31,7 +31,7 @@ const MIN_SESSIONS = 20;
 const n = (v) => Number(v || 0);
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null);
 
-function buildRecoFunnel(counts = {}) {
+function buildRecoFunnel(counts = {}, priorCounts = null) {
   const sessions = n(counts.sessions);
   const sawRecos = n(counts.sessions_saw_recos);
   const added = n(counts.sessions_added);
@@ -62,6 +62,20 @@ function buildRecoFunnel(counts = {}) {
 
   const enoughData = sawRecos >= MIN_SESSIONS;
 
+  // Week-over-week acceptance, only when BOTH windows cleared the floor — a
+  // delta against a thin prior window is noise, so it's withheld, not shown.
+  let priorAcceptanceRate = null;
+  let acceptanceDelta = null;
+  if (priorCounts) {
+    const priorSaw = n(priorCounts.sessions_saw_recos);
+    if (enoughData && priorSaw >= MIN_SESSIONS) {
+      priorAcceptanceRate = pct(n(priorCounts.dish_adds_reco), n(priorCounts.dish_adds));
+      if (acceptanceRate != null && priorAcceptanceRate != null) {
+        acceptanceDelta = Math.round((acceptanceRate - priorAcceptanceRate) * 10) / 10;
+      }
+    }
+  }
+
   return {
     window: { sessions, sessionsSawRecos: sawRecos },
     enoughData,
@@ -70,6 +84,8 @@ function buildRecoFunnel(counts = {}) {
     stages,
     acceptanceRate: enoughData ? acceptanceRate : null,
     conversionRate: enoughData ? conversionRate : null,
+    priorAcceptanceRate,
+    acceptanceDelta,
     dishAdds,
     dishAddsReco,
     rejections: {

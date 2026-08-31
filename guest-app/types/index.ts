@@ -27,6 +27,9 @@ export interface Dish {
   spiceLevel?: number; // 0 none .. 3 hot
   // Operator promote flag — the recommender boosts featured dishes (recommend-core).
   featured?: boolean;
+  // Learned acceptance lift in [-1, 1] from the recommender's own logs; the model
+  // nudges dishes guests accept more when shown. 0 (unchanged) when not yet learned.
+  recoLift?: number;
 }
 
 /** Per-serving nutrition — an estimate surfaced from the backend, labelled as such. */

@@ -153,8 +153,11 @@ state, not the pre-merge 77-feature catalog.
   app's events land in `guest_events` (migration 093) via a best-effort sink, and
   the **Recommendations** page (`/api/insights/reco-performance`) reads the funnel
   and joins reco-driven adds to the menu-engineering matrix (the reco→margin loop),
-  abstaining below a session/add floor. The learned scorer still waits on log
-  volume. Apriori co-order mining already ships (it backs `/api/guest/affinities`).
+  abstaining below a session/add floor. **Phase 1 has its first coefficient**: a
+  learned acceptance prior (per dish, added÷shown vs the menu average) is served in
+  the guest menu payload and blended into the client model, abstaining below an
+  impression floor — the full logistic/embedding scorer still waits on real volume.
+  Apriori co-order mining already ships (it backs `/api/guest/affinities`).
 - **Vision docs stay vision.** `Cooklyt_V2_Strategic_Features` and
   `Cooklyt_Deep_Feature_Roadmap` (~150 items: AI agents, digital twin,
   knowledge graph) are a direction, not a backlog. Items from them enter this

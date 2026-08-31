@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, X, SlidersHorizontal, Eye, EyeOff, BookOpen, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, SlidersHorizontal, Eye, EyeOff, BookOpen, Upload, Star } from 'lucide-react';
 import {
   useMenuItems,
   useCreateMenuItem,
@@ -439,6 +439,15 @@ export default function Menu() {
                   >
                     <Pencil size={12} />
                     <span className="menu-action-text">Edit</span>
+                  </button>
+                  <button
+                    onClick={() => updateItem.mutate({ id: item.id, featured: !item.featured })}
+                    className="btn btn-sm btn-ghost"
+                    style={{ gap: 4, fontSize: 12, color: item.featured ? 'var(--warn)' : undefined }}
+                    title={item.featured ? 'Featured — the recommender pushes this' : 'Feature: have the recommender push this dish'}
+                  >
+                    <Star size={12} fill={item.featured ? 'currentColor' : 'none'} />
+                    <span className="menu-action-text">{item.featured ? 'Featured' : 'Feature'}</span>
                   </button>
                   <button
                     onClick={() => updateItem.mutate({ id: item.id, available: !item.available })}

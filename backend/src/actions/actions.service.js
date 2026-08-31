@@ -128,6 +128,8 @@ async function evaluate(restaurantId, now = Date.now()) {
     menuMatrix: menuInsights?.matrix || null,
     recoPromote: recoPerf?.promote || [],
     recoActive: recoPerf?.funnel?.enoughData === true,
+    recoFunnel: recoPerf?.funnel || null,
+    recoMargin: recoPerf?.margin || null,
     windowDays: OI_WINDOW_DAYS,
   }, now);
 
@@ -287,6 +289,16 @@ async function computeMetric(restaurantId, metricName, entity = null) {
       // baseline taken when the operator featured it. Measurable from zero.
       if (!entity) return null;
       return insightsService.getRecoImpressionsForDish(restaurantId, OI_WINDOW_DAYS, entity);
+    }
+    case 'reco_high_margin_share': {
+      // Restaurant-wide: did the recommender's high-margin share recover? Null
+      // while the funnel is still below its floor, so no verdict is forced.
+      const { margin } = await insightsService.getRecoPerformance(restaurantId, OI_WINDOW_DAYS);
+      return margin && margin.enoughData ? margin.highMarginShare : null;
+    }
+    case 'reco_acceptance': {
+      const { funnel } = await insightsService.getRecoPerformance(restaurantId, OI_WINDOW_DAYS);
+      return funnel && funnel.enoughData ? funnel.acceptanceRate : null;
     }
     default:
       return null;

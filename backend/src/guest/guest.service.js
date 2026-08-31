@@ -3,7 +3,12 @@ const repo = require('./guest.repository');
 const guestMenuService = require('../guestmenu/guestmenu.service');
 const ordersService = require('../orders/orders.service');
 const crossSell = require('../modules/menu/cross-sell');
+const recsysPrior = require('../modules/recsys/prior');
 const ws = require('../shared/websocket');
+
+// Window the learned acceptance prior reads over — long enough to accumulate
+// impressions, short enough to reflect the current menu.
+const RECO_PRIOR_WINDOW_DAYS = 30;
 
 /**
  * The /api/guest/* surface, in the guest app's own terms.
@@ -48,10 +53,18 @@ const DIET_IS_VEG = { vegan: true, vegetarian: true, non_vegetarian: false, unkn
  */
 async function getMenu(outletId) {
   const o = await outlet(outletId);
-  const [menu, nutritionMap] = await Promise.all([
+  const [menu, nutritionMap, recoActivity] = await Promise.all([
     guestMenuService.getGuestMenu(o.id),
     guestMenuService.getGuestNutritionMap(o.id),
+    repo.getRecoDishActivity(o.id, RECO_PRIOR_WINDOW_DAYS).catch(() => []),
   ]);
+
+  // What the recommender has learned from its own logs — a signed lift per dish,
+  // abstaining (absent) for dishes without enough impressions to judge. The guest
+  // app multiplies its learnedAcceptance weight by this; a missing dish gets 0.
+  const priors = recsysPrior.buildAcceptancePriors(
+    recoActivity.map((a) => ({ menuItemId: a.menu_item_id, impressions: a.impressions, adds: a.adds })),
+  );
 
   const dishes = (menu.dishes || []).map((d) => ({
     id: d.id,
@@ -62,6 +75,9 @@ async function getMenu(outletId) {
     tags: [],
     // Operator's promote flag — the recommender boosts these (see recommend-core).
     featured: d.featured === true,
+    // Learned acceptance lift in [-1, 1] from the recommender's own logs; 0 (the
+    // model unchanged) for dishes without enough impressions to judge.
+    recoLift: priors.get(d.id) ?? 0,
     allergens: Array.isArray(d.allergens) ? d.allergens : [],
     // Derived from declared ingredients; unknown stays non-veg-safe (false), and
     // the app shows dishes either way — this only drives its veg filter.

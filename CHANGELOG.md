@@ -57,6 +57,28 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   metric is impressions (measurable from zero), tracked per dish. Closes the loop
   the operator started on the Recommendations page without them having to keep it
   open.
+- **Reco follow-on batch** — five surfaces that push the recommender's signal to
+  where operators already look, and let it start learning from itself:
+  - **Funnel-health rules.** Two restaurant-wide actions join the engine:
+    `reco_margin_leak` (high-margin share below the leak threshold) and
+    `reco_acceptance_drop` (pick acceptance fell week-over-week past a threshold —
+    the funnel only supplies that delta when both windows cleared the session
+    floor, so a thin prior can't trip it). Both outcome-tracked.
+  - **Reco health in the AI Daily Brief and Weekly Review.** Each narrated surface
+    now carries a recommender line — acceptance, and a "leaking margin" note with
+    the count of unfeatured high-margin dishes — narrated by the model or the
+    honest fallback, only once the funnel has enough sessions.
+  - **Learned acceptance prior (Recsys Phase 1, first slice).** The recommender
+    learns from its own logs: per dish, added ÷ shown becomes a signed lift in
+    [-1, 1] against the menu's average acceptance, served in the guest menu payload
+    and blended into the client model as a lighter-weighted `learnedAcceptance`
+    feature. Abstains (lift 0, model unchanged) below an impression floor and for a
+    menu without enough judged dishes to form a baseline — the full learned scorer
+    still waits on real volume; this is the honest first coefficient.
+  - **Multi-outlet reco comparison.** The group rollup gains a per-outlet pick-
+    acceptance column and group average, abstaining below the session floor.
+  - **Featured toggle on the Menu page.** The `featured` lever is now a one-click
+    star on each menu row, not only on the Recommendations page.
 
 ### 2026-08-31
 

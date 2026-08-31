@@ -400,7 +400,7 @@ const getDeliveryOrderCount = (restaurantId, days) =>
  * dishes counts once), plus the dish-add totals that define acceptance and the
  * rejection reasons. The pure funnel builder turns these into rates.
  */
-const getRecoFunnelCounts = (restaurantId, days) =>
+const getRecoFunnelCounts = (restaurantId, days, offsetDays = 0) =>
   db.query(`
     SELECT
       COUNT(DISTINCT session_id)                                          AS sessions,
@@ -414,8 +414,9 @@ const getRecoFunnelCounts = (restaurantId, days) =>
       COUNT(*) FILTER (WHERE event = 'reco_rejected' AND props->>'reason' = 'capped') AS rejects_capped
     FROM guest_events
     WHERE restaurant_id = $1
-      AND occurred_at >= now() - make_interval(days => $2)
-  `, [restaurantId, days]).then((r) => r.rows[0]);
+      AND occurred_at >= now() - make_interval(days => ($2::int + $3::int))
+      AND occurred_at <  now() - make_interval(days => $3::int)
+  `, [restaurantId, days, offsetDays]).then((r) => r.rows[0]);
 
 /**
  * Per-dish reco-driven add/remove counts over the window — only events that

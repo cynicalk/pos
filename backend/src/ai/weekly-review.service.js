@@ -41,12 +41,13 @@ async function gatherWeeklySignals(restaurantId) {
   const today = await snapshotsRepo.getLocalToday(restaurantId, tz);
 
   const safe = (p) => p.catch(() => null);
-  const [series, economics, actions, waste, attach] = await Promise.all([
+  const [series, economics, actions, waste, attach, recoPerf] = await Promise.all([
     safe(snapshotsRepo.getRevenueSeries(restaurantId, tz, SPAN_DAYS)),
     safe(insightsService.getEconomics(restaurantId, WEEK)),
     safe(actionsService.list(restaurantId, 'open')),
     safe(aiRepo.getWasteSummary(restaurantId, WEEK)),
     safe(insightsService.getAttachRate(restaurantId, WEEK)),
+    safe(insightsService.getRecoPerformance(restaurantId, WEEK)),
   ]);
 
   // Drop today (partial) and split the remaining fortnight into two equal weeks.
@@ -100,6 +101,14 @@ async function gatherWeeklySignals(restaurantId) {
       : null,
     waste: wasteSignal,
     attachMover,
+    reco: recoPerf?.funnel?.enoughData
+      ? {
+          acceptancePct: recoPerf.funnel.acceptanceRate,
+          acceptanceDeltaPts: recoPerf.funnel.acceptanceDelta,
+          verdict: recoPerf.margin?.verdict ?? null,
+          highMarginSharePct: recoPerf.margin?.highMarginShare ?? null,
+        }
+      : null,
     topAction: top ? { title: top.title, amount: top.opportunity?.amount ?? null } : null,
   };
 }
@@ -115,8 +124,10 @@ function buildMessages(signals) {
     'each with the exact meaning of its field name; never invent, estimate, or combine figures ' +
     'into a new one; a null value means the figure is not available, so say it is not recorded ' +
     'rather than guessing; amounts are Indian rupees. revenue.changePct compares this week to last ' +
-    'week. Lead with the week-over-week revenue trend, then the best or worst day, then one margin, ' +
-    'waste or attach-rate note if present. Sound like a trusted manager reviewing the week.';
+    'week. reco.* is the guest recommender this week: acceptancePct is the share of cart adds from a ' +
+    'pick, acceptanceDeltaPts its change on the week before, verdict "margin_leak" that the picks skewed ' +
+    'low-margin. Lead with the week-over-week revenue trend, then the best or worst day, then one margin, ' +
+    'waste, attach-rate or recommender note if present. Sound like a trusted manager reviewing the week.';
   return [
     { role: 'system', content: system },
     { role: 'user', content: JSON.stringify(signals) },
@@ -142,6 +153,16 @@ function fallbackNarrative(s) {
   if (s.best) parts.push(`Best day was ${s.best.date} at ${inr(s.best.revenue)}.`);
   if (s.margin?.foodCostPct != null) parts.push(`Food cost ran ${s.margin.foodCostPct}% for the week.`);
   if (s.waste?.totalCost) parts.push(`Waste came to ${inr(s.waste.totalCost)}, most of it ${String(s.waste.topReason || '').toLowerCase()}.`);
+  if (s.reco) {
+    if (s.reco.verdict === 'margin_leak') {
+      parts.push(`The recommender leaned to low-margin dishes — ${s.reco.highMarginSharePct}% of accepted picks were high-margin.`);
+    } else if (s.reco.acceptanceDeltaPts != null && Math.abs(s.reco.acceptanceDeltaPts) >= 5) {
+      const dir = s.reco.acceptanceDeltaPts > 0 ? 'up' : 'down';
+      parts.push(`Pick acceptance was ${s.reco.acceptancePct}%, ${dir} ${Math.abs(s.reco.acceptanceDeltaPts)} points on the week before.`);
+    } else if (s.reco.acceptancePct != null) {
+      parts.push(`Guests accepted ${s.reco.acceptancePct}% of the recommender's picks.`);
+    }
+  }
   if (s.topAction) parts.push(s.topAction.amount != null ? `Biggest open action: ${s.topAction.title} (${inr(s.topAction.amount)}).` : `Biggest open action: ${s.topAction.title}.`);
 
   return parts.join(' ');

@@ -240,6 +240,24 @@ const countOrgOutlets = (restaurantId) =>
     [restaurantId],
   ).then((r) => Number(r.rows[0]?.total || 0));
 
+/**
+ * Per-outlet recommender activity over the window — the reco funnel's numerators
+ * and denominators, grouped by restaurant. The rollup turns these into each
+ * outlet's pick-acceptance rate, abstaining where too few sessions saw picks.
+ */
+const getRecoStats = (outletIds, days) =>
+  db.query(
+    `SELECT restaurant_id,
+            COUNT(DISTINCT session_id) FILTER (WHERE event = 'recommendations_shown') AS sessions_saw_recos,
+            COUNT(*) FILTER (WHERE event = 'dish_added')                     AS dish_adds,
+            COUNT(*) FILTER (WHERE event = 'dish_added' AND source = 'reco') AS dish_adds_reco
+       FROM guest_events
+      WHERE restaurant_id = ANY($1::uuid[])
+        AND occurred_at >= now() - make_interval(days => $2)
+      GROUP BY restaurant_id`,
+    [outletIds, days],
+  ).then((r) => r.rows);
+
 module.exports = {
   listVisibleOutlets,
   getOrderStats,
@@ -248,6 +266,7 @@ module.exports = {
   getLabourHours,
   getFoodCost,
   getRatings,
+  getRecoStats,
   getActionCounts,
   listOpenActions,
   getOrganization,
