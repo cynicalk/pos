@@ -21,6 +21,11 @@ import type { AnalyticsEvent } from "./analytics";
 
 const FLUSH_DEBOUNCE_MS = 2000;
 const MAX_BATCH = 50;
+// Telemetry is best-effort: if the backend is down for a long time, drop the
+// oldest events rather than growing the in-memory queue without bound. The
+// synchronous localStorage buffer (capped at 500 in analytics.ts) is the record
+// of record for QA; this queue only exists to batch network sends.
+const MAX_QUEUE = 500;
 
 function endpoint(): string | null {
   const base = process.env.NEXT_PUBLIC_COOKLYT_API;
@@ -59,6 +64,7 @@ export function createCooklytSink(): ((event: AnalyticsEvent) => void) | null {
       // Network down / backend absent — re-queue; the (session, seq) key makes
       // the eventual re-send idempotent, so duplicates never double-count.
       queue.unshift(...batch);
+      if (queue.length > MAX_QUEUE) queue = queue.slice(queue.length - MAX_QUEUE);
     }
   };
 
@@ -71,6 +77,11 @@ export function createCooklytSink(): ((event: AnalyticsEvent) => void) | null {
     const batch = queue.slice(0, MAX_BATCH);
     queue = queue.slice(MAX_BATCH);
     void post(batch, useBeacon);
+    // A burst can leave a tail past MAX_BATCH; re-arm so it drains on its own
+    // instead of waiting for the next event or an unload beacon.
+    if (queue.length > 0 && !timer && !useBeacon) {
+      timer = setTimeout(() => flush(), FLUSH_DEBOUNCE_MS);
+    }
   };
 
   if (typeof document !== "undefined") {
@@ -83,6 +94,8 @@ export function createCooklytSink(): ((event: AnalyticsEvent) => void) | null {
 
   return (event) => {
     queue.push(event);
+    // Bound the queue: on a persistently unreachable backend, keep the newest.
+    if (queue.length > MAX_QUEUE) queue = queue.slice(queue.length - MAX_QUEUE);
     if (queue.length >= MAX_BATCH) {
       flush();
       return;

@@ -8,6 +8,10 @@ const couponEconomics = require('../modules/economics/coupon-economics');
 const attachRate = require('../modules/menu/attach-rate');
 const recsysFunnel = require('../modules/recsys/funnel');
 const recsysMargin = require('../modules/recsys/margin');
+const { createTtlCache } = require('../shared/ttl-cache');
+
+const recoCache = createTtlCache();
+const RECO_CACHE_TTL_MS = 60_000; // a minute is well inside "guests ordering" pace
 const billingMetrics = require('../modules/economics/billing-metrics');
 const labourHours = require('../modules/labour/hours');
 const labourService = require('../labour/labour.service');
@@ -198,6 +202,14 @@ async function getScRemoved(restaurantId, daysRaw) {
  */
 async function getRecoPerformance(restaurantId, daysRaw) {
   const days = parseDays(daysRaw);
+  // Read-through cache: this is called from the Recommendations page, both briefs,
+  // the action evaluator and every reco outcome measurement — none needing
+  // second-fresh numbers. See computeRecoPerformance for the actual work.
+  return recoCache.wrap(`reco:${restaurantId}:${days}`, RECO_CACHE_TTL_MS,
+    () => computeRecoPerformance(restaurantId, days));
+}
+
+async function computeRecoPerformance(restaurantId, days) {
   const tz = await tzFor(restaurantId);
   const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),

@@ -290,15 +290,16 @@ async function insertGuestEvents(rows) {
 async function getRecoDishActivity(restaurantId, days = 30) {
   const { rows } = await db.query(
     `WITH shown AS (
-       SELECT did AS menu_item_id, COUNT(*)::int AS impressions
+       SELECT lower(did) AS menu_item_id, COUNT(DISTINCT ge.session_id)::int AS impressions
        FROM guest_events ge
        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ge.props->'dishIds', '[]'::jsonb)) AS did
        WHERE ge.restaurant_id = $1 AND ge.event = 'recommendations_shown'
          AND ge.occurred_at >= now() - make_interval(days => $2)
-       GROUP BY did
+         AND did ~ '^[0-9a-fA-F-]{36}$'
+       GROUP BY lower(did)
      ),
      added AS (
-       SELECT menu_item_id::text AS menu_item_id, COUNT(*)::int AS adds
+       SELECT menu_item_id::text AS menu_item_id, COUNT(DISTINCT session_id)::int AS adds
        FROM guest_events
        WHERE restaurant_id = $1 AND event = 'dish_added' AND source = 'reco'
          AND menu_item_id IS NOT NULL

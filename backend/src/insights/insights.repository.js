@@ -408,8 +408,14 @@ const getRecoFunnelCounts = (restaurantId, days, offsetDays = 0) =>
       COUNT(DISTINCT session_id) FILTER (WHERE event = 'dish_added')      AS sessions_added,
       COUNT(DISTINCT session_id) FILTER (WHERE event = 'dish_added' AND source = 'reco') AS sessions_added_reco,
       COUNT(DISTINCT session_id) FILTER (WHERE event = 'order_placed')    AS sessions_ordered,
-      COUNT(*) FILTER (WHERE event = 'dish_added')                        AS dish_adds,
-      COUNT(*) FILTER (WHERE event = 'dish_added' AND source = 'reco')    AS dish_adds_reco,
+      -- Distinct (session, dish), NOT raw events: a dish added 1→2→3 fires three
+      -- dish_added events, and counting them would inflate acceptance for dishes
+      -- people order in multiples. seq is the fallback key when a dish id didn't
+      -- resolve, so an unresolved add still counts once.
+      COUNT(DISTINCT session_id || ':' || COALESCE(menu_item_id::text, seq::text))
+        FILTER (WHERE event = 'dish_added')                              AS dish_adds,
+      COUNT(DISTINCT session_id || ':' || COALESCE(menu_item_id::text, seq::text))
+        FILTER (WHERE event = 'dish_added' AND source = 'reco')          AS dish_adds_reco,
       COUNT(*) FILTER (WHERE event = 'reco_rejected' AND props->>'reason' = 'refine') AS rejects_refine,
       COUNT(*) FILTER (WHERE event = 'reco_rejected' AND props->>'reason' = 'capped') AS rejects_capped
     FROM guest_events
@@ -426,10 +432,12 @@ const getRecoFunnelCounts = (restaurantId, days, offsetDays = 0) =>
 const getRecoDishStats = (restaurantId, days) =>
   db.query(`
     SELECT
-      ge.menu_item_id                                                 AS menu_item_id,
-      COALESCE(mi.name, MAX(ge.dish_name))                            AS dish_name,
-      COUNT(*) FILTER (WHERE ge.event = 'dish_added')::int            AS reco_adds,
-      COUNT(*) FILTER (WHERE ge.event = 'dish_removed')::int          AS reco_removes
+      ge.menu_item_id                                                          AS menu_item_id,
+      COALESCE(mi.name, MAX(ge.dish_name))                                     AS dish_name,
+      -- Distinct sessions, not raw events: "how many tables added this from a
+      -- pick", so quantity increments don't inflate a single table into many.
+      COUNT(DISTINCT ge.session_id) FILTER (WHERE ge.event = 'dish_added')::int   AS reco_adds,
+      COUNT(DISTINCT ge.session_id) FILTER (WHERE ge.event = 'dish_removed')::int AS reco_removes
     FROM guest_events ge
     LEFT JOIN menu_items mi ON mi.id = ge.menu_item_id
     WHERE ge.restaurant_id = $1
@@ -450,18 +458,25 @@ const getRecoDishStats = (restaurantId, days) =>
  */
 const getRecoImpressions = (restaurantId, days) =>
   db.query(`
-    SELECT did                            AS menu_item_id,
+    SELECT s.did                          AS menu_item_id,
            mi.name                        AS dish_name,
-           COUNT(*)::int                  AS impressions
-    FROM guest_events ge
-    CROSS JOIN LATERAL jsonb_array_elements_text(
-      COALESCE(ge.props->'dishIds', '[]'::jsonb)
-    ) AS did
-    LEFT JOIN menu_items mi ON mi.id = did::uuid AND mi.restaurant_id = $1
-    WHERE ge.restaurant_id = $1
-      AND ge.event = 'recommendations_shown'
-      AND ge.occurred_at >= now() - make_interval(days => $2)
-    GROUP BY did, mi.name
+           -- Distinct sessions shown the dish, so two refine rounds in one visit
+           -- count as one table exposed, not two impressions.
+           COUNT(DISTINCT s.session_id)::int AS impressions
+    FROM (
+      SELECT ge.session_id, did
+      FROM guest_events ge
+      CROSS JOIN LATERAL jsonb_array_elements_text(
+        COALESCE(ge.props->'dishIds', '[]'::jsonb)
+      ) AS did
+      WHERE ge.restaurant_id = $1
+        AND ge.event = 'recommendations_shown'
+        AND ge.occurred_at >= now() - make_interval(days => $2)
+        AND did ~ '^[0-9a-fA-F-]{36}$'   -- ignore any non-UUID the client ever sends
+    ) s
+    -- Compare as text, never did::uuid, so a malformed id can't throw the query.
+    LEFT JOIN menu_items mi ON mi.id::text = lower(s.did) AND mi.restaurant_id = $1
+    GROUP BY s.did, mi.name
   `, [restaurantId, days]).then((r) => r.rows);
 
 /**
@@ -472,14 +487,14 @@ const getRecoImpressions = (restaurantId, days) =>
  */
 const getRecoImpressionsForDish = (restaurantId, days, menuItemId) =>
   db.query(`
-    SELECT COUNT(*)::int AS impressions
+    SELECT COUNT(DISTINCT ge.session_id)::int AS impressions
     FROM guest_events ge
     CROSS JOIN LATERAL jsonb_array_elements_text(
       COALESCE(ge.props->'dishIds', '[]'::jsonb)
     ) AS did
     WHERE ge.restaurant_id = $1
       AND ge.event = 'recommendations_shown'
-      AND did = $3
+      AND lower(did) = lower($3)
       AND ge.occurred_at >= now() - make_interval(days => $2)
   `, [restaurantId, days, menuItemId]).then((r) => r.rows[0].impressions);
 

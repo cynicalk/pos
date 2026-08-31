@@ -5,10 +5,15 @@ const ordersService = require('../orders/orders.service');
 const crossSell = require('../modules/menu/cross-sell');
 const recsysPrior = require('../modules/recsys/prior');
 const ws = require('../shared/websocket');
+const { createTtlCache } = require('../shared/ttl-cache');
 
 // Window the learned acceptance prior reads over — long enough to accumulate
 // impressions, short enough to reflect the current menu.
 const RECO_PRIOR_WINDOW_DAYS = 30;
+// The learned prior recomputes at most once a minute per restaurant, not on every
+// guest menu fetch — the acceptance history moves far slower than menu loads.
+const priorCache = createTtlCache();
+const PRIOR_CACHE_TTL_MS = 60_000;
 
 /**
  * The /api/guest/* surface, in the guest app's own terms.
@@ -56,7 +61,9 @@ async function getMenu(outletId) {
   const [menu, nutritionMap, recoActivity] = await Promise.all([
     guestMenuService.getGuestMenu(o.id),
     guestMenuService.getGuestNutritionMap(o.id),
-    repo.getRecoDishActivity(o.id, RECO_PRIOR_WINDOW_DAYS).catch(() => []),
+    priorCache
+      .wrap(`prior:${o.id}`, PRIOR_CACHE_TTL_MS, () => repo.getRecoDishActivity(o.id, RECO_PRIOR_WINDOW_DAYS))
+      .catch(() => []),
   ]);
 
   // What the recommender has learned from its own logs — a signed lift per dish,
