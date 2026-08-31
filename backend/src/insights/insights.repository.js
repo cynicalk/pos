@@ -392,6 +392,53 @@ const getDeliveryOrderCount = (restaurantId, days) =>
     [restaurantId, days],
   ).then((r) => r.rows[0].n);
 
+// ── Recommendation funnel (Phase 0 recsys, reads guest_events) ───────────────
+
+/**
+ * Session-level funnel counts over the window. One row of integers, each a
+ * count of DISTINCT sessions reaching a stage (so a session that added three
+ * dishes counts once), plus the dish-add totals that define acceptance and the
+ * rejection reasons. The pure funnel builder turns these into rates.
+ */
+const getRecoFunnelCounts = (restaurantId, days) =>
+  db.query(`
+    SELECT
+      COUNT(DISTINCT session_id)                                          AS sessions,
+      COUNT(DISTINCT session_id) FILTER (WHERE event = 'recommendations_shown') AS sessions_saw_recos,
+      COUNT(DISTINCT session_id) FILTER (WHERE event = 'dish_added')      AS sessions_added,
+      COUNT(DISTINCT session_id) FILTER (WHERE event = 'dish_added' AND source = 'reco') AS sessions_added_reco,
+      COUNT(DISTINCT session_id) FILTER (WHERE event = 'order_placed')    AS sessions_ordered,
+      COUNT(*) FILTER (WHERE event = 'dish_added')                        AS dish_adds,
+      COUNT(*) FILTER (WHERE event = 'dish_added' AND source = 'reco')    AS dish_adds_reco,
+      COUNT(*) FILTER (WHERE event = 'reco_rejected' AND props->>'reason' = 'refine') AS rejects_refine,
+      COUNT(*) FILTER (WHERE event = 'reco_rejected' AND props->>'reason' = 'capped') AS rejects_capped
+    FROM guest_events
+    WHERE restaurant_id = $1
+      AND occurred_at >= now() - make_interval(days => $2)
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
+/**
+ * Per-dish reco-driven add/remove counts over the window — only events that
+ * resolved to a live menu item. The margin loop joins these to the
+ * menu-engineering matrix by menu_item_id.
+ */
+const getRecoDishStats = (restaurantId, days) =>
+  db.query(`
+    SELECT
+      ge.menu_item_id                                                 AS menu_item_id,
+      COALESCE(mi.name, MAX(ge.dish_name))                            AS dish_name,
+      COUNT(*) FILTER (WHERE ge.event = 'dish_added')::int            AS reco_adds,
+      COUNT(*) FILTER (WHERE ge.event = 'dish_removed')::int          AS reco_removes
+    FROM guest_events ge
+    LEFT JOIN menu_items mi ON mi.id = ge.menu_item_id
+    WHERE ge.restaurant_id = $1
+      AND ge.source = 'reco'
+      AND ge.menu_item_id IS NOT NULL
+      AND ge.event IN ('dish_added', 'dish_removed')
+      AND ge.occurred_at >= now() - make_interval(days => $2)
+    GROUP BY ge.menu_item_id, mi.name
+  `, [restaurantId, days]).then((r) => r.rows);
+
 module.exports = {
   getMenuPerformance, getSpanDays, getBasketLines, getNewItems, getHourBuckets,
   getEconomicsTotals, getCancellationTotals, getFoodCostTotals,
@@ -399,4 +446,5 @@ module.exports = {
   getAllItemQuantities, getTimezone,
   getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
+  getRecoFunnelCounts, getRecoDishStats,
 };

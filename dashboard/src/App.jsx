@@ -66,6 +66,7 @@ const FeatureToggles  = lazy(() => import('./pages/FeatureToggles'));
 const Actions         = lazy(() => import('./pages/Actions'));
 const Economics       = lazy(() => import('./pages/Economics'));
 const MenuInsights    = lazy(() => import('./pages/MenuInsights'));
+const RecoPerformance = lazy(() => import('./pages/RecoPerformance'));
 const Procurement     = lazy(() => import('./pages/Procurement'));
 const Compliance      = lazy(() => import('./pages/Compliance'));
 const Sops            = lazy(() => import('./pages/Sops'));
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="/actions"     element={<RequireAdmin><Actions /></RequireAdmin>} />
             <Route path="/economics"     element={<RequireAdmin><Economics /></RequireAdmin>} />
             <Route path="/menu-insights" element={<RequireAdmin><MenuInsights /></RequireAdmin>} />
+            <Route path="/reco-performance" element={<RequireAdmin><RecoPerformance /></RequireAdmin>} />
             <Route path="/procurement"   element={<RequireAdmin><Procurement /></RequireAdmin>} />
             <Route path="/compliance"    element={<RequireAdmin><Compliance /></RequireAdmin>} />
             <Route path="/sops"          element={<RequireNotKitchen><Sops /></RequireNotKitchen>} />

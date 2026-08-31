@@ -115,4 +115,13 @@ router.get('/receipt', guard(async (req, res) => {
   res.json(await service.getReceipt(outletOf(req), req.query.orderNumber));
 }));
 
+// ── Recommendation events (Phase 0 recsys logging) ───────────────────────────
+
+// The guest app's analytics sink POSTs batches here. Best-effort: a bad batch is
+// a 200 with accepted:0, never a throw — telemetry must not surface to a guest.
+router.post('/events', writeLimiter, guard(async (req, res) => {
+  const events = req.body?.events;
+  res.json(await service.recordEvents(outletOf(req), events));
+}));
+
 module.exports = router;

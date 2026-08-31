@@ -2,6 +2,7 @@
 
 import type { CartSource } from "@/types";
 import { createPostHogSink } from "./posthog-sink";
+import { createCooklytSink } from "./cooklyt-sink";
 
 /**
  * Lightweight, dependency-free event layer.
@@ -130,12 +131,28 @@ export function clearEvents() {
   if (typeof window !== "undefined") localStorage.removeItem(BUFFER_KEY);
 }
 
-// Auto-wire PostHog when NEXT_PUBLIC_POSTHOG_KEY is configured; otherwise stay
-// buffer/console only. Runs at module init (this module is imported by the flow
-// store, high in the tree) so the sink is live before the first event fires.
+// Auto-wire the configured sinks at module init (this module is imported by the
+// flow store, high in the tree) so they are live before the first event fires.
+// Two may run at once — PostHog (when NEXT_PUBLIC_POSTHOG_KEY is set) and the
+// CookLyt backend log (when NEXT_PUBLIC_COOKLYT_API is set) — so fan out to
+// whichever attached. Each is best-effort and isolated: one throwing or being
+// absent never affects the other or the buffer/console path.
 if (typeof window !== "undefined") {
-  const posthog = createPostHogSink();
-  if (posthog) setAnalyticsSink(posthog);
+  const sinks = [createPostHogSink(), createCooklytSink()].filter(
+    (s): s is Sink => s !== null
+  );
+  if (sinks.length === 1) setAnalyticsSink(sinks[0]);
+  else if (sinks.length > 1) {
+    setAnalyticsSink((event) => {
+      for (const s of sinks) {
+        try {
+          s(event);
+        } catch {
+          /* one broken sink must not starve the others */
+        }
+      }
+    });
+  }
 }
 
 // Expose a tiny inspector in dev so you can eyeball funnels without a backend.

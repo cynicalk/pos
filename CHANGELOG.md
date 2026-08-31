@@ -7,6 +7,30 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 
 ## [Unreleased]
 
+### 2026-09-01
+
+#### Added
+- **Recommendation Performance — Phase 0 recsys** (ROADMAP "Recsys — gated on
+  Phase 0 logging"). The group recommender is not modelled before there are weeks
+  of clean logs, so the first build is the log and a way to read it, not a model.
+  The guest app already *emitted* impression / add / refine / order events
+  (`lib/analytics.ts`) but had nowhere to send them; a new best-effort HTTP sink
+  (`lib/cooklyt-sink.ts`, batched + beacon-on-unload, telemetry only — no UI
+  change) posts them to `POST /api/guest/events`, stored in `guest_events`
+  (migration 093, idempotent on session+seq). A new admin page,
+  **Insights → Recommendations** (`GET /api/insights/reco-performance`), reads two
+  things from that log: (1) the **funnel** the recommender drives — saw picks →
+  added a dish → added a *recommended* dish → ordered — with AI-acceptance and
+  conversion rates, and (2) the **reco → margin loop**: reco-driven adds joined to
+  the menu-engineering matrix (the same star / plowhorse / puzzle / dog split as
+  Menu Insights), so an operator sees whether the picks landing in carts are their
+  profitable dishes or quietly filling baskets with plowhorses. Both abstain below
+  a floor — a rate over a handful of sessions is noise — and say so, showing the
+  raw counts forming underneath; uncosted dishes are counted, never guessed a
+  margin. Pure builders in `modules/recsys/{funnel,margin}.js` (9 unit tests). A
+  `backfill-guest-events.js` seeder writes a deterministic fortnight so the demo
+  shows a populated funnel.
+
 ### 2026-08-31
 
 #### Added

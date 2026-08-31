@@ -38,4 +38,8 @@ router.get('/attach', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.getAttachRate(req.user.restaurantId, req.query.days));
 }));
 
+router.get('/reco-performance', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getRecoPerformance(req.user.restaurantId, req.query.days));
+}));
+
 module.exports = router;

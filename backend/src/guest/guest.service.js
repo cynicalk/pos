@@ -338,6 +338,77 @@ async function getReceipt(outletId, orderNumber) {
   };
 }
 
+// ── Recommendation events (Phase 0 recsys logging) ───────────────────────────
+
+// The event names the guest app emits (guest-app/lib/analytics.ts). Anything
+// else is dropped — the ingest is public, so we accept only the known vocabulary
+// rather than store arbitrary client-supplied event names.
+const KNOWN_EVENTS = new Set([
+  'funnel_step',
+  'recommendations_shown',
+  'dish_added',
+  'dish_removed',
+  'reco_rejected',
+  'order_placed',
+  'order_failed',
+]);
+
+const MAX_EVENTS_PER_BATCH = 100;
+
+// Ingest a batch of guest events. Best-effort and forgiving: it validates and
+// coerces every field, silently drops malformed or unknown events, and never
+// throws into the guest flow — telemetry must not be able to break ordering.
+async function recordEvents(outletId, events) {
+  const o = await outlet(outletId);
+  if (!Array.isArray(events) || events.length === 0) return { success: true, accepted: 0 };
+
+  // Only the known events, capped, each with a usable session id and integer seq.
+  const clean = [];
+  for (const e of events.slice(0, MAX_EVENTS_PER_BATCH)) {
+    if (!e || typeof e !== 'object') continue;
+    if (!KNOWN_EVENTS.has(e.event)) continue;
+    const sessionId = typeof e.sessionId === 'string' ? e.sessionId.slice(0, 128) : null;
+    const seq = Number.isFinite(Number(e.seq)) ? Math.trunc(Number(e.seq)) : null;
+    if (!sessionId || seq === null) continue;
+    const ts = Number(e.ts);
+    const occurredAt = Number.isFinite(ts) ? new Date(ts) : new Date();
+    const props = e.props && typeof e.props === 'object' ? e.props : {};
+    clean.push({ event: e.event, sessionId, seq, occurredAt, props });
+  }
+  if (clean.length === 0) return { success: true, accepted: 0 };
+
+  // Resolve the dishIds carried by add/remove events to live menu items, so the
+  // margin loop can join by id without re-reading JSON. An id that no longer
+  // resolves is kept as an event with a null menu_item_id (props still has it).
+  const dishIds = [
+    ...new Set(
+      clean
+        .filter((e) => e.event === 'dish_added' || e.event === 'dish_removed')
+        .map((e) => e.props.dishId)
+        .filter((id) => typeof id === 'string' && repo.UUID_RE.test(id)),
+    ),
+  ];
+  const names = await repo.resolveMenuItemNames(o.id, dishIds);
+
+  const rows = clean.map((e) => {
+    const dishId = typeof e.props.dishId === 'string' ? e.props.dishId : null;
+    const resolvedId = dishId && names.has(dishId) ? dishId : null;
+    return {
+      restaurantId: o.id,
+      sessionId: e.sessionId,
+      seq: e.seq,
+      event: e.event,
+      source: typeof e.props.from === 'string' ? e.props.from.slice(0, 32) : null,
+      menuItemId: resolvedId,
+      props: e.props,
+      occurredAt: e.occurredAt,
+    };
+  });
+
+  const accepted = await repo.insertGuestEvents(rows);
+  return { success: true, accepted };
+}
+
 module.exports = {
   OutletNotFound,
   kitchenStatusOf,
@@ -352,4 +423,5 @@ module.exports = {
   requestService,
   settle,
   getReceipt,
+  recordEvents,
 };

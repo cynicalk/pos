@@ -248,9 +248,59 @@ async function getOrderLinesForAffinities(restaurantId, days) {
   return rows;
 }
 
+// ── Recommendation events (Phase 0 recsys logging) ───────────────────────────
+
+// Bulk-insert guest events, one multi-row INSERT. (restaurant_id, session_id,
+// seq) is unique, so a re-sent batch — the sink retries on a dropped connection
+// — inserts each event exactly once. Returns how many rows were new.
+async function insertGuestEvents(rows) {
+  if (!rows.length) return 0;
+  const cols = 8; // per row, matching the tuple below
+  const values = [];
+  const params = [];
+  rows.forEach((r, i) => {
+    const b = i * cols;
+    values.push(
+      `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}::jsonb, $${b + 8})`,
+    );
+    params.push(
+      r.restaurantId,
+      r.sessionId,
+      r.seq,
+      r.event,
+      r.source,
+      r.menuItemId,
+      JSON.stringify(r.props || {}),
+      r.occurredAt,
+    );
+  });
+  const { rowCount } = await db.query(
+    `INSERT INTO guest_events
+       (restaurant_id, session_id, seq, event, source, menu_item_id, props, occurred_at)
+     VALUES ${values.join(', ')}
+     ON CONFLICT (restaurant_id, session_id, seq) DO NOTHING`,
+    params,
+  );
+  return rowCount;
+}
+
+// Resolves the dishIds the guest app sends (which are our menu_item ids) to the
+// live rows, so ingest can store menu_item_id/dish_name and drop ids that no
+// longer exist. Returns a Map id → name.
+async function resolveMenuItemNames(restaurantId, ids) {
+  if (!ids.length) return new Map();
+  const { rows } = await db.query(
+    `SELECT id, name FROM menu_items WHERE restaurant_id = $1 AND id = ANY($2::uuid[])`,
+    [restaurantId, ids],
+  );
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
 module.exports = {
   UUID_RE,
   resolveOutlet,
+  insertGuestEvents,
+  resolveMenuItemNames,
   createSession,
   findSessionByCode,
   updateSessionDoc,

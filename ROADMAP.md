@@ -146,11 +146,15 @@ state, not the pre-merge 77-feature catalog.
   drift) and a **party-size factor** measured as a deviation from the outlet's
   average party so it does not double-count the learned duration. A missing
   signal stays neutral, so nothing that predates the change moves.
-- **Recsys — gated on Phase 0 logging.** The group recommender design
-  (`cooklyt-recsys-context.md`) is emphatic that nothing is modelled before
-  2–3 weeks of clean impression/add/refine/order logs. So the first recsys
-  build is event logging, not a model. Apriori co-order mining already ships
-  (it backs `/api/guest/affinities`); the learned scorer waits on logs.
+- **Recsys — Phase 0 logging shipped; model still gated on volume.** The group
+  recommender design (`cooklyt-recsys-context.md`) is emphatic that nothing is
+  modelled before 2–3 weeks of clean impression/add/refine/order logs. So the
+  first recsys build is event logging, not a model — now **shipped**: the guest
+  app's events land in `guest_events` (migration 093) via a best-effort sink, and
+  the **Recommendations** page (`/api/insights/reco-performance`) reads the funnel
+  and joins reco-driven adds to the menu-engineering matrix (the reco→margin loop),
+  abstaining below a session/add floor. The learned scorer still waits on log
+  volume. Apriori co-order mining already ships (it backs `/api/guest/affinities`).
 - **Vision docs stay vision.** `Cooklyt_V2_Strategic_Features` and
   `Cooklyt_Deep_Feature_Roadmap` (~150 items: AI agents, digital twin,
   knowledge graph) are a direction, not a backlog. Items from them enter this

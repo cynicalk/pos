@@ -8,6 +8,12 @@
       "port": 3000
     },
     {
+      "name": "cooklyt-dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "dashboard", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+      "port": 5173
+    },
+    {
       "name": "cooklyt-guest",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "guest-app", "run", "dev", "--", "-p", "3001"],

@@ -142,6 +142,7 @@ export const ALL_NAV = [
       { to: '/payouts',       label: 'Payouts',       Icon: Wallet  },
       { to: '/accounting',    label: 'Accounting Export', Icon: FileSpreadsheet },
       { to: '/menu-insights', label: 'Menu Insights', Icon: Grid2X2 },
+      { to: '/reco-performance', label: 'Recommendations', Icon: Sparkles },
     ],
   },
   {

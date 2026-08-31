@@ -6,6 +6,8 @@ const hours = require('../modules/dinein/hours');
 const economics = require('../modules/economics/unit-economics');
 const couponEconomics = require('../modules/economics/coupon-economics');
 const attachRate = require('../modules/menu/attach-rate');
+const recsysFunnel = require('../modules/recsys/funnel');
+const recsysMargin = require('../modules/recsys/margin');
 const billingMetrics = require('../modules/economics/billing-metrics');
 const labourHours = require('../modules/labour/hours');
 const labourService = require('../labour/labour.service');
@@ -186,8 +188,41 @@ async function getScRemoved(restaurantId, daysRaw) {
   return { days, ...billingMetrics.buildScRemoved(scRow, scByServer, { scRate }) };
 }
 
+/**
+ * Recommendation performance — Phase 0 recsys, on guest_events. Two answers:
+ *   funnel : does the recommender convert (saw picks → added → added a pick →
+ *            ordered), abstaining below a session floor.
+ *   margin : are the picks that land in carts our profitable dishes, joined to
+ *            the same menu-engineering matrix the Menu Insights page uses.
+ * Both read-only and tenant-scoped, like everything else here.
+ */
+async function getRecoPerformance(restaurantId, daysRaw) {
+  const days = parseDays(daysRaw);
+  const tz = await tzFor(restaurantId);
+  const [counts, dishStats, perfRows, spanDays] = await Promise.all([
+    repo.getRecoFunnelCounts(restaurantId, days),
+    repo.getRecoDishStats(restaurantId, days),
+    repo.getMenuPerformance(restaurantId, days),
+    repo.getSpanDays(restaurantId, tz, days),
+  ]);
+
+  const matrix = perf.buildMatrix(perf.buildPerformance(perfRows, { spanDays }));
+  const stats = dishStats.map((d) => ({
+    menuItemId: d.menu_item_id,
+    dishName: d.dish_name,
+    recoAdds: d.reco_adds,
+    recoRemoves: d.reco_removes,
+  }));
+
+  return {
+    days,
+    funnel: recsysFunnel.buildRecoFunnel(counts),
+    margin: recsysMargin.buildRecoMargin(stats, matrix),
+  };
+}
+
 module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
-  getCouponEconomics, getAttachRate, getScRemoved,
+  getCouponEconomics, getAttachRate, getScRemoved, getRecoPerformance,
 };
