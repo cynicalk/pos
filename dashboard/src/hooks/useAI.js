@@ -38,6 +38,19 @@ export function useDailyBrief(enabled = true) {
   });
 }
 
+// The weekly review — the brief's sibling, one horizon up. Fetched lazily (only
+// when the operator switches the brief card to its weekly view), and given the
+// same long timeout since it narrates through the local model too.
+export function useWeeklyReview(enabled = true) {
+  return useQuery({
+    queryKey: ['ai-weekly-review'],
+    queryFn: async () => (await api.get('/ai/weekly-review', { timeout: 20_000 })).data,
+    staleTime: 60 * 60_000,
+    retry: false,
+    enabled: enabled && !!localStorage.getItem('pos_user'),
+  });
+}
+
 // One chat conversation. Mount this once (via AIContext) so the bubble panel and
 // the /ai-chat page share the same message list.
 export function useAIChatInternal() {

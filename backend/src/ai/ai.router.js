@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const service = require('./ai.service');
 const briefService = require('./brief.service');
+const weeklyReviewService = require('./weekly-review.service');
 const repo = require('./ai.repository');
 const llm = require('./llm.client');
 const { authenticate, authorize } = require('../shared/middleware/auth');
@@ -36,6 +37,15 @@ router.get('/brief', asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'The AI assistant is disabled for this restaurant' });
   }
   res.json(await briefService.getDailyBrief(req.user.restaurantId));
+}));
+
+// The weekly review: the brief's sibling, one horizon up — last seven closed
+// days versus the seven before. Same gate as the daily brief.
+router.get('/weekly-review', asyncHandler(async (req, res) => {
+  if (!(await repo.getAiEnabled(req.user.restaurantId))) {
+    return res.status(403).json({ error: 'The AI assistant is disabled for this restaurant' });
+  }
+  res.json(await weeklyReviewService.getWeeklyReview(req.user.restaurantId));
 }));
 
 // One chat turn, streamed as SSE:

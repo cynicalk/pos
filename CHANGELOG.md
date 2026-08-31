@@ -10,6 +10,15 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **AI Weekly Review** — the Daily Brief's sibling, one horizon up. The Overview
+  brief card now carries a *Yesterday / This week* toggle; the weekly read
+  (`GET /api/ai/weekly-review`, lazy-loaded on demand) narrates the last seven
+  closed days against the seven before them: week-over-week revenue trend, best
+  and worst trading day, food cost, per-cover spend, waste, the biggest attach
+  mover, and the top open action. Same architecture as the brief — deterministic
+  signals from the reports/insights services, a shared narration-or-fallback
+  layer, and the same abstention (a missing prior week yields a null change, not
+  a fabricated one).
 - **AI Daily Brief** (catalogue: absent → built). The morning moment on the
   Overview: a deterministic signals gatherer reads yesterday versus normal (via
   the anomaly detector), the top ranked open action with its rupee amount,

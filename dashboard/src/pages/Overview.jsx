@@ -4,7 +4,7 @@ import {
   TrendingUp, TrendingDown, Minus, ChefHat, Star,
   AlertTriangle, ShoppingBag, Clock, Leaf,
   BarChart2, ArrowRight, Flame, UserCheck, UserPlus, ChevronLeft, X,
-  Zap, Hourglass, EyeOff, MessageSquare, Sparkles, Sunrise,
+  Zap, Hourglass, EyeOff, MessageSquare, Sparkles, Sunrise, CalendarRange,
 } from 'lucide-react';
 import { useDailyReport, useCollection, useTrends } from '../hooks/useReports';
 import { useTables }                     from '../hooks/useTables';
@@ -22,7 +22,7 @@ import { useActions }                    from '../hooks/useActions';
 import { useWaitlistQueue }              from '../hooks/useWaitlist';
 import { useMenuItems }                  from '../hooks/useMenu';
 import { useReviewInsights }             from '../hooks/useReputation';
-import { useDailyBrief }                  from '../hooks/useAI';
+import { useDailyBrief, useWeeklyReview } from '../hooks/useAI';
 import { shiftDate, smoothPath } from '../utils/dateUtils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -386,111 +386,168 @@ function sentenceBeats(narrative) {
     .filter(Boolean);
 }
 
-function DailyBriefCard({ format }) {
-  const { data: brief, isLoading, isError } = useDailyBrief();
-
-  // A quiet failure earns silence — the brief is a bonus surface, never a blocker.
-  if (isError) return null;
-
-  // The narration runs a local model, so first paint can take a few seconds.
-  // Rather than a blank gap, hold the card's frame with a gentle pulse so the
-  // operator knows the morning read is on its way.
-  if (isLoading || !brief) {
-    return (
-      <div style={BRIEF_SHELL}>
-        <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
-          <Sunrise size={15} style={{ color: 'var(--accent, #C2683A)' }} />
-          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>
-            Daily brief
-          </span>
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>reading the morning…</span>
-        </div>
-        <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 8, width: '92%' }} />
-        <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', width: '70%' }} />
-        <style>{`@keyframes briefPulse{0%,100%{opacity:.55}50%{opacity:1}}.brief-pulse{animation:briefPulse 1.4s ease-in-out infinite}`}</style>
-      </div>
-    );
-  }
-
+// The two horizons share the card chrome; each maps its own signals into a title,
+// a dateline, and the stat rail. Kept pure so the toggle just swaps the payload.
+function dailyView(brief, format) {
   const s = brief.signals || {};
   const sales = s.sales || {};
   const top = (s.topActions || [])[0] || null;
-
   const salesStat = sales.traded
     ? (sales.anomaly
         ? `${format(sales.revenue)} ${sales.anomaly.direction === 'drop' ? '▼' : '▲'}${Math.abs(sales.anomaly.pctFromNormal)}%`
         : format(sales.revenue))
     : 'no trade';
+  const dateLabel = new Date(`${brief.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+  return {
+    Icon: Sunrise,
+    dateline: `Morning read · ${dateLabel}`,
+    aiUsed: brief.aiUsed,
+    narrative: brief.narrative,
+    stats: [
+      { label: 'Yesterday', value: salesStat },
+      top ? { label: 'Top action', value: top.amount != null ? format(top.amount) : null } : null,
+      s.margin?.foodCostPct != null ? { label: 'Food cost', value: `${s.margin.foodCostPct}%` } : null,
+      s.margin?.operatingMarginPct != null ? { label: 'Op. margin', value: `${s.margin.operatingMarginPct}%` } : null,
+      s.peakHour ? { label: 'Peak hour', value: s.peakHour } : null,
+      s.waste?.totalCost ? { label: 'Waste 7d', value: format(s.waste.totalCost) } : null,
+    ],
+  };
+}
 
-  const beats = sentenceBeats(brief.narrative);
-  const briefDate = new Date(`${brief.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+function weeklyView(review, format) {
+  const s = review.signals || {};
+  const r = s.revenue || {};
+  const weekStat = r.thisWeek
+    ? (r.changePct != null ? `${format(r.thisWeek)} ${r.changePct >= 0 ? '▲' : '▼'}${Math.abs(r.changePct)}%` : format(r.thisWeek))
+    : 'no trade';
+  const dateLabel = review.weekEnding
+    ? new Date(`${review.weekEnding}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    : null;
+  return {
+    Icon: CalendarRange,
+    dateline: dateLabel ? `Last 7 days · to ${dateLabel}` : 'Last 7 days',
+    aiUsed: review.aiUsed,
+    narrative: review.narrative,
+    stats: [
+      { label: 'This week', value: weekStat },
+      s.best ? { label: 'Best day', value: format(s.best.revenue) } : null,
+      s.margin?.foodCostPct != null ? { label: 'Food cost', value: `${s.margin.foodCostPct}%` } : null,
+      s.margin?.avgPerCover != null ? { label: 'Per cover', value: format(s.margin.avgPerCover) } : null,
+      s.waste?.totalCost ? { label: 'Waste 7d', value: format(s.waste.totalCost) } : null,
+      s.topAction ? { label: 'Top action', value: s.topAction.amount != null ? format(s.topAction.amount) : null } : null,
+    ],
+  };
+}
+
+function BriefLoading({ title, note }) {
+  return (
+    <>
+      <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 8, width: '92%' }} />
+      <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', width: '70%' }} />
+      <style>{`@keyframes briefPulse{0%,100%{opacity:.55}50%{opacity:1}}.brief-pulse{animation:briefPulse 1.4s ease-in-out infinite}`}</style>
+    </>
+  );
+}
+
+function DailyBriefCard({ format }) {
+  const [mode, setMode] = useState('day'); // 'day' | 'week'
+  const daily = useDailyBrief();
+  // The weekly read is only fetched once the operator asks for it.
+  const weekly = useWeeklyReview(mode === 'week');
+
+  // A quiet failure on the daily brief earns silence — it's a bonus surface, not
+  // a blocker. (A weekly failure still shows the card, so the toggle stays.)
+  if (mode === 'day' && daily.isError) return null;
+  if (mode === 'day' && (daily.isLoading || !daily.data)) {
+    // First paint of the whole card: hold the frame with a pulse.
+    return (
+      <div style={BRIEF_SHELL}>
+        <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+          <Sunrise size={15} style={{ color: 'var(--accent, #C2683A)' }} />
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>Daily brief</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>reading the morning…</span>
+        </div>
+        <BriefLoading />
+      </div>
+    );
+  }
+
+  const activeQuery = mode === 'week' ? weekly : daily;
+  const ready = !!activeQuery.data && !activeQuery.isError;
+  const view = ready
+    ? (mode === 'week' ? weeklyView(weekly.data, format) : dailyView(daily.data, format))
+    : null;
+  const beats = view ? sentenceBeats(view.narrative) : [];
+  const HeaderIcon = view ? view.Icon : (mode === 'week' ? CalendarRange : Sunrise);
+
+  const Toggle = (
+    <div style={{ display: 'inline-flex', padding: 2, gap: 2, border: '1px solid var(--line-2)', borderRadius: 8, background: 'var(--paper-2)' }}>
+      {[['day', 'Yesterday'], ['week', 'This week']].map(([k, lbl]) => (
+        <button key={k} onClick={() => setMode(k)} style={{
+          height: 22, padding: '0 9px', border: 0, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+          fontSize: 10.5, fontWeight: mode === k ? 700 : 500,
+          background: mode === k ? 'var(--paper)' : 'transparent',
+          color: mode === k ? 'var(--ink)' : 'var(--mute)',
+          boxShadow: mode === k ? '0 1px 2px rgba(10,10,10,.06)' : 'none', transition: 'all .1s',
+        }}>{lbl}</button>
+      ))}
+    </div>
+  );
 
   return (
     <div style={BRIEF_SHELL}>
-      <div style={{
-        position: 'absolute', top: -50, right: -40, width: 190, height: 190,
-        background: 'radial-gradient(circle, var(--accent-soft, rgba(194,104,58,.16)) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-        background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)',
-      }} />
+      <div style={{ position: 'absolute', top: -50, right: -40, width: 190, height: 190, background: 'radial-gradient(circle, var(--accent-soft, rgba(194,104,58,.16)) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)' }} />
 
       {/* Header */}
       <div className="flex items-center gap-2" style={{ marginBottom: 13, position: 'relative' }}>
         <span style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8, background: 'var(--accent-soft, rgba(194,104,58,.14))' }}>
-          <Sunrise size={15} style={{ color: 'var(--accent, #C2683A)' }} />
+          <HeaderIcon size={15} style={{ color: 'var(--accent, #C2683A)' }} />
         </span>
         <div style={{ lineHeight: 1.15 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>
-            Daily brief
+            {mode === 'week' ? 'Weekly review' : 'Daily brief'}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--mute)' }}>Morning read · {briefDate}</div>
+          <div style={{ fontSize: 11, color: 'var(--mute)' }}>{view ? view.dateline : (mode === 'week' ? 'reading the week…' : '')}</div>
         </div>
-        <span className="flex items-center gap-1" style={{
-          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '.04em',
-          padding: '3px 8px', borderRadius: 999,
-          background: brief.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
-          color: brief.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
-        }}>
-          {brief.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {view && (
+            <span className="flex items-center gap-1 brief-aibadge" style={{
+              fontSize: 10, fontWeight: 600, letterSpacing: '.04em', padding: '3px 8px', borderRadius: 999,
+              background: view.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
+              color: view.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
+            }}>
+              {view.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+            </span>
+          )}
+          {Toggle}
         </span>
       </div>
 
-      {/* Narrative — one beat per line, figures highlighted */}
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {beats.map((beat, i) => (
-          <div key={i} className="flex items-start gap-2.5">
-            <span style={{
-              flexShrink: 0, marginTop: 8, width: 5, height: 5, borderRadius: 999,
-              background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)',
-            }} />
-            <span style={{
-              fontSize: i === 0 ? 15 : 14, lineHeight: 1.5,
-              fontWeight: i === 0 ? 600 : 400,
-              color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))',
-              letterSpacing: '-.005em',
-            }}>
-              {highlightFigures(beat, `b${i}`)}
-            </span>
+      {/* Narrative or loading */}
+      {ready ? (
+        <>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {beats.map((beat, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <span style={{ flexShrink: 0, marginTop: 8, width: 5, height: 5, borderRadius: 999, background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)' }} />
+                <span style={{ fontSize: i === 0 ? 15 : 14, lineHeight: 1.5, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))', letterSpacing: '-.005em' }}>
+                  {highlightFigures(beat, `b${i}`)}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* Stat rail */}
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: '12px 26px',
-        marginTop: 15, paddingTop: 13, position: 'relative',
-        borderTop: '1px solid var(--line)',
-      }}>
-        <BriefStat label="Yesterday" value={salesStat} />
-        {top && <BriefStat label="Top action" value={top.amount != null ? format(top.amount) : null} />}
-        {s.margin?.foodCostPct != null && <BriefStat label="Food cost" value={`${s.margin.foodCostPct}%`} />}
-        {s.margin?.operatingMarginPct != null && <BriefStat label="Op. margin" value={`${s.margin.operatingMarginPct}%`} />}
-        {s.peakHour && <BriefStat label="Peak hour" value={s.peakHour} />}
-        {s.waste?.totalCost ? <BriefStat label="Waste 7d" value={format(s.waste.totalCost)} /> : null}
-      </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 26px', marginTop: 15, paddingTop: 13, position: 'relative', borderTop: '1px solid var(--line)' }}>
+            {view.stats.filter(Boolean).map((st) => <BriefStat key={st.label} label={st.label} value={st.value} />)}
+          </div>
+        </>
+      ) : (mode === 'week' && weekly.isError) ? (
+        <p style={{ fontSize: 13, color: 'var(--mute)', margin: '4px 0 2px' }}>
+          The weekly review isn’t available right now. Switch back to yesterday, or try again shortly.
+        </p>
+      ) : (
+        <BriefLoading />
+      )}
     </div>
   );
 }

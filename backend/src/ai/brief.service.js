@@ -191,23 +191,20 @@ function fallbackNarrative(signals) {
 }
 
 /**
- * Build the brief. Deterministic signals always; the model only phrases them, and
- * only if it answers inside a tight budget — the operator opens this at 9am and
- * will not wait on a cold model, so a fast fallback is preferred to a slow wait.
+ * Narrate a set of signals, or keep the honest templated fallback if the model
+ * is unreachable or slow. Shared by the daily brief and its weekly sibling: the
+ * operator opens these expecting a fast answer, so a quick fallback always beats
+ * a slow wait, and a failed model never fails the surface.
+ *
+ * @returns {{narrative: string, aiUsed: boolean, model: string|null}}
  */
-async function getDailyBrief(restaurantId) {
-  const signals = await gatherSignals(restaurantId);
-
-  let narrative = fallbackNarrative(signals);
-  let aiUsed = false;
-  let model = null;
-
+async function narrateOrFallback(messages, fallback) {
   if (await llm.reachable()) {
     try {
-      const res = await llm.chat(buildMessages(signals), {
+      const res = await llm.chat(messages, {
         temperature: 0.4,
-        // A 3–5 sentence brief needs far fewer tokens than a long answer; the
-        // tighter cap keeps a local 7B's generation comfortably inside the budget.
+        // A short brief needs far fewer tokens than a long answer; the tighter cap
+        // keeps a local 7B's generation comfortably inside the budget.
         maxTokens: 180,
         // At least one attempt — postCompletions' loop runs `attempt <= retries`,
         // so retries:0 would never fire a request and always fall through.
@@ -217,17 +214,27 @@ async function getDailyBrief(restaurantId) {
         timeoutMs: 18_000,
       });
       const text = (res.content || '').trim();
-      if (text) {
-        narrative = text;
-        aiUsed = true;
-        model = llm.LLM_MODEL;
-      }
+      if (text) return { narrative: text, aiUsed: true, model: llm.LLM_MODEL };
     } catch {
-      // Keep the templated fallback; the brief must never fail because the model did.
+      // Fall through to the templated fallback; the surface must never fail
+      // because the model did.
     }
   }
+  return { narrative: fallback, aiUsed: false, model: null };
+}
 
+/**
+ * Build the brief. Deterministic signals always; the model only phrases them, and
+ * only if it answers inside a tight budget — the operator opens this at 9am and
+ * will not wait on a cold model, so a fast fallback is preferred to a slow wait.
+ */
+async function getDailyBrief(restaurantId) {
+  const signals = await gatherSignals(restaurantId);
+  const { narrative, aiUsed, model } = await narrateOrFallback(
+    buildMessages(signals),
+    fallbackNarrative(signals),
+  );
   return { date: signals.date, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }
 
-module.exports = { getDailyBrief, gatherSignals, fallbackNarrative, buildMessages };
+module.exports = { getDailyBrief, gatherSignals, fallbackNarrative, buildMessages, narrateOrFallback, round2 };

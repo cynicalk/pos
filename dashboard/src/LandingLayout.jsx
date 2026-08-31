@@ -158,7 +158,7 @@ export default function LandingLayout({ children }) {
               {user ? "Dashboard" : "Sign in"}
             </button>
             <a href={MAILTO_HREF} className="lp-btn-accent"
-              style={{ ...nlBase, color: "#fff", padding: "0 14px", height: 34, gap: 6 }}
+              style={{ ...nlBase, color: "#fff", padding: "0 14px", height: 34, gap: 6, backgroundImage: "var(--lp-grad)" }}
             >
               <Mail size={13} /><span className="nav-demo-label">Request a demo</span>
             </a>
@@ -238,6 +238,10 @@ export default function LandingLayout({ children }) {
         /* ── Landing colour system (scoped to .lp-root so the POS is untouched) ──
            A warm terracotta primary with a forest-green secondary on the warm
            paper — an earthy, food-brand palette, not the monochrome default. */
+        /* The POS itself is light-only (index.css defines no dark theme), so the
+           landing is too. An earlier prefers-color-scheme override made only the
+           accent tokens flip dark on a dark-set OS while the light base stayed
+           light — a muddy brown card on a white page. Single light palette now. */
         .lp-root {
           --lp-accent: #C2683A;
           --lp-accent-deep: #9C4C26;
@@ -247,24 +251,6 @@ export default function LandingLayout({ children }) {
           --lp-grad: linear-gradient(135deg, #CE7040 0%, #9C4C26 100%);
           --lp-ink: var(--ink);
           background: var(--paper);
-        }
-        :root[data-theme="dark"] .lp-root,
-        :root:not([data-theme="light"]) .lp-root { }
-        @media (prefers-color-scheme: dark) {
-          :root:not([data-theme="light"]) .lp-root {
-            --lp-accent: #E08A5C;
-            --lp-accent-deep: #C2683A;
-            --lp-accent-soft: #33221A;
-            --lp-secondary: #5FA98D;
-            --lp-secondary-soft: #1B2A24;
-          }
-        }
-        :root[data-theme="dark"] .lp-root {
-          --lp-accent: #E08A5C;
-          --lp-accent-deep: #C2683A;
-          --lp-accent-soft: #33221A;
-          --lp-secondary: #5FA98D;
-          --lp-secondary-soft: #1B2A24;
         }
 
         /* Warm wash behind the hero, fading into the page. */
