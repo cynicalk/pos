@@ -243,7 +243,10 @@ Centre** (plain-language "why this matters" per finding), a **Group Brief** (the
 daily brief at multi-outlet level), and **Menu engineering** (the star / plowhorse
 / puzzle / dog quadrant from item sales × margin, each quadrant with its action).
 Each is a new signals gatherer plus a prompt; the narration/fallback and
-rule→action machinery already exist.
+rule→action machinery already exist. (The **Evening Wrap** —
+`ai/evening-wrap.service.js`, the close-out read on the Shift screen with the
+cash-reconciliation signal no brief carries — is the latest instance; menu
+engineering already ships as `modules/menu/performance.js`.)
 
 ### 4.6 Where the AI layer can be better
 - **Client timeout vs cold model.** First narration on a cold 7B can take

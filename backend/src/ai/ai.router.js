@@ -2,6 +2,7 @@ const router = require('express').Router();
 const service = require('./ai.service');
 const briefService = require('./brief.service');
 const weeklyReviewService = require('./weekly-review.service');
+const eveningWrapService = require('./evening-wrap.service');
 const repo = require('./ai.repository');
 const llm = require('./llm.client');
 const { authenticate, authorize } = require('../shared/middleware/auth');
@@ -46,6 +47,15 @@ router.get('/weekly-review', asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'The AI assistant is disabled for this restaurant' });
   }
   res.json(await weeklyReviewService.getWeeklyReview(req.user.restaurantId));
+}));
+
+// The evening wrap: today at close — trade vs target, the cash the drawer should
+// hold, and a nudge for tomorrow's prep. Same gate as the brief.
+router.get('/evening-wrap', asyncHandler(async (req, res) => {
+  if (!(await repo.getAiEnabled(req.user.restaurantId))) {
+    return res.status(403).json({ error: 'The AI assistant is disabled for this restaurant' });
+  }
+  res.json(await eveningWrapService.getEveningWrap(req.user.restaurantId));
 }));
 
 // One chat turn, streamed as SSE:

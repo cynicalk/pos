@@ -10,6 +10,14 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **AI Evening Wrap** — the Daily Brief's bookend, on the Shift close-out screen:
+  how today traded against the target, and the one signal no brief carries — the
+  **cash reconciliation** (what the drawer should hold since the last count, and,
+  only if a count was actually taken today, whether it came up over or short) —
+  plus today's waste and a nudge for tomorrow's likely over-prep. Same rails as
+  the brief (`GET /api/ai/evening-wrap`, shared narrate-or-fallback, honest
+  template offline); it never states a cash variance for a count that didn't
+  happen, and abstains on any missing figure.
 - **AI Review Analyser** — a narrated sentiment read and *what-to-do* on the
   Reviews → Insights tab, tied into the action centre. It narrates the same
   deterministic summary the page already shows (sentiment split, recurring

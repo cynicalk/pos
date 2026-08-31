@@ -38,6 +38,18 @@ export function useDailyBrief(enabled = true) {
   });
 }
 
+// The evening wrap — the close-out read on the shift screen. Narrates through the
+// local model, so it gets the same long timeout; admin-only like the brief.
+export function useEveningWrap(enabled = true) {
+  return useQuery({
+    queryKey: ['ai-evening-wrap'],
+    queryFn: async () => (await api.get('/ai/evening-wrap', { timeout: 20_000 })).data,
+    staleTime: 10 * 60_000,
+    retry: false,
+    enabled: enabled && !!localStorage.getItem('pos_user'),
+  });
+}
+
 // The weekly review — the brief's sibling, one horizon up. Fetched lazily (only
 // when the operator switches the brief card to its weekly view), and given the
 // same long timeout since it narrates through the local model too.

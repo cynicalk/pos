@@ -4,11 +4,75 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, TrendingUp, TrendingDown, Plus, X,
-  CreditCard, Smartphone, Tag, MoreHorizontal, Banknote, Info,
+  CreditCard, Smartphone, Tag, MoreHorizontal, Banknote, Info, Moon, Sparkles,
 } from 'lucide-react';
 import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../hooks/useAuth';
 import { useShiftSummary, useShiftHistory, useRecordShiftCount } from '../hooks/useShift';
+import { useEveningWrap } from '../hooks/useAI';
+
+// Split a narrated wrap into sentence beats so each reads on its own line.
+const wrapBeats = (text) =>
+  String(text || '').split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+
+// The close-out read: today vs target, the cash the drawer should hold, and a
+// nudge for tomorrow's prep — narrated by the local model, honest template when
+// it's offline. Admin-only; a quiet failure just hides it (it's a bonus surface).
+function EveningWrapCard() {
+  const { data, isLoading, isError } = useEveningWrap();
+  if (isError) return null;
+
+  const shell = {
+    position: 'relative', overflow: 'hidden',
+    border: '1px solid var(--line)', borderRadius: 12,
+    background: 'linear-gradient(135deg, var(--paper-2) 0%, var(--paper) 60%)',
+    padding: '15px 18px',
+  };
+  const Head = ({ right }) => (
+    <div className="flex items-center gap-2" style={{ marginBottom: 10, position: 'relative' }}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 24, height: 24, borderRadius: 7, background: 'var(--accent-soft, rgba(194,104,58,.14))' }}>
+        <Moon size={13} style={{ color: 'var(--accent, #C2683A)' }} />
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>Evening wrap</span>
+      {right}
+    </div>
+  );
+
+  if (isLoading || !data) {
+    return (
+      <div style={shell}>
+        <Head right={<span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>closing the day…</span>} />
+        <div className="wrap-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 7, width: '94%' }} />
+        <div className="wrap-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', width: '68%' }} />
+        <style>{`@keyframes wrapPulse{0%,100%{opacity:.55}50%{opacity:1}}.wrap-pulse{animation:wrapPulse 1.4s ease-in-out infinite}`}</style>
+      </div>
+    );
+  }
+
+  const beats = wrapBeats(data.narrative);
+  return (
+    <div style={shell}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)' }} />
+      <Head right={
+        <span className="flex items-center gap-1" style={{
+          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', padding: '3px 8px', borderRadius: 999,
+          background: data.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
+          color: data.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
+        }}>
+          {data.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+        </span>
+      } />
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {beats.map((b, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span style={{ flexShrink: 0, marginTop: 7, width: 5, height: 5, borderRadius: 999, background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)' }} />
+            <span style={{ fontSize: i === 0 ? 14 : 13.5, lineHeight: 1.5, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))' }}>{b}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 import { formatDate } from '../utils/dateUtils';
 
 function InfoTip({ text }) {
@@ -430,6 +494,9 @@ export default function ShiftCount() {
 
   return (
     <div className="space-y-5" style={{ maxWidth: 900 }}>
+
+      {/* Evening wrap — the narrated close-out read (admin only). */}
+      {isAdmin && <EveningWrapCard />}
 
       {/* ── 4-stat strip ─────────────────────────────────────────── */}
       <div style={{
