@@ -21,6 +21,23 @@ export function useAIStatus(enabled = true) {
   });
 }
 
+// The morning brief. Admin-only (it reads the same admin metrics Overview does)
+// and never retried — an unreachable model already falls back to a templated
+// brief server-side, so a 5xx here is a real outage worth showing plainly.
+export function useDailyBrief(enabled = true) {
+  return useQuery({
+    queryKey: ['ai-brief'],
+    // The narration runs a local model synchronously, which can take longer than
+    // the client's default 8s — override the per-request timeout so the brief
+    // waits for it rather than erroring into a blank card. The server itself caps
+    // the model well under this and falls back to the templated brief past that.
+    queryFn: async () => (await api.get('/ai/brief', { timeout: 20_000 })).data,
+    staleTime: 30 * 60_000,
+    retry: false,
+    enabled: enabled && !!localStorage.getItem('pos_user'),
+  });
+}
+
 // One chat conversation. Mount this once (via AIContext) so the bubble panel and
 // the /ai-chat page share the same message list.
 export function useAIChatInternal() {

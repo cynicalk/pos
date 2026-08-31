@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const service = require('./ai.service');
+const briefService = require('./brief.service');
 const repo = require('./ai.repository');
 const llm = require('./llm.client');
 const { authenticate, authorize } = require('../shared/middleware/auth');
@@ -25,6 +26,16 @@ router.get('/status', asyncHandler(async (req, res) => {
     return res.json({ ok: false, enabled: false });
   }
   res.json({ enabled: true, ...(await llm.healthCheck()) });
+}));
+
+// The morning brief: deterministic signals narrated by the local model, with a
+// templated fallback when it is offline. Gated by the same per-restaurant AI
+// kill switch as chat — off means the operator disabled the assistant.
+router.get('/brief', asyncHandler(async (req, res) => {
+  if (!(await repo.getAiEnabled(req.user.restaurantId))) {
+    return res.status(403).json({ error: 'The AI assistant is disabled for this restaurant' });
+  }
+  res.json(await briefService.getDailyBrief(req.user.restaurantId));
 }));
 
 // One chat turn, streamed as SSE:

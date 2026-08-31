@@ -4,7 +4,7 @@ import {
   TrendingUp, TrendingDown, Minus, ChefHat, Star,
   AlertTriangle, ShoppingBag, Clock, Leaf,
   BarChart2, ArrowRight, Flame, UserCheck, UserPlus, ChevronLeft, X,
-  Zap, Hourglass, EyeOff, MessageSquare,
+  Zap, Hourglass, EyeOff, MessageSquare, Sparkles, Sunrise,
 } from 'lucide-react';
 import { useDailyReport, useCollection, useTrends } from '../hooks/useReports';
 import { useTables }                     from '../hooks/useTables';
@@ -22,6 +22,7 @@ import { useActions }                    from '../hooks/useActions';
 import { useWaitlistQueue }              from '../hooks/useWaitlist';
 import { useMenuItems }                  from '../hooks/useMenu';
 import { useReviewInsights }             from '../hooks/useReputation';
+import { useDailyBrief }                  from '../hooks/useAI';
 import { shiftDate, smoothPath } from '../utils/dateUtils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -327,6 +328,173 @@ function KpiCard({ label, value, sub, subColor, Icon, iconColor, to }) {
   return inner;
 }
 
+// ── Daily Brief ─────────────────────────────────────────────────────────────
+// The morning moment: deterministic signals narrated by the local model, with a
+// templated fallback the server already produced when the model is offline. The
+// narrative is authoritative; the chips below it are the same figures at a
+// glance. A missing figure abstains (renders nothing) rather than showing a zero.
+
+function BriefStat({ label, value }) {
+  if (value === null || value === undefined) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <span style={{ fontSize: 9.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--mute-2)' }}>
+        {label}
+      </span>
+      <span className="mono num truncate" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-.01em' }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+const BRIEF_SHELL = {
+  position: 'relative', overflow: 'hidden',
+  border: '1px solid var(--line)', borderRadius: 14,
+  background: 'linear-gradient(135deg, var(--paper-2) 0%, var(--paper) 58%)',
+  padding: '18px 22px 16px',
+};
+
+// Highlight the figures inside a narration sentence — rupee amounts, percentages
+// and the ▲/▼ deltas — so the eye lands on the numbers, not the connective prose.
+// Pure string → nodes; anything that isn't a figure is left exactly as written.
+const FIGURE_RE = /(₹\s?[\d,]+(?:\.\d+)?|[▲▼]\s?[\d.]+%|\b\d+(?:\.\d+)?%)/g;
+function highlightFigures(text, keyBase) {
+  const parts = String(text).split(FIGURE_RE);
+  return parts.map((p, i) => {
+    if (i % 2 === 1) {
+      const down = p.includes('▼');
+      const up = p.includes('▲');
+      return (
+        <strong key={`${keyBase}-${i}`} style={{
+          fontWeight: 700,
+          color: down ? 'var(--bad)' : up ? 'var(--ok)' : 'var(--accent, #C2683A)',
+          fontVariantNumeric: 'tabular-nums',
+        }}>{p}</strong>
+      );
+    }
+    return <span key={`${keyBase}-${i}`}>{p}</span>;
+  });
+}
+
+// Split a brief into its sentence beats so each reads as its own line, the way a
+// briefing is spoken, rather than one dense block. Keeps terminal punctuation.
+function sentenceBeats(narrative) {
+  return String(narrative || '')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function DailyBriefCard({ format }) {
+  const { data: brief, isLoading, isError } = useDailyBrief();
+
+  // A quiet failure earns silence — the brief is a bonus surface, never a blocker.
+  if (isError) return null;
+
+  // The narration runs a local model, so first paint can take a few seconds.
+  // Rather than a blank gap, hold the card's frame with a gentle pulse so the
+  // operator knows the morning read is on its way.
+  if (isLoading || !brief) {
+    return (
+      <div style={BRIEF_SHELL}>
+        <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+          <Sunrise size={15} style={{ color: 'var(--accent, #C2683A)' }} />
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>
+            Daily brief
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>reading the morning…</span>
+        </div>
+        <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 8, width: '92%' }} />
+        <div className="brief-pulse" style={{ height: 12, borderRadius: 6, background: 'var(--paper-3)', width: '70%' }} />
+        <style>{`@keyframes briefPulse{0%,100%{opacity:.55}50%{opacity:1}}.brief-pulse{animation:briefPulse 1.4s ease-in-out infinite}`}</style>
+      </div>
+    );
+  }
+
+  const s = brief.signals || {};
+  const sales = s.sales || {};
+  const top = (s.topActions || [])[0] || null;
+
+  const salesStat = sales.traded
+    ? (sales.anomaly
+        ? `${format(sales.revenue)} ${sales.anomaly.direction === 'drop' ? '▼' : '▲'}${Math.abs(sales.anomaly.pctFromNormal)}%`
+        : format(sales.revenue))
+    : 'no trade';
+
+  const beats = sentenceBeats(brief.narrative);
+  const briefDate = new Date(`${brief.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+
+  return (
+    <div style={BRIEF_SHELL}>
+      <div style={{
+        position: 'absolute', top: -50, right: -40, width: 190, height: 190,
+        background: 'radial-gradient(circle, var(--accent-soft, rgba(194,104,58,.16)) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+        background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)',
+      }} />
+
+      {/* Header */}
+      <div className="flex items-center gap-2" style={{ marginBottom: 13, position: 'relative' }}>
+        <span style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8, background: 'var(--accent-soft, rgba(194,104,58,.14))' }}>
+          <Sunrise size={15} style={{ color: 'var(--accent, #C2683A)' }} />
+        </span>
+        <div style={{ lineHeight: 1.15 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>
+            Daily brief
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--mute)' }}>Morning read · {briefDate}</div>
+        </div>
+        <span className="flex items-center gap-1" style={{
+          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '.04em',
+          padding: '3px 8px', borderRadius: 999,
+          background: brief.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
+          color: brief.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
+        }}>
+          {brief.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+        </span>
+      </div>
+
+      {/* Narrative — one beat per line, figures highlighted */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {beats.map((beat, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span style={{
+              flexShrink: 0, marginTop: 8, width: 5, height: 5, borderRadius: 999,
+              background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)',
+            }} />
+            <span style={{
+              fontSize: i === 0 ? 15 : 14, lineHeight: 1.5,
+              fontWeight: i === 0 ? 600 : 400,
+              color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))',
+              letterSpacing: '-.005em',
+            }}>
+              {highlightFigures(beat, `b${i}`)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Stat rail */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: '12px 26px',
+        marginTop: 15, paddingTop: 13, position: 'relative',
+        borderTop: '1px solid var(--line)',
+      }}>
+        <BriefStat label="Yesterday" value={salesStat} />
+        {top && <BriefStat label="Top action" value={top.amount != null ? format(top.amount) : null} />}
+        {s.margin?.foodCostPct != null && <BriefStat label="Food cost" value={`${s.margin.foodCostPct}%`} />}
+        {s.margin?.operatingMarginPct != null && <BriefStat label="Op. margin" value={`${s.margin.operatingMarginPct}%`} />}
+        {s.peakHour && <BriefStat label="Peak hour" value={s.peakHour} />}
+        {s.waste?.totalCost ? <BriefStat label="Waste 7d" value={format(s.waste.totalCost)} /> : null}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Overview() {
@@ -502,6 +670,9 @@ export default function Overview() {
             <span className="pulse-dot" /> live
           </span>
         </div>
+
+        {/* Daily brief (admin) — the morning moment, above the numbers. */}
+        {isAdmin && <DailyBriefCard format={format} />}
 
         {/* KPI stat strip (admin) */}
         {isAdmin && (

@@ -21,7 +21,7 @@
  * `archivedStatus` records what the pre-merge registry claimed, so every
  * re-keying (e.g. ai-daily-brief: built → absent) stays auditable in one place.
  *
- * Totals: 86 features — 8 partial, 56 built, 6 shell, 9 absent, 4 external, 3 blocked-ext.
+ * Totals: 86 features — 8 partial, 57 built, 6 shell, 8 absent, 4 external, 3 blocked-ext.
  */
 
 export const FAMILIES = [
@@ -298,10 +298,10 @@ export const CATALOGUE = [
     "family": "WhatsApp & AI",
     "phase": 2,
     "tier": "base",
-    "status": "absent",
+    "status": "built",
     "surface": "ops Overview/Actions",
     "archivedStatus": "built",
-    "note": "Deliberately NOT ported in the merge (ARCHIVED.md); a code comment defers it to Phase 2. In every tier per the deck."
+    "note": "GET /api/ai/brief: deterministic signals (yesterday vs normal, top ranked action, food-cost %, 7-day waste, peak hour) narrated by the local model with a templated fallback when it is offline. On the Overview card. WhatsApp push still pending the sender worker."
   },
   {
     "slug": "opportunity-score",

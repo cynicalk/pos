@@ -22,10 +22,10 @@ _Last updated: 2026-08-30._
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| built | **56** | Works against real data today |
+| built | **57** | Works against real data today |
 | partial | 8 | Core built; one honest gap named in the catalogue note |
 | shell | 6 | Honest empty screen on a real route; needs data or infra |
-| absent | 9 | Recognised, not implemented |
+| absent | 8 | Recognised, not implemented |
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
 

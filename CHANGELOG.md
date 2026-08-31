@@ -10,6 +10,17 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **AI Daily Brief** (catalogue: absent → built). The morning moment on the
+  Overview: a deterministic signals gatherer reads yesterday versus normal (via
+  the anomaly detector), the top ranked open action with its rupee amount,
+  food-cost % and operating margin, the week's waste and its top reason, and the
+  peak trading hour — all from the same services the Insights/Actions pages use,
+  so the brief can never disagree with them. The local model then narrates ONLY
+  those figures ("invent nothing; null means not recorded"); an honest templated
+  fallback says the same thing when the model is offline. Every figure abstains
+  rather than guessing, and a day with no trade is stated as such, never a zero.
+  New `GET /api/ai/brief`, gated by the per-restaurant AI switch. WhatsApp push
+  still awaits the sender worker.
 - **AI assistant reaches the analytics.** Four new grounded read-tools let the
   local-LLM assistant answer the operator-margin questions it previously couldn't:
   `get_unit_economics` (revenue, average per cover, food-cost %, prime cost,

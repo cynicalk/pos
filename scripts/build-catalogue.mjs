@@ -85,7 +85,7 @@ const PATCH = {
   'staff-task-assignment':        ['whatsapp', 1, 'base', 'partial', 'Assigns in-app; the WhatsApp nudge is a console.log stub.'],
   'outcome-tracking':             ['whatsapp', 2, 'mid', 'partial', 'Code exists; outcomes table is empty, no action measured before/after.'],
   'smart-alerts':                 ['whatsapp', 2, 'mid', 'partial', 'Rules fire in-app; WhatsApp delivery is stubbed.'],
-  'ai-daily-brief':               ['whatsapp', 2, 'base', 'absent', 'Deliberately NOT ported in the merge (ARCHIVED.md); a code comment defers it to Phase 2. In every tier per the deck.'],
+  'ai-daily-brief':               ['whatsapp', 2, 'base', 'built', 'GET /api/ai/brief: deterministic signals (yesterday vs normal, top ranked action, food-cost %, 7-day waste, peak hour) narrated by the local model with a templated fallback when it is offline. On the Overview card. WhatsApp push still pending the sender worker.'],
   'whatsapp-assistant':           ['whatsapp', 2, 'base', 'absent', 'sendWhatsApp() is a feature-flagged console.log; no Business API integration.'],
   'regional-language-ai':         ['whatsapp', 3, 'addon', 'absent', 'Was a property of the brief (BRIEF_LANGUAGE); brief not ported, so absent.'],
 
