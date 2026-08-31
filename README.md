@@ -2,7 +2,7 @@
 
 A full restaurant management monorepo: a point-of-sale dashboard (which also serves the public landing page), a super-admin panel, a customer QR-menu ordering app, and a Node.js/Express + PostgreSQL backend with real-time updates over WebSocket.
 
-The product is built around **waste intelligence** — alongside the usual floor, kitchen, and billing workflows, it tracks food waste per ingredient, shift, and reason, costed against live recipe data.
+The product is built around **operator intelligence** — alongside the usual floor, kitchen, and billing workflows, it tracks food waste per ingredient, shift and reason (costed against live recipe data), surfaces where margin leaks in rupees, and reads the day back to the operator in plain language through a local LLM. Every figure abstains rather than guess: a number the system cannot establish is shown as "not recorded", never as zero.
 
 ## Features
 
@@ -20,14 +20,15 @@ numbers in their place.
 | **Waste intelligence** | Waste logged per ingredient, shift and reason, costed against live recipe data — the product's core differentiator. |
 | **Payments & reconciliation** | Aggregator settlement import, payout reconciliation against the order record, per-order leakage detection, an auditor-ready transaction log, prime cost, cost-per-order and cancellation-cost analysis, and a balanced double-entry accounting export (Tally-importable XML or journal CSV). |
 | **Forecasting** | Demand forecast, an auto-derived prep sheet, inventory forecast, auto-reorder, shift planning and cost-based scheduling — one seasonal-naive engine with measured uncertainty bands and an explicit refusal to answer below sufficient history. Promo-aware (past discount days are excluded from the baseline like closed days) and **waste prediction**: prep logged pre/post-service and reconciled against sales, then the per-dish/weekday over-prep pattern projected onto the next service. |
-| **Rules & actions** | A deterministic rules engine that raises ranked, rupee-scored actions from the restaurant's own data, with staff assignment and outcome tracking. |
-| **Reviews & reputation** | First-party guest reviews with local-LLM theme classification, an action centre that routes complaints, and AI-drafted reply suggestions. |
+| **Rules & actions** | A deterministic rules engine that raises ranked, rupee-scored actions from the restaurant's own data — cancellations, rating and complaint patterns, coupon give-away, category attach, service-charge removal, and loss-leaning menu dishes (plowhorses/dogs) — with staff assignment, an **AI-narrated plan** that sequences them into "do these first, and why", and **outcome tracking** that snapshots each acted-on finding's metric and re-measures it into an improved / worsened / no-change verdict (per coupon, category, server, theme or dish). |
+| **Reviews & reputation** | First-party guest reviews with local-LLM theme classification, an action centre that routes complaints, AI-drafted reply suggestions, an **AI review analysis** (narrated sentiment read and what-to-do that raises recurring complaints as tracked actions), and **semantic search** — find reviews by meaning, not keyword ("complaints about waiting" surfaces "the service was slow"), via the local embedding model. |
 | **Guests & dine-in** | Waitlist with live wait estimation, learned table turnover, peak/dead-hour detection, stalled-table alerts, and repeat-rate / winback tracking. |
 | **Guest menu** | Public QR ordering with dietary filters, ingredient and allergen disclosure, per-serving calories and macros exploded from recipes (abstaining on any undeclared ingredient), and cached menu translation for tourists. |
 | **Guest dine-in app** | A separate reservation-first guest app runs against a dedicated `/api/guest` adapter — group recommender, shared "join the table" cart, live kitchen status, service calls, pay-at-table and receipt, all landing as real dining orders in the POS. |
 | **Compliance & SOPs** | FSSAI licence tracking, hygiene and shift checklists, staff-certification records, a testing calendar, an on-demand audit evidence pack, and SOP generation with version control and drift detection. |
 | **Multi-outlet** | A group dashboard benchmarking outlets against each other on the same metrics, with per-outlet rate averaging. |
 | **AI assistant** | A local-LLM assistant that answers operational questions grounded in live waste, stock, recipe and sales data — and only narrates the numbers, never invents them. |
+| **AI briefings** | Five narrated surfaces that read the restaurant's own figures back in plain language, each over a deterministic signals gatherer with an honest templated fallback when the model is offline: a **Daily Brief** (yesterday vs normal) and **Weekly Review** on the Overview, an **Evening Wrap** at shift close (with cash reconciliation and a prep nudge for tomorrow), the review analysis, and the action plan. All narrate in **English or nine Indian languages** (Hindi, Tamil, Telugu, Bengali, Marathi, Kannada, Gujarati, Malayalam, Punjabi) per a restaurant setting, with every number and ₹ figure pinned. |
 | **Messaging & retention** | A persisted message outbox for guest notifications (waitlist, winback) with honest `queued` / `skipped` / `failed` / `sent` states and WhatsApp opt-in consent capture. The delivery worker is the one honest gap — messages queue but are not yet sent. |
 | **Administration** | Per-restaurant **feature toggles** to hide unused modules from the whole team — enforced both in the app (nav + routes) and at the API — user management, and centralised white-label branding. |
 
@@ -324,7 +325,7 @@ npm run migrate:test
 npm test
 ```
 
-Tests run serially (`--runInBand`) to avoid database race conditions. There are **46 suites / 676 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
+Tests run serially (`--runInBand`) to avoid database race conditions. There are **58 suites / 748 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules, the AI-narration signal/prompt/fallback builders, outcome-verdict direction, semantic-search ranking, and the language directive), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
 
 Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 
@@ -332,7 +333,7 @@ Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
 
 ## Database & Migrations
 
-Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 90 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations and reviews, email verification, and the later analytics tables — settlements and payouts, ingredient nutrition, the message outbox and consent, prep logs for waste prediction, and per-cover / service-charge-removed billing capture.
+Migrations live in `backend/migrations/` and run in order via `node-pg-migrate`. There are 91 of them, covering the original core (users, tables, menu items, orders, order items, payments) through multi-tenancy, audit logs, ingredients and recipes, waste and inventory, loyalty and coupons, reservations and reviews, email verification, and the later analytics tables — settlements and payouts, ingredient nutrition, the message outbox and consent, prep logs for waste prediction, per-cover / service-charge-removed billing capture, and review embeddings for semantic search.
 
 ```bash
 npm run migrate          # dev database
