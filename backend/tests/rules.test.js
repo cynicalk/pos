@@ -262,7 +262,7 @@ describe('rule catalogue', () => {
     const types = engine.DEFAULT_RULES.map((r) => r.ruleType).sort();
     expect(types).toEqual([
       'attach_drop', 'cert_expiry', 'cost_spike', 'coupon_loss', 'high_cancellation',
-      'license_expiry', 'rank_drop', 'rating_drop', 'revenue_anomaly',
+      'license_expiry', 'menu_underperformer', 'rank_drop', 'rating_drop', 'revenue_anomaly',
       'review_theme', 'sc_removal_high', 'stalled_table',
     ]);
   });

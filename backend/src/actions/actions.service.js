@@ -85,7 +85,7 @@ async function evaluate(restaurantId, now = Date.now()) {
   if (!rules.length) return [];
 
   const [orderStats, reviews, reviewComments, seatedTables, priceChanges, compliance, rankings, anomalies,
-    couponEconomics, attach, scRemoved] =
+    couponEconomics, attach, scRemoved, menuInsights] =
     await Promise.all([
     repo.getOrderStats(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
     repo.getRecentReviews(restaurantId, engine.RATING_WINDOW),
@@ -105,6 +105,7 @@ async function evaluate(restaurantId, now = Date.now()) {
     insightsService.getCouponEconomics(restaurantId, OI_WINDOW_DAYS),
     insightsService.getAttachRate(restaurantId, OI_WINDOW_DAYS),
     insightsService.getScRemoved(restaurantId, OI_WINDOW_DAYS),
+    insightsService.getMenuInsights(restaurantId, OI_WINDOW_DAYS),
   ]);
 
   const candidates = engine.buildCandidates(rules, {
@@ -121,6 +122,7 @@ async function evaluate(restaurantId, now = Date.now()) {
     couponEconomics,
     attach,
     scRemoved,
+    menuMatrix: menuInsights?.matrix || null,
     windowDays: OI_WINDOW_DAYS,
   }, now);
 
@@ -264,6 +266,15 @@ async function computeMetric(restaurantId, metricName, entity = null) {
       const theme = (summary?.themes || []).find((t) => t.theme === entity);
       if (!theme || !theme.count) return null;
       return (theme.negativeCount / theme.count) * 100;
+    }
+    case 'menu_item_margin': {
+      // entity is `<quadrant>:<dishId>` — measure the dish's current margin, so
+      // "did repricing the plowhorse work?" is answered on the same dish.
+      if (!entity) return null;
+      const dishId = String(entity).split(':').pop();
+      const { performance = [] } = await insightsService.getMenuInsights(restaurantId, OI_WINDOW_DAYS);
+      const dish = performance.find((p) => p.id === dishId);
+      return dish && dish.hasCost ? Number(dish.profitMargin) : null;
     }
     default:
       return null;

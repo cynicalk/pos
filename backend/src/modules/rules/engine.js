@@ -65,6 +65,16 @@ const DEFAULT_RULES = [
       '({negative_share}%). {suggested_action}',
   },
   {
+    // Menu engineering, raised. The matrix already sorts dishes into stars /
+    // plowhorses / puzzles / dogs by volume × margin; this turns the two
+    // loss-leaning quadrants into tracked actions. No numeric condition — the
+    // quadrant membership (a median split of THIS menu) is the gate.
+    ruleType: 'menu_underperformer',
+    condition: { field: 'menu_quadrant', op: 'in', value: 'plowhorse,dog' },
+    severity: 'low',
+    messageTemplate: '{name}: {detail}',
+  },
+  {
     ruleType: 'rank_drop',
     // Three places, not one. Manual readings are taken at slightly different
     // times of day against a ranking that reshuffles constantly; a one-place
@@ -328,6 +338,54 @@ function evaluateReviewThemes(rules, { reviewComments }) {
 }
 
 /**
+ * Menu underperformers → tracked actions, from the same quadrant the Menu
+ * Insights page draws. Two of the four quadrants lose money:
+ *   - plowhorses (high volume, thin margin) — a margin fix here pays off most,
+ *     so they lead and rank medium; capped to the biggest sellers.
+ *   - dogs (low volume, thin margin) — candidates to cut or rework; rank low,
+ *     capped to the ones losing the most.
+ * Per-dish dedupe so each is its own trackable action (and outcome).
+ */
+function evaluateMenuUnderperformers(rules, { menuMatrix }) {
+  const applicable = rules.filter((r) => r.rule_type === 'menu_underperformer');
+  if (!applicable.length || !menuMatrix) return [];
+
+  const round1 = (n) => Math.round(Number(n) * 10) / 10;
+  const MAX_PER_QUADRANT = 2;
+  const plowhorses = [...(menuMatrix.plowhorses || [])].sort((a, b) => b.revenue - a.revenue).slice(0, MAX_PER_QUADRANT);
+  const dogs = [...(menuMatrix.dogs || [])].sort((a, b) => a.profit - b.profit).slice(0, MAX_PER_QUADRANT);
+
+  const out = [];
+  for (const rule of applicable) {
+    for (const d of plowhorses) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: `menu_underperformer:plowhorse:${d.id}`,
+        title: `${d.name} sells well but earns little`,
+        description:
+          `${d.name} sold ${d.totalSold} in this window at a ${round1(d.profitMargin)}% margin — below the menu ` +
+          `median. Reprice it or bring the recipe cost down; a popular dish is where a margin fix pays off most.`,
+        priority: 'medium',
+      });
+    }
+    for (const d of dogs) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: `menu_underperformer:dog:${d.id}`,
+        title: `${d.name} barely sells and barely profits`,
+        description:
+          `${d.name} sold only ${d.totalSold} at a ${round1(d.profitMargin)}% margin. Consider removing it or ` +
+          `reworking the recipe — it earns little and still takes menu space and prep attention.`,
+        priority: 'low',
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Tables seated past the threshold with nothing ordered.
  *
  * Keyed per occupancy (table id + the moment it was seated), so once the table
@@ -434,6 +492,7 @@ function buildCandidates(rules, context, now = Date.now()) {
     ...evaluateCancellations(enabled, context),
     ...evaluateRatings(enabled, context),
     ...evaluateReviewThemes(enabled, context),
+    ...evaluateMenuUnderperformers(enabled, context),
     ...evaluateStalledTables(enabled, context, now),
     ...evaluateCostSpikes(enabled, context),
     ...expiries.evaluateLicenceExpiry(enabled, context),

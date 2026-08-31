@@ -26,6 +26,7 @@ const METRIC_BY_RULE = {
   coupon_loss:       { name: 'coupon_discount_rate',  label: 'Coupon discount', perEntity: true },
   attach_drop:       { name: 'category_attach',       label: 'Category attach rate', perEntity: true },
   review_theme:      { name: 'review_theme_negshare', label: 'Complaint share %', perEntity: true },
+  menu_underperformer: { name: 'menu_item_margin',    label: 'Dish margin %', perEntity: true },
   // stalled_table / revenue_anomaly / cost_spike / rank_drop are deliberately
   // absent: a one-off nudge or a single-day/ingredient/query event, not a standing
   // metric a later measurement could honestly compare against.
@@ -33,7 +34,7 @@ const METRIC_BY_RULE = {
 
 // Metrics where a HIGHER value is the improvement. Everything else improves when
 // it drops (cancellations, service-charge removals, coupon give-away, complaints).
-const HIGHER_IS_BETTER = new Set(['avg_rating', 'category_attach']);
+const HIGHER_IS_BETTER = new Set(['avg_rating', 'category_attach', 'menu_item_margin']);
 
 // Below this, a change is noise rather than a result.
 const IMPROVEMENT_THRESHOLD_PCT = 5;

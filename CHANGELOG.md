@@ -21,6 +21,17 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   stays the safe net when the model is offline. One language list
   (`shared/ai-languages.js`) backs both the settings validation and the narrator.
 
+#### Added
+- **Menu engineering, raised into the action centre.** The star / plowhorse /
+  puzzle / dog quadrant was computed and shown on Menu Insights but never acted
+  on. A new `menu_underperformer` rule turns the two loss-leaning quadrants into
+  tracked, ranked actions: **plowhorses** (popular but thin-margin — reprice or
+  re-cost, where a fix pays off most) lead at medium priority, **dogs** (weak and
+  thin — cut or rework) follow at low, each capped to the highest-impact few and
+  keyed per dish. They ride the same rails as every other finding — the AI action
+  plan, and outcome tracking (the dish's margin, higher-is-better), so "did
+  repricing the plowhorse work?" is answered on the same dish.
+
 #### Changed
 - **Outcome Tracking, closed on the operator-intelligence loop** (catalogue:
   partial → effectively built). Marking a finding "acted on" already snapshotted a
