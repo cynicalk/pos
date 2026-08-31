@@ -72,6 +72,44 @@ const setClassification = (restaurantId, reviewId, { theme, sentiment, classifie
     [restaurantId, reviewId, theme, sentiment, classifiedBy],
   ).then((r) => r.rows[0] || null);
 
+// ── Semantic search embeddings ─────────────────────────────────────────────
+
+/** Reviews with a comment but no (current-model) embedding yet — the index queue. */
+const listUnembedded = (restaurantId, model, limit) =>
+  db.query(
+    `SELECT r.id, r.comment
+       FROM reviews r
+       LEFT JOIN review_embeddings e ON e.review_id = r.id AND e.model = $2
+      WHERE r.restaurant_id = $1
+        AND r.comment IS NOT NULL AND btrim(r.comment) <> ''
+        AND e.review_id IS NULL
+      ORDER BY r.created_at DESC
+      LIMIT $3`,
+    [restaurantId, model, limit],
+  ).then((r) => r.rows);
+
+/** Upsert one review's vector (overwrites on a re-embed). */
+const upsertEmbedding = (restaurantId, reviewId, embedding, model) =>
+  db.query(
+    `INSERT INTO review_embeddings (review_id, restaurant_id, embedding, model)
+     VALUES ($1, $2, $3::jsonb, $4)
+     ON CONFLICT (review_id) DO UPDATE
+       SET embedding = EXCLUDED.embedding, model = EXCLUDED.model, created_at = now()`,
+    [reviewId, restaurantId, JSON.stringify(embedding), model],
+  );
+
+/** Every stored vector for a restaurant (current model), with the review it's for. */
+const listEmbeddingsWithReviews = (restaurantId, model, days) =>
+  db.query(
+    `SELECT r.id, r.overall_rating, r.comment, r.theme, r.sentiment, r.created_at,
+            e.embedding
+       FROM review_embeddings e
+       JOIN reviews r ON r.id = e.review_id
+      WHERE e.restaurant_id = $1 AND e.model = $2
+        AND ($3::int IS NULL OR r.created_at >= now() - make_interval(days => $3))`,
+    [restaurantId, model, days ?? null],
+  ).then((r) => r.rows);
+
 /** Restaurants with unclassified reviews — the scheduler's fan-out list. */
 const restaurantsWithUnclassified = () =>
   db.query('SELECT DISTINCT restaurant_id FROM reviews WHERE theme IS NULL')
@@ -288,6 +326,9 @@ module.exports = {
   getById,
   listUnclassified,
   setClassification,
+  listUnembedded,
+  upsertEmbedding,
+  listEmbeddingsWithReviews,
   restaurantsWithUnclassified,
   getOwnRating,
   getReply,

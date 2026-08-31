@@ -258,8 +258,10 @@ outbox already models delivery honestly, so it's additive.
   fixed) or a persisted last-good narrative would make first paint instant.
 - **No caching.** Every brief request recomputes and re-narrates. A short
   per-restaurant cache (the signals are stable within a morning) would cut load.
-- **Embeddings unused.** LM Studio also serves `text-embedding-nomic-embed-*`;
-  nothing uses it yet — semantic search over menu/reviews is an open opportunity.
+- **Embeddings now in use.** The `text-embedding-nomic-embed-*` model powers
+  **semantic review search** (`ai/embeddings.client.js`, `modules/reputation/semantic.js`,
+  vectors in `review_embeddings`, cosine ranked in JS since pgvector isn't installed).
+  The same index could extend to menu/SOP semantic search next.
 - **Narration quality is model-bound.** A local 7B occasionally over-compresses
   or lightly editorialises; the deterministic fallback is always exact, so the
   worst case is safe, but a larger model sharpens the prose.

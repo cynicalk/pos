@@ -24,6 +24,11 @@ router.get('/analysis', authenticate, authorize('admin'), asyncHandler(async (re
   res.json(await service.getReviewAnalysis(rid(req), { days: req.query.days }));
 }));
 
+// Semantic review search — find reviews by meaning, not keyword.
+router.get('/search', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.searchReviews(rid(req), req.query.q, { days: req.query.days }));
+}));
+
 router.get('/reviews', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   res.json(await service.listReviews(rid(req), { days: req.query.days }));
 }));

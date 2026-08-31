@@ -7,6 +7,8 @@ const analysisMod = require('../modules/reputation/analysis');
 const guests = require('../modules/guests/repeat');
 const churn = require('../modules/guests/churn');
 const llm = require('../ai/llm.client');
+const embeddings = require('../ai/embeddings.client');
+const semantic = require('../modules/reputation/semantic');
 const { narrateOrFallback } = require('../ai/narrate');
 const { ValidationError, NotFoundError } = require('../shared/errors');
 
@@ -194,6 +196,76 @@ async function getReviewAnalysis(restaurantId, { days } = {}) {
     { maxTokens: 220, restaurantId },
   );
   return { windowDays, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
+}
+
+// How many reviews are embedded per request someone is waiting behind, so a
+// search that triggers indexing stays responsive; the rest catch up next search.
+const EMBED_BATCH = 40;
+
+/**
+ * Embed reviews that don't yet have a (current-model) vector. Best-effort and
+ * bounded — a search calls this first so freshly-arrived reviews are findable,
+ * and it silently does nothing when the embedding model is offline.
+ * @returns {Promise<number>} how many were newly embedded.
+ */
+async function indexReviewEmbeddings(restaurantId, { limit = EMBED_BATCH } = {}) {
+  const pending = await repo.listUnembedded(restaurantId, embeddings.EMBED_MODEL, limit);
+  if (!pending.length) return 0;
+
+  let vectors;
+  try {
+    vectors = await embeddings.embed(pending.map((p) => p.comment));
+  } catch {
+    return 0; // model unreachable — leave them for a later pass
+  }
+  let n = 0;
+  for (let i = 0; i < pending.length; i++) {
+    const vec = vectors[i];
+    if (!Array.isArray(vec) || !vec.length) continue;
+    await repo.upsertEmbedding(restaurantId, pending[i].id, vec, embeddings.EMBED_MODEL);
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * Semantic review search: find reviews whose MEANING is closest to the query,
+ * not just those sharing its words. Indexes any un-embedded reviews first (so new
+ * ones are searchable), embeds the query, and ranks the restaurant's stored
+ * vectors by cosine similarity. Returns the matches with a 0–1 score, plus an
+ * `available` flag so the UI can distinguish "no matches" from "model offline".
+ */
+async function searchReviews(restaurantId, query, { days, limit = 10, minScore = 0.3 } = {}) {
+  const q = String(query || '').trim();
+  if (!q) return { available: true, query: '', results: [] };
+
+  await indexReviewEmbeddings(restaurantId).catch(() => null);
+
+  let queryVec;
+  try {
+    queryVec = await embeddings.embedOne(q);
+  } catch {
+    return { available: false, query: q, results: [] }; // model offline
+  }
+  if (!queryVec) return { available: false, query: q, results: [] };
+
+  const rows = await repo.listEmbeddingsWithReviews(
+    restaurantId, embeddings.EMBED_MODEL, days ? clampWindow(days) : null,
+  );
+  // Rank wide, then collapse reviews with identical comment text (guests do leave
+  // the same words, and three copies of one line is not three results), keeping
+  // the best-scoring instance, before capping to what was asked for.
+  const ranked = semantic.rankBySimilarity(queryVec, rows, { limit: limit * 5, minScore });
+  const seen = new Set();
+  const results = [];
+  for (const r of ranked) {
+    const key = String(r.comment || '').trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(r);
+    if (results.length >= limit) break;
+  }
+  return { available: true, query: q, model: embeddings.EMBED_MODEL, results };
 }
 
 /** Review rows with their draft state attached, for the reply queue. */
@@ -512,6 +584,8 @@ module.exports = {
   classifyAll,
   getInsights,
   getReviewAnalysis,
+  indexReviewEmbeddings,
+  searchReviews,
   listReviews,
   draftReply,
   saveReply,

@@ -1,9 +1,70 @@
-import { useState } from 'react';
-import { AlertTriangle, Sparkles, Copy, Check, Info, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Sparkles, Copy, Check, Info, RefreshCw, Search, Star } from 'lucide-react';
 import {
   useReviewInsights, useReviewQueue, useDraftReply, useSaveReply,
-  useMarkReplySent, useClassifyReviews, useReviewAnalysis,
+  useMarkReplySent, useClassifyReviews, useReviewAnalysis, useReviewSearch,
 } from '../hooks/useReputation';
+
+// Semantic review search — find reviews by MEANING, not keyword. The query is
+// embedded server-side and ranked by similarity against the stored review
+// vectors, so "long wait" surfaces "service was slow" without sharing a word.
+function SemanticSearch() {
+  const [input, setInput] = useState('');
+  const [query, setQuery] = useState('');
+  // Debounce so we don't fire a request (and an embedding) on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(input.trim()), 400);
+    return () => clearTimeout(t);
+  }, [input]);
+
+  const { data, isFetching } = useReviewSearch(query);
+  const active = query.length >= 3;
+  const results = data?.results || [];
+
+  return (
+    <div style={{ margin: '0 0 16px' }}>
+      <div style={{ position: 'relative' }}>
+        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--mute-2)' }} />
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Search reviews by meaning — e.g. “complaints about waiting”, “praise for the biryani”"
+          style={{
+            width: '100%', boxSizing: 'border-box', height: 40, padding: '0 12px 0 34px',
+            borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)',
+            fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+          }}
+        />
+      </div>
+
+      {active && (
+        <div style={{ marginTop: 10 }}>
+          {isFetching && !results.length ? (
+            <p style={{ fontSize: 12.5, color: 'var(--mute)' }}>Searching by meaning…</p>
+          ) : data && data.available === false ? (
+            <p style={{ fontSize: 12.5, color: 'var(--mute)' }}>Search is unavailable — the embedding model is offline.</p>
+          ) : results.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: 'var(--mute)' }}>No reviews close to that meaning.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {results.map((r) => (
+                <div key={r.id} style={{ border: '1px solid var(--line)', borderRadius: 9, padding: '10px 13px', background: 'var(--paper)' }}>
+                  <div className="flex items-center justify-between" style={{ marginBottom: 4, gap: 10 }}>
+                    <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: 'var(--warn)', fontWeight: 600 }}>
+                      <Star size={11} style={{ fill: 'var(--warn)', color: 'var(--warn)' }} /> {r.overall_rating}
+                    </span>
+                    <span className="mono" style={{ fontSize: 10.5, color: 'var(--mute-2)' }}>{Math.round(r.score * 100)}% match</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--ink)', lineHeight: 1.45 }}>"{r.comment}"</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Split a narrated analysis into sentence beats so each reads on its own line.
 const sentenceBeats = (text) =>
@@ -253,6 +314,8 @@ export default function ReviewInsights() {
       </div>
 
       <AnalysisCard days={days} />
+
+      <SemanticSearch />
 
       {isLoading && <p style={{ fontSize: 13, color: 'var(--mute)' }}>Loading…</p>}
 

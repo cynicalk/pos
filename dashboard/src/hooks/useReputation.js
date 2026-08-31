@@ -50,6 +50,19 @@ export const useReviewAnalysis = (days, { enabled = true } = {}) =>
     enabled: enabled && common.enabled,
   });
 
+// Semantic review search. Query-driven: only fires once there's a real query,
+// and gets the long model timeout since it embeds the query (and indexes any new
+// reviews) on the server. keepPreviousData so results don't flash while retyping.
+export const useReviewSearch = (query) =>
+  useQuery({
+    queryKey: ['reputation', 'search', query],
+    queryFn: async () => (await api.get(`/reputation/search?q=${encodeURIComponent(query)}`, { timeout: MODEL_TIMEOUT_MS })).data,
+    enabled: common.enabled && !!query && query.trim().length >= 3,
+    staleTime: 5 * 60_000,
+    retry: false,
+    keepPreviousData: true,
+  });
+
 export const useReviewQueue = (days) =>
   useQuery({
     queryKey: ['reputation', 'reviews', days ?? null],

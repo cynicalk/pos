@@ -10,6 +10,15 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **Semantic review search** — find reviews by MEANING, not keyword, powered by
+  the local embedding model that was previously unused. Each review's comment is
+  indexed as a 768-dim vector (`review_embeddings`, migration 091; JSONB since
+  pgvector isn't installed on this deployment), the search query is embedded, and
+  the restaurant's vectors are cosine-ranked in memory. So "complaints about
+  waiting" surfaces "the service was slow" and "dirty table" surfaces "not cleaned
+  properly", without sharing a word. On the Reviews → Insights tab as a debounced
+  search box with a match score; identical comments are collapsed; it says so
+  honestly when the embedding model is offline. `GET /api/reputation/search`.
 - **Regional-language AI narration** (catalogue: absent → built). A per-restaurant
   **AI Language** setting (Settings) makes all five narrated surfaces — daily brief,
   weekly review, evening wrap, review analysis, action plan — speak Hindi, Tamil,
