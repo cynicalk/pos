@@ -113,4 +113,27 @@ describe('buildRecoMargin', () => {
     expect(r.verdict).toBeNull();
     expect(r.learning).toEqual({ minRecoAdds: MIN_RECO_ADDS, have: 3 });
   });
+
+  test('impression → add conversion is per dish, and null where nothing was shown', () => {
+    const stats = [
+      { menuItemId: 'a', dishName: 'Butter Chicken', recoAdds: 6, recoRemoves: 0 },
+      { menuItemId: 'b', dishName: 'Lamb Shank', recoAdds: 3, recoRemoves: 0 },
+    ];
+    const impressions = [{ menuItemId: 'a', impressions: 24 }]; // b never logged as shown
+    const r = buildRecoMargin(stats, matrix, impressions);
+    expect(r.hasImpressions).toBe(true);
+    const a = r.dishes.find((d) => d.menuItemId === 'a');
+    const b = r.dishes.find((d) => d.menuItemId === 'b');
+    expect(a.conversion).toBe(25);      // 6 adds / 24 shown
+    expect(b.conversion).toBeNull();    // shown count unknown → no fake rate
+  });
+
+  test('conversion is capped at 100% and hasImpressions is false without any', () => {
+    const stats = [{ menuItemId: 'a', dishName: 'Butter Chicken', recoAdds: 30, recoRemoves: 0 }];
+    // A dish added more times than it was shown (multi-qty adds) never reads >100%.
+    const r = buildRecoMargin(stats, matrix, [{ menuItemId: 'a', impressions: 10 }]);
+    expect(r.dishes[0].conversion).toBe(100);
+    const noImp = buildRecoMargin(stats, matrix, []);
+    expect(noImp.hasImpressions).toBe(false);
+  });
 });

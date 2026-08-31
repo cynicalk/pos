@@ -27,9 +27,25 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   profitable dishes or quietly filling baskets with plowhorses. Both abstain below
   a floor — a rate over a handful of sessions is noise — and say so, showing the
   raw counts forming underneath; uncosted dishes are counted, never guessed a
-  margin. Pure builders in `modules/recsys/{funnel,margin}.js` (9 unit tests). A
+  margin. Pure builders in `modules/recsys/{funnel,margin}.js` (11 unit tests). A
   `backfill-guest-events.js` seeder writes a deterministic fortnight so the demo
   shows a populated funnel.
+- **Per-dish impression → add conversion** on the same page. `recommendations_shown`
+  now carries the dish IDs actually put in front of the table, so the dish table
+  shows each pick's **shown → conversion → added**, not just its accepted count.
+  Impressions are unnested from the event's `dishIds`; a dish with none logged
+  reports a null conversion, never a rate over a zero base, and the column only
+  appears once IDs are being sent.
+- **Featured picks — the operator's lever over the recommender.** The reco→margin
+  loop can now show that high-margin puzzles go unshown while plowhorses fill
+  carts; a `featured` flag on menu items (migration 094) closes that into an
+  action. A **Promote for margin** section on the Recommendations page lists the
+  high-margin puzzles with their current reco exposure and a one-click Feature
+  toggle (`PATCH /api/menu/:id`); the flag flows through the guest menu payload
+  into the group recommender, which gives featured dishes a positive weight in its
+  linear model (a nudge within diet/taste bands, never an override of a
+  diet/allergy veto). The same funnel then measures whether featuring moved the
+  dish — find the leak, pull a lever, watch the number.
 
 ### 2026-08-31
 

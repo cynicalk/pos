@@ -24,6 +24,7 @@ const getMenuWithDietary = (restaurantId) =>
             mi.price,
             mi.category,
             mi.translations,
+            mi.featured,
             (mi.recipe_id IS NOT NULL) AS has_recipe,
             COALESCE(
               (SELECT json_agg(json_build_object(

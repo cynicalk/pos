@@ -18,8 +18,11 @@
  *     verdict and show the counts only.
  *
  * Inputs:
- *   dishStats : [{ menuItemId, dishName, recoAdds, recoRemoves }]
- *   matrix    : output of modules/menu/performance.buildMatrix
+ *   dishStats   : [{ menuItemId, dishName, recoAdds, recoRemoves }]
+ *   matrix      : output of modules/menu/performance.buildMatrix
+ *   impressions : [{ menuItemId, impressions }] — times each dish was shown, from
+ *                 recommendations_shown.dishIds. Optional; a dish with no
+ *                 impression rows reports a null conversion rather than a fake one.
  */
 
 // Below this many net reco-driven adds, the quadrant split is not worth a verdict.
@@ -41,8 +44,9 @@ function indexMatrix(matrix) {
   return byId;
 }
 
-function buildRecoMargin(dishStats = [], matrix = {}) {
+function buildRecoMargin(dishStats = [], matrix = {}, impressions = []) {
   const byId = indexMatrix(matrix);
+  const impById = new Map(impressions.map((i) => [i.menuItemId, n(i.impressions)]));
 
   const dishes = [];
   let uncosted = 0;
@@ -50,6 +54,10 @@ function buildRecoMargin(dishStats = [], matrix = {}) {
   for (const d of dishStats) {
     const net = n(d.recoAdds) - n(d.recoRemoves);
     if (net <= 0) continue; // a dish added then removed nets out — not "pushed"
+    const shown = impById.get(d.menuItemId) || 0;
+    // Impression → add conversion, only where the dish was actually shown. No
+    // impressions logged for it yet → null, never a rate over a zero base.
+    const conversion = shown > 0 ? Math.min(100, Math.round((net / shown) * 1000) / 10) : null;
     const cls = byId.get(d.menuItemId);
     if (!cls) {
       uncosted += net;
@@ -57,6 +65,8 @@ function buildRecoMargin(dishStats = [], matrix = {}) {
         menuItemId: d.menuItemId,
         dishName: d.dishName,
         recoAdds: net,
+        impressions: shown,
+        conversion,
         class: null,
         marginBand: null,
         profitMargin: null,
@@ -67,6 +77,8 @@ function buildRecoMargin(dishStats = [], matrix = {}) {
       menuItemId: d.menuItemId,
       dishName: d.dishName,
       recoAdds: net,
+      impressions: shown,
+      conversion,
       class: cls.class,
       marginBand: CLASS_MARGIN[cls.class],
       profitMargin: cls.profitMargin,
@@ -95,6 +107,8 @@ function buildRecoMargin(dishStats = [], matrix = {}) {
     else verdict = 'margin_leak';
   }
 
+  const totalImpressions = dishes.reduce((s, d) => s + d.impressions, 0);
+
   return {
     enoughData,
     learning: enoughData ? null : { minRecoAdds: MIN_RECO_ADDS, have: classified },
@@ -103,6 +117,9 @@ function buildRecoMargin(dishStats = [], matrix = {}) {
     uncostedAdds: uncosted,
     highMarginShare,
     verdict,
+    // The impression → add column only appears once dishIds are being logged;
+    // before that the page shows adds alone rather than a column full of dashes.
+    hasImpressions: totalImpressions > 0,
     dishes,
   };
 }

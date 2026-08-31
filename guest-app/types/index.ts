@@ -25,6 +25,8 @@ export interface Dish {
   ingredients?: string[];
   nutrition?: DishNutrition | null;
   spiceLevel?: number; // 0 none .. 3 hot
+  // Operator promote flag — the recommender boosts featured dishes (recommend-core).
+  featured?: boolean;
 }
 
 /** Per-serving nutrition — an estimate surfaced from the backend, labelled as such. */

@@ -101,9 +101,15 @@ async function main() {
       });
     };
 
+    // The set of dishes shown this round — biased toward the head of the list
+    // (the picks that actually surface), so per-dish impressions track adds.
+    const shownDishes = [];
+    for (let k = 0; k < 6; k += 1) shownDishes.push(dishes[Math.floor(rand() * rand() * dishes.length)]);
+    const shownIds = [...new Set(shownDishes.map((d) => d.id))];
+
     // Everyone walks the onboarding steps up to picks.
     for (const [step, label, route] of FUNNEL_STEPS) push('funnel_step', null, null, { step, label, route });
-    push('recommendations_shown', null, null, { round: 0, count: 6, entry: pick(['walkin', 'reservation', 'join']) });
+    push('recommendations_shown', null, null, { round: 0, count: 6, entry: pick(['walkin', 'reservation', 'join']), dishIds: shownIds });
 
     // Drop-off: ~70% add a dish, of those ~75% add a recommended one.
     const willAdd = rand() < 0.7;
@@ -111,12 +117,11 @@ async function main() {
     if (willAdd) {
       const adds = 1 + Math.floor(rand() * 3);
       for (let a = 0; a < adds; a += 1) {
-        // Most adds come from a pick; a minority are manual menu browsing.
+        // Most adds come from a pick; a minority are manual menu browsing. A
+        // reco add is one of the dishes actually shown this round, so per-dish
+        // impressions and adds line up the way they would in the real app.
         const fromReco = rand() < 0.75;
-        const dish = fromReco
-          // Bias toward the head of the (sales-sorted) list — the picks that surface.
-          ? dishes[Math.floor(rand() * rand() * dishes.length)]
-          : pick(dishes);
+        const dish = fromReco ? pick(shownDishes) : pick(dishes);
         push('dish_added', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 1 });
         if (fromReco) addedReco = true;
         // A few adds are undone.

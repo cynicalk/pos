@@ -32,6 +32,9 @@ export default function Recommendations() {
       round: state.refineRounds,
       count: state.recommendations.length,
       entry: state.entryPath,
+      // The dishes actually put in front of the table — the per-dish impression
+      // denominator the operator's reco→margin loop needs (impression → add).
+      dishIds: state.recommendations.map((r) => r.dish.id),
     });
   }, [ready, state.refineRounds, state.recommendations.length, state.entryPath]);
 

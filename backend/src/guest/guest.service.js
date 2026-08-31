@@ -60,6 +60,8 @@ async function getMenu(outletId) {
     price: Number(d.price),
     category: d.category,
     tags: [],
+    // Operator's promote flag — the recommender boosts these (see recommend-core).
+    featured: d.featured === true,
     allergens: Array.isArray(d.allergens) ? d.allergens : [],
     // Derived from declared ingredients; unknown stays non-veg-safe (false), and
     // the app shows dishes either way — this only drives its veg filter.

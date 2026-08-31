@@ -439,6 +439,37 @@ const getRecoDishStats = (restaurantId, days) =>
     GROUP BY ge.menu_item_id, mi.name
   `, [restaurantId, days]).then((r) => r.rows);
 
+/**
+ * Per-dish impression counts — how many times each dish was actually put in
+ * front of a table, unnested from `recommendations_shown` events' dishIds. This
+ * is the denominator for a true impression → add conversion per dish; older
+ * events with no dishIds contribute nothing (the array is simply empty), so the
+ * signal grows from the moment the guest app started sending it, never guessed
+ * for the rows that predate it.
+ */
+const getRecoImpressions = (restaurantId, days) =>
+  db.query(`
+    SELECT did                            AS menu_item_id,
+           mi.name                        AS dish_name,
+           COUNT(*)::int                  AS impressions
+    FROM guest_events ge
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+      COALESCE(ge.props->'dishIds', '[]'::jsonb)
+    ) AS did
+    LEFT JOIN menu_items mi ON mi.id = did::uuid AND mi.restaurant_id = $1
+    WHERE ge.restaurant_id = $1
+      AND ge.event = 'recommendations_shown'
+      AND ge.occurred_at >= now() - make_interval(days => $2)
+    GROUP BY did, mi.name
+  `, [restaurantId, days]).then((r) => r.rows);
+
+/** The menu-item ids currently flagged `featured` — the operator's promote set. */
+const getFeaturedMenuItemIds = (restaurantId) =>
+  db.query(
+    `SELECT id FROM menu_items WHERE restaurant_id = $1 AND featured = true AND archived_at IS NULL`,
+    [restaurantId],
+  ).then((r) => r.rows.map((x) => x.id));
+
 module.exports = {
   getMenuPerformance, getSpanDays, getBasketLines, getNewItems, getHourBuckets,
   getEconomicsTotals, getCancellationTotals, getFoodCostTotals,
@@ -446,5 +477,5 @@ module.exports = {
   getAllItemQuantities, getTimezone,
   getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
-  getRecoFunnelCounts, getRecoDishStats,
+  getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
 };

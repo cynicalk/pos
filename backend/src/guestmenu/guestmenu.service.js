@@ -74,6 +74,7 @@ async function getGuestMenu(restaurantId, { language = null, diet = null, avoid 
       originalName: row.name,
       price: Number(row.price),
       category: row.category,
+      featured: row.featured === true,
       diet: verdict.diet,
       dietLabel: dietary.DIET_LABELS[verdict.diet],
       allergens: verdict.allergens,

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, AlertCircle, Info, Star } from 'lucide-react';
 import { useRecoPerformance } from '../hooks/useInsights';
+import { useUpdateMenuItem } from '../hooks/useMenu';
+import { queryClient } from '../lib/queryClient';
 
 /**
  * Recommendation Performance — Phase 0 of the recsys work.
@@ -59,9 +61,18 @@ function Chip({ spec }) {
 export default function RecoPerformance() {
   const [days, setDays] = useState(30);
   const { data, isLoading } = useRecoPerformance(days);
+  const updateItem = useUpdateMenuItem();
+
+  const toggleFeatured = (menuItemId, next) => {
+    updateItem.mutate(
+      { id: menuItemId, featured: next },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['insights', 'reco-performance'] }) },
+    );
+  };
 
   const funnel = data?.funnel;
   const margin = data?.margin;
+  const promote = data?.promote || [];
   const noActivity = funnel && funnel.window.sessions === 0;
   const maxStage = funnel ? Math.max(1, ...funnel.stages.map((s) => s.count)) : 1;
 
@@ -197,6 +208,17 @@ export default function RecoPerformance() {
 
           {margin.dishes.length > 0 && (
             <div style={{ marginTop: 14 }}>
+              {margin.hasImpressions && (
+                <div style={{ display: 'flex', gap: 10, padding: '0 0 5px', fontSize: 11,
+                              color: 'var(--mute-2)', textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  <span style={{ flex: 1 }}>Dish</span>
+                  <span style={{ width: 110 }}>Class</span>
+                  <span style={{ width: 48, textAlign: 'right' }}>Margin</span>
+                  <span style={{ width: 62, textAlign: 'right' }}>Shown</span>
+                  <span style={{ width: 58, textAlign: 'right' }}>Conv.</span>
+                  <span style={{ width: 74, textAlign: 'right' }}>Added</span>
+                </div>
+              )}
               {margin.dishes.slice(0, 12).map((d) => (
                 <div key={d.menuItemId} style={{
                   display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0',
@@ -209,9 +231,68 @@ export default function RecoPerformance() {
                   <span style={{ width: 48, textAlign: 'right', color: 'var(--mute)', fontVariantNumeric: 'tabular-nums' }}>
                     {d.profitMargin == null ? '—' : `${d.profitMargin.toFixed(0)}%`}
                   </span>
+                  {margin.hasImpressions && (
+                    <>
+                      <span style={{ width: 62, textAlign: 'right', color: 'var(--mute-2)', fontVariantNumeric: 'tabular-nums' }}>
+                        {d.impressions > 0 ? `${d.impressions}×` : '—'}
+                      </span>
+                      <span style={{ width: 58, textAlign: 'right', color: 'var(--mute)', fontVariantNumeric: 'tabular-nums' }}>
+                        {d.conversion == null ? '—' : `${d.conversion}%`}
+                      </span>
+                    </>
+                  )}
                   <span style={{ width: 74, textAlign: 'right', color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                     {d.recoAdds}× added
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── The lever: feature high-margin dishes ──────────────── */}
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+            <Star size={15} strokeWidth={2} /> Promote for margin
+          </h2>
+          <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+            Puzzles — high margin, low volume — are the dishes worth pushing. Feature one and the guest
+            recommender boosts it; the impression and add columns above then show whether it moved. A
+            nudge in the ranking, never a diet or allergy override.
+          </p>
+
+          {promote.length === 0 ? (
+            <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mute-2)' }}>
+              No high-margin puzzles to promote in this window — either everything sells or nothing is costed yet.
+            </p>
+          ) : (
+            <div style={{ marginTop: 12 }}>
+              {promote.slice(0, 8).map((p) => (
+                <div key={p.menuItemId} style={{
+                  display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0',
+                  borderBottom: '1px solid var(--line)', fontSize: 13,
+                }}>
+                  <span style={{ flex: 1, minWidth: 0, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.dishName}
+                  </span>
+                  <span style={{ width: 70, textAlign: 'right', color: 'var(--ok)', fontVariantNumeric: 'tabular-nums' }}>
+                    {p.profitMargin == null ? '—' : `${p.profitMargin.toFixed(0)}% marg`}
+                  </span>
+                  <span style={{ width: 92, textAlign: 'right', color: 'var(--mute-2)', fontVariantNumeric: 'tabular-nums' }}>
+                    {p.impressions}× shown · {p.recoAdds}
+                  </span>
+                  <button
+                    onClick={() => toggleFeatured(p.menuItemId, !p.featured)}
+                    disabled={updateItem.isPending}
+                    style={{
+                      width: 104, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      border: '1px solid ' + (p.featured ? 'var(--amber, #d97706)' : 'var(--line)'),
+                      background: p.featured ? 'var(--warn-soft)' : 'transparent',
+                      color: p.featured ? 'var(--warn)' : 'var(--mute)',
+                    }}
+                  >
+                    <Star size={12} strokeWidth={2.4} fill={p.featured ? 'currentColor' : 'none'} />
+                    {p.featured ? 'Featured' : 'Feature'}
+                  </button>
                 </div>
               ))}
             </div>

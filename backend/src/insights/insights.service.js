@@ -199,11 +199,13 @@ async function getScRemoved(restaurantId, daysRaw) {
 async function getRecoPerformance(restaurantId, daysRaw) {
   const days = parseDays(daysRaw);
   const tz = await tzFor(restaurantId);
-  const [counts, dishStats, perfRows, spanDays] = await Promise.all([
+  const [counts, dishStats, impressions, perfRows, spanDays, featuredIds] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),
     repo.getRecoDishStats(restaurantId, days),
+    repo.getRecoImpressions(restaurantId, days),
     repo.getMenuPerformance(restaurantId, days),
     repo.getSpanDays(restaurantId, tz, days),
+    repo.getFeaturedMenuItemIds(restaurantId),
   ]);
 
   const matrix = perf.buildMatrix(perf.buildPerformance(perfRows, { spanDays }));
@@ -213,11 +215,32 @@ async function getRecoPerformance(restaurantId, daysRaw) {
     recoAdds: d.reco_adds,
     recoRemoves: d.reco_removes,
   }));
+  const imps = impressions.map((i) => ({ menuItemId: i.menu_item_id, impressions: i.impressions }));
+
+  const featured = new Set(featuredIds);
+  const impById = new Map(imps.map((i) => [i.menuItemId, i.impressions]));
+  const addsById = new Map(stats.map((s) => [s.menuItemId, s.recoAdds - s.recoRemoves]));
+  const margin = recsysMargin.buildRecoMargin(stats, matrix, imps);
+  for (const d of margin.dishes) d.featured = featured.has(d.menuItemId);
+
+  // The lever's candidates: puzzles — high margin, low volume — are exactly the
+  // dishes worth pushing. Surface each with its current reco exposure and whether
+  // it's already featured, so the operator can promote the under-shown ones.
+  const promote = (matrix.puzzles || []).map((p) => ({
+    menuItemId: p.id,
+    dishName: p.name,
+    profitMargin: p.profitMargin,
+    impressions: impById.get(p.id) || 0,
+    recoAdds: addsById.get(p.id) || 0,
+    featured: featured.has(p.id),
+  })).sort((a, b) => b.profitMargin - a.profitMargin);
 
   return {
     days,
     funnel: recsysFunnel.buildRecoFunnel(counts),
-    margin: recsysMargin.buildRecoMargin(stats, matrix),
+    margin,
+    promote,
+    featuredCount: featured.size,
   };
 }
 

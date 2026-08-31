@@ -45,6 +45,10 @@ export interface Dish {
   allergens: Allergen[];
   emoji: string;
   tone: 'ember' | 'saffron' | 'sage' | 'plum' | 'sand';
+  /** Operator promote flag — the recommender gives these a positive boost so a
+   *  high-margin dish the kitchen wants pushed surfaces more often. Never a veto:
+   *  it nudges ranking, it doesn't override diet/allergy vetoes. */
+  featured?: boolean;
 }
 
 export interface Member {
@@ -114,6 +118,9 @@ export const FEATURE_WEIGHTS: Record<string, number> = {
   coOrderAffinity: 3,
   budgetFit: 6,
   budgetMiss: -4,
+  // Operator's promote lever. Sized to lift a dish within its diet/taste band
+  // without steamrolling a genuinely bad fit — a nudge, not a pin to the top.
+  featured: 4,
 };
 
 /** Channel trust for aggregation: leader guessing for N is noisy. */
@@ -414,6 +421,8 @@ function scoreDish(
   }
 
   if (dish.tags.includes('popular')) add('popularity', 1, 'Ordered by most tables tonight');
+
+  if (dish.featured) add('featured', 1, "One of the kitchen's picks tonight");
 
   // Occasion rules.
   if (input.groupType) {

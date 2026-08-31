@@ -29,6 +29,7 @@ interface ApiDish {
   tags: string[];
   allergens: string[];
   isVeg: boolean;
+  featured?: boolean;
   spiceLevel: number | null;
   ingredients?: string[];
   nutrition?: {
@@ -90,6 +91,7 @@ function toDish(a: ApiDish): Dish {
     price: a.price,
     category,
     tags: Array.isArray(a.tags) ? a.tags : [],
+    featured: a.featured === true,
     allergens: (Array.isArray(a.allergens) ? a.allergens : []) as Allergen[],
     ingredients: Array.isArray(a.ingredients) ? a.ingredients : [],
     nutrition: a.nutrition ?? null,
