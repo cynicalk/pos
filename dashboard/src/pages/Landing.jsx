@@ -259,7 +259,7 @@ function ShowcaseRow({ eyebrow, title, body, points, Mock, flip, accent }) {
 
 const ALSO = [
   { Icon: ShieldCheck, label: "Compliance & FSSAI", sub: "Licence expiry, staff certificates, hygiene sign-offs and a testing calendar — drift surfaced before an inspector finds it." },
-  { Icon: Star, label: "Reputation", sub: "First-party guest reviews classified into themes, worst-first, with the search rankings you track by hand." },
+  { Icon: Star, label: "Reputation", sub: "First-party reviews classified into complaint themes, an AI sentiment read with what-to-do, and semantic search — find reviews by meaning, not keyword." },
   { Icon: Store, label: "Multi-outlet group view", sub: "Same-store sales growth and sales per labour hour across outlets — each abstaining where it can't yet report." },
   { Icon: Boxes, label: "Inventory & accounting", sub: "Recipe costing, low-stock reorder, and a period exported as balanced Tally-ready vouchers — no credentials." },
 ];
@@ -279,7 +279,7 @@ const SECTION_CARDS = [
 
 const PILLARS = [
   { Icon: ReceiptText, label: "Point of sale & KDS" },
-  { Icon: Bot, label: "AI assistant + daily brief" },
+  { Icon: Bot, label: "AI briefings + assistant" },
   { Icon: Percent, label: "Margin intelligence" },
   { Icon: BarChart3, label: "Forecasting & waste" },
   { Icon: ShieldCheck, label: "Compliance & reputation" },
@@ -398,18 +398,18 @@ export default function Landing() {
         <ShowcaseRow
           flip
           accent="green"
-          eyebrow={<><Sunrise size={13} /> AI brief + assistant</>}
-          title="Your day, read back to you at 9am."
-          body="A local model narrates the numbers the POS already computed: how yesterday traded against a normal day, the one action worth the most rupees, food cost, waste, the peak hour. Ask it anything in plain language — it answers from your real figures or says it can't."
-          points={["Deterministic signals, AI wording — it narrates, never invents", "Abstains where a figure is missing instead of guessing a zero", "Runs on a local model; your data never leaves the building"]}
+          eyebrow={<><Sunrise size={13} /> AI briefings + assistant</>}
+          title="Your day, read back to you — in your language."
+          body="Five moments, one honest voice. A morning brief (yesterday vs normal), a weekly review, an evening wrap at close with the cash to count and tomorrow's prep, a review analysis, and a plan that sequences your open actions. A local model narrates the figures the POS already computed — and answers anything you ask from your real numbers."
+          points={["Narrates, never invents — abstains where a figure is missing", "Reads back in English or nine Indian languages, figures kept in ₹", "Runs on a local model; your data never leaves the building"]}
           Mock={BriefMock}
         />
         <div style={{ borderTop: "1px solid var(--line)" }} />
         <ShowcaseRow
           eyebrow={<><Percent size={13} /> Margin intelligence</>}
           title="Find the leak the till hides."
-          body="Every coupon ranked by the net revenue it actually keeps per order. Per-cover spend, food cost and operating margin. Attach rate on the high-margin categories. The service charge staff quietly remove. The half-rupees that decide whether a month is green."
-          points={["Coupon contribution — which offer is paying to be popular", "Average per cover, prime cost and operating margin", "Category attach rate and service-charge leakage, by server"]}
+          body="Every coupon ranked by the net revenue it actually keeps per order. Per-cover spend, food cost and operating margin. Attach rate on the high-margin categories. The service charge staff quietly remove. The dishes that sell but barely profit. Each leak becomes a ranked, rupee-scored action — and after you act, it tells you whether the number moved."
+          points={["Coupon contribution, per-cover, prime cost and operating margin", "Every leak raised as a ranked action, worst-first by rupees", "Outcome tracking — it re-measures whether acting on it worked"]}
           Mock={MarginMock}
         />
         <div style={{ borderTop: "1px solid var(--line)" }} />
