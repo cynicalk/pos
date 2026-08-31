@@ -226,6 +226,29 @@ describe('outcome verdicts', () => {
   test('rules with no standing metric are not tracked', () => {
     expect(tracker.metricForRuleType('high_cancellation')).not.toBeNull();
     expect(tracker.metricForRuleType('stalled_table')).toBeNull();
+    expect(tracker.metricForRuleType('revenue_anomaly')).toBeNull();
+  });
+
+  test('the operator-intelligence rules are now tracked, with the right direction', () => {
+    // Per-entity findings each get a metric and are flagged perEntity.
+    expect(tracker.metricForRuleType('coupon_loss')).toMatchObject({ name: 'coupon_discount_rate', perEntity: true });
+    expect(tracker.metricForRuleType('attach_drop')).toMatchObject({ name: 'category_attach', perEntity: true });
+    expect(tracker.metricForRuleType('review_theme')).toMatchObject({ name: 'review_theme_negshare', perEntity: true });
+    expect(tracker.metricForRuleType('sc_removal_high')).toMatchObject({ name: 'sc_removed_pct' });
+
+    // Attach improves when it RISES; the others improve when they fall.
+    expect(tracker.evaluateChange(0.10, 0.14, 'category_attach').verdict).toBe('improved');
+    expect(tracker.evaluateChange(0.52, 0.30, 'coupon_discount_rate').verdict).toBe('improved');
+    expect(tracker.evaluateChange(20, 30, 'review_theme_negshare').verdict).toBe('worsened');
+    expect(tracker.evaluateChange(25, 15, 'sc_removed_pct').verdict).toBe('improved');
+  });
+
+  test('the entity is read back off the dedupe key', () => {
+    expect(tracker.entityFromDedupeKey('coupon_loss:WELCOME50')).toBe('WELCOME50');
+    expect(tracker.entityFromDedupeKey('review_theme:hygiene')).toBe('hygiene');
+    expect(tracker.entityFromDedupeKey('attach_drop:Value for money')).toBe('Value for money');
+    expect(tracker.entityFromDedupeKey('rating_drop')).toBeNull();   // restaurant-wide, no entity
+    expect(tracker.entityFromDedupeKey(null)).toBeNull();
   });
 });
 

@@ -236,14 +236,18 @@ const recordMeasurement = (id, restaurantId, afterValue, deltaPct, verdict) =>
     [id, restaurantId, afterValue, deltaPct, verdict],
   ).then((r) => r.rows[0]);
 
-/** Outcomes with a baseline but no measurement yet, older than `minAgeHours`. */
+/** Outcomes with a baseline but no measurement yet, older than `minAgeHours`.
+ *  The action's dedupe_key comes along so a per-entity metric (a coupon, a
+ *  category, a theme) is re-measured for the same entity it was baselined on. */
 const findUnmeasuredOutcomes = (minAgeHours) =>
   db.query(
-    `SELECT id, restaurant_id, action_id, metric_name, before_value
-     FROM outcomes
-     WHERE measured_at IS NULL
-       AND before_value IS NOT NULL
-       AND created_at <= now() - make_interval(hours => $1)`,
+    `SELECT o.id, o.restaurant_id, o.action_id, o.metric_name, o.before_value,
+            a.dedupe_key
+     FROM outcomes o
+     JOIN actions a ON a.id = o.action_id
+     WHERE o.measured_at IS NULL
+       AND o.before_value IS NOT NULL
+       AND o.created_at <= now() - make_interval(hours => $1)`,
     [minAgeHours],
   ).then((r) => r.rows);
 

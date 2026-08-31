@@ -99,7 +99,22 @@ const TABS = [
 ];
 
 function Outcome({ action }) {
-  if (!action.verdict) return null;
+  // A baseline is taken the moment the operator marks a finding "acted on"; the
+  // verdict lands once fresh data has arrived and the scheduler re-measures. Show
+  // the "tracking" state in between so the loop is visible immediately, not just
+  // when the number finally moves.
+  if (!action.verdict) {
+    if (action.before_value == null) return null; // no baseline captured — nothing to track
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, color: 'var(--mute)' }}>
+        <Minus size={14} strokeWidth={2} />
+        <span style={{ fontWeight: 500 }}>Tracking outcome…</span>
+        <span style={{ color: 'var(--mute-2)' }}>
+          measuring {action.metric_name?.replace(/_/g, ' ')} against the baseline
+        </span>
+      </div>
+    );
+  }
   const style = VERDICT_STYLE[action.verdict];
   if (!style) return null;
   const { Icon, color, label } = style;

@@ -212,8 +212,15 @@ async function getActionBrief(restaurantId) {
   return { generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }
 
-/** Current value of a tracked metric, or null when it isn't computable. */
-async function computeMetric(restaurantId, metricName) {
+/**
+ * Current value of a tracked metric, or null when it isn't computable. Each case
+ * reads the SAME figure the rule fired on, so a verdict is measured on the same
+ * basis as the alert. `entity` is the coupon code / category / theme carried on
+ * the action's dedupe_key for the per-entity metrics; it stays null for the
+ * restaurant-wide ones. A missing entity (coupon retired, category gone) returns
+ * null — the outcome simply stays unmeasured rather than inventing a value.
+ */
+async function computeMetric(restaurantId, metricName, entity = null) {
   switch (metricName) {
     case 'cancellation_pct': {
       const s = await repo.getOrderStats(restaurantId, engine.CANCELLATION_WINDOW_DAYS);
@@ -228,6 +235,35 @@ async function computeMetric(restaurantId, metricName) {
       const reviews = await repo.getRecentReviews(restaurantId, engine.RATING_WINDOW);
       if (reviews.length < engine.MIN_REVIEWS_FOR_RATING) return null;
       return reviews.reduce((sum, r) => sum + Number(r.overall_rating), 0) / reviews.length;
+    }
+    case 'sc_removed_pct': {
+      const sc = await insightsService.getScRemoved(restaurantId, OI_WINDOW_DAYS);
+      // The finding is per-server, so measure THAT server's removed rate; fall
+      // back to the restaurant-wide rate only if the server can't be resolved.
+      if (entity) {
+        const s = (sc?.servers || []).find((x) => x.server === entity);
+        return s && s.removedPct != null ? Number(s.removedPct) : null;
+      }
+      return sc?.removedPct ?? null;
+    }
+    case 'coupon_discount_rate': {
+      if (!entity) return null;
+      const { codes = [] } = await insightsService.getCouponEconomics(restaurantId, OI_WINDOW_DAYS);
+      const code = codes.find((c) => c.code === entity);
+      return code ? Number(code.discountRate) : null;
+    }
+    case 'category_attach': {
+      if (!entity) return null;
+      const { categories = [] } = await insightsService.getAttachRate(restaurantId, OI_WINDOW_DAYS);
+      const cat = categories.find((c) => c.category === entity);
+      return cat && cat.attach != null ? Number(cat.attach) : null;
+    }
+    case 'review_theme_negshare': {
+      if (!entity) return null;
+      const { summary } = await reputationService.getInsights(restaurantId, {});
+      const theme = (summary?.themes || []).find((t) => t.theme === entity);
+      if (!theme || !theme.count) return null;
+      return (theme.negativeCount / theme.count) * 100;
     }
     default:
       return null;
@@ -251,7 +287,8 @@ async function setStatus(id, restaurantId, status) {
   if (status === 'acted_on' && action.rule_type) {
     const metric = tracker.metricForRuleType(action.rule_type);
     if (metric) {
-      const before = await computeMetric(restaurantId, metric.name);
+      const entity = metric.perEntity ? tracker.entityFromDedupeKey(action.dedupe_key) : null;
+      const before = await computeMetric(restaurantId, metric.name, entity);
       // No baseline, no outcome. Recording a null "before" would produce a
       // verdict computed against nothing.
       if (before !== null) {
@@ -275,7 +312,11 @@ async function measureDueOutcomes() {
 
   for (const o of due) {
     try {
-      const after = await computeMetric(o.restaurant_id, o.metric_name);
+      // The entity travels on the action's dedupe_key (joined in by the repo),
+      // so a per-entity metric is re-measured for the same coupon / category /
+      // theme it was baselined on.
+      const entity = tracker.entityFromDedupeKey(o.dedupe_key);
+      const after = await computeMetric(o.restaurant_id, o.metric_name, entity);
       if (after === null) continue; // not computable yet; try again next pass
 
       const { deltaPct, verdict } = tracker.evaluateChange(

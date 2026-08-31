@@ -9,6 +9,21 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 
 ### 2026-08-31
 
+#### Changed
+- **Outcome Tracking, closed on the operator-intelligence loop** (catalogue:
+  partial → effectively built). Marking a finding "acted on" already snapshotted a
+  before-metric and re-measured it later into an improved / worsened / no-change
+  verdict — but only two rule types (cancellation, rating) had a metric, so most
+  findings recorded nothing. Now the operator-intelligence rules are tracked too:
+  **coupon give-away rate**, **category attach**, **service-charge-removed rate**
+  (per server), and **complaint share** (per theme). These are per-*entity*, so the
+  coupon code / category / server / theme is read back off the action's dedupe key
+  at measure time (no migration) and the after-metric is computed for the SAME
+  entity the alert fired on — direction per metric (attach improves when it rises,
+  the rest when they fall). The Action Centre now shows a "Tracking outcome…" state
+  the moment you act, before the verdict lands. A missing entity (coupon retired,
+  category gone) leaves the outcome unmeasured rather than inventing a value.
+
 #### Added
 - **AI-narrated Action Centre** — a "Your plan" card on `/actions` that turns the
   ranked list of findings into a plain-language plan: what to tackle first and why,
