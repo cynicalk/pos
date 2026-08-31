@@ -1,7 +1,10 @@
 import LandingLayout from "../LandingLayout";
 import { Helmet } from "react-helmet-async";
 import { SEC, SEC_P, PageCTA } from "../shared";
-import { Grid3X3, UtensilsCrossed, Wifi, BarChart2, Gift, Package } from "lucide-react";
+import {
+  ReceiptText, LayoutGrid, UtensilsCrossed, Bot, Percent, BarChart3,
+  Trash2, ShieldCheck, Star, Package, FileText, Store,
+} from "lucide-react";
 
 const TABLES = [
   { id: "T01", seats: 2, status: "open",      bill: null,    time: null },
@@ -74,40 +77,76 @@ function FloorPlanPreview() {
 
 const FEATURES = [
   {
-    Icon: Grid3X3,
-    title: "Tables & floor",
-    body: "Your floor, always in sync. No confusion about what's open, what's occupied, or what's been ordered.",
-    detail: "Drag-and-drop floor plan editor. Covers tracking and seat counts per table. Instant status updates pushed live to every device on the floor — no refresh, no lag.",
+    Icon: ReceiptText,
+    title: "Point of sale & KDS",
+    body: "Dine-in, takeaway and delivery ring into one live kitchen board.",
+    detail: "Every channel on one screen; each ticket reaches the kitchen in under three seconds with the table, elapsed time and amount. Offline-tolerant — a dropped connection queues and catches up in order, never a duplicate or a lost ticket.",
+  },
+  {
+    Icon: LayoutGrid,
+    title: "Tables, floor & covers",
+    body: "Your floor, always in sync — open, occupied, ordering, reserved.",
+    detail: "Floor plan with live status pushed to every device, a waitlist with honest ETAs, reservations, and a guest count captured at billing that feeds per-cover spend.",
   },
   {
     Icon: UtensilsCrossed,
-    title: "Menu & kitchen",
-    body: "Make a change — it's live everywhere before you look up.",
-    detail: "Edit items, prices, modifiers, and availability from any device. Changes reflect instantly on the KDS. Category-level availability lets you 86 an item for the night in two taps.",
+    title: "Menu, recipes & 86-ing",
+    body: "Change a price or 86 a dish — it's live everywhere before you look up.",
+    detail: "Items, prices, modifiers and availability from any device, reflected instantly on the KDS and the guest app. Each dish links to a recipe, so a menu change moves cost and stock with it.",
   },
   {
-    Icon: Wifi,
-    title: "Real-time sync",
-    body: "Orders don't wait for a connection. When signal drops, CookLyt queues and catches up silently.",
-    detail: "Offline-first architecture means service continues uninterrupted. The moment connectivity returns, all queued actions sync in order — no duplicate orders, no lost tickets.",
+    Icon: Bot,
+    title: "AI assistant + Daily Brief",
+    body: "Your day read back to you each morning; ask anything in plain language.",
+    detail: "A local model narrates the figures the POS computed — yesterday vs normal, the costliest action, food cost, waste, peak hour — and answers questions from your real numbers. It narrates, never invents, and runs in-building so data never leaves.",
   },
   {
-    Icon: Gift,
-    title: "Loyalty & coupons",
-    body: "Give regulars a reason to return. Give first-timers a reason to come back.",
-    detail: "Points-based loyalty with configurable earn and burn rates. One-time and recurring coupon codes. Track redemption, expiry, and the revenue each campaign drives.",
+    Icon: Percent,
+    title: "Margin intelligence",
+    body: "The leak a generic till hides — priced in rupees, not percentages.",
+    detail: "Coupons ranked by net revenue kept per order. Average per cover, food cost, prime cost and operating margin. Category attach rate on the high-margin lines, and the service charge staff quietly remove — broken down by server.",
   },
   {
-    Icon: BarChart2,
-    title: "Reports & shifts",
-    body: "Close the day knowing exactly where every rupee went.",
-    detail: "Shift-level P&L, per-item sales breakdown, staff performance, and payment-method splits. Export to CSV or view inline. Designed to answer the questions you actually ask at 11pm.",
+    Icon: BarChart3,
+    title: "Forecasting suite",
+    body: "Prep for tomorrow from what actually sells, weekday by weekday.",
+    detail: "One seasonal-naive engine behind demand, prep, inventory reorder and shift planning. Promo days detected and excluded; each forecast carries the accuracy it earned and abstains where history is too thin.",
+  },
+  {
+    Icon: Trash2,
+    title: "Waste intelligence",
+    body: "See what you're binning mid-shift, and what you'll over-prep next service.",
+    detail: "Prep logged against what sold and what was binned, so over-prep is measured per dish, not guessed. The next service's likely surplus is projected in portions and rupees, chronic over-preppers flagged.",
+  },
+  {
+    Icon: ShieldCheck,
+    title: "Compliance & FSSAI",
+    body: "Licences, certificates and hygiene sign-offs, before an inspector finds the gap.",
+    detail: "FSSAI licence and expiry, staff certificates, a testing calendar, daily hygiene and shift sign-offs, plus adopted SOPs. Drift is surfaced as a finding — it never claims a date an authority set that CookLyt cannot see.",
+  },
+  {
+    Icon: Star,
+    title: "Reputation",
+    body: "What guests are saying, ranked worst-first — and the rankings you track by hand.",
+    detail: "First-party reviews left at the table, classified into complaint themes, with the positive/neutral/negative split. Search positions and competitor ratings you enter manually, as current as the last reading.",
   },
   {
     Icon: Package,
-    title: "Inventory & costing",
-    body: "Know your margins before service, not after.",
-    detail: "Recipe-linked ingredient tracking. Every sale auto-deducts from stock. Real-time cost-of-goods calculation means you always know your true margin — before you run out, not after.",
+    title: "Inventory & recipe costing",
+    body: "Know your margin before service, not after.",
+    detail: "Recipe-linked ingredients; every sale auto-deducts stock. Low-stock reorder levels, per-ingredient cost, and a food-cost percentage on each dish that abstains where an ingredient is undeclared rather than quoting a number nearly right.",
+  },
+  {
+    Icon: FileText,
+    title: "Accounting bridge",
+    body: "A period's takings exported as balanced double-entry vouchers.",
+    detail: "Tally-importable XML or a journal CSV, produced server-side with no credentials. Every voucher balances by construction; where the discount plug disagrees with the POS's own total, the gap is shown, not hidden.",
+  },
+  {
+    Icon: Store,
+    title: "Multi-outlet group view",
+    body: "Compare outlets on the metrics that actually rank them.",
+    detail: "Same-store sales growth this window vs the prior equal window, and sales per labour hour. Both average across only the outlets that could report, abstaining where there's no prior trade or no roster logged.",
   },
 ];
 
@@ -128,10 +167,10 @@ export default function Features() {
             <div>
               <span style={SEC}>The product</span>
               <h1 style={{ fontSize: "clamp(36px, 6vw, 72px)", letterSpacing: "-.03em", lineHeight: 1.0, fontWeight: 600, margin: "12px 0 20px", maxWidth: 760 }}>
-                Everything included. Nothing extra.
+                The whole suite, family by family.
               </h1>
-              <p style={{ ...SEC_P, fontSize: 17, maxWidth: 480 }}>
-                Every demo is the full product. No feature limits, no upgrade prompts, no per-station pricing surprises.
+              <p style={{ ...SEC_P, fontSize: 17, maxWidth: 500 }}>
+                From the floor to the P&amp;L: point of sale and KDS, an AI brief that reads the day back to you, margin intelligence, forecasting, compliance, reputation and a multi-outlet view. Every demo is the full product — no limits, no tiers.
               </p>
             </div>
             <div className="page-hero-preview" style={{ paddingBottom: 32, paddingRight: 32 }}>
@@ -170,7 +209,7 @@ export default function Features() {
             No per-station fees. No feature tiers. No surprise add-ons. Reach out to get pricing for your restaurant.
           </p>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 32, padding: "24px 36px", border: "1px solid var(--line-2)", borderRadius: 12, background: "var(--paper)", flexWrap: "wrap", justifyContent: "center" }}>
-            {["Unlimited stations", "All features included", "Waste intelligence suite", "Dedicated onboarding"].map(item => (
+            {["Unlimited stations", "Every family included", "AI brief + margin intelligence", "Dedicated onboarding"].map(item => (
               <span key={item} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--ink-2)" }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--ok)", flexShrink: 0 }} />
                 {item}

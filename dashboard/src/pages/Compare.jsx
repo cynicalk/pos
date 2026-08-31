@@ -4,13 +4,13 @@ import { SEC, PageCTA } from "../shared";
 import { Check, X, Zap } from "lucide-react";
 
 const SCORE_ROWS = [
-  { cap: "Waste tracking",        generic: false, cooklyt: true  },
-  { cap: "Recipe-linked costing", generic: false, cooklyt: true  },
-  { cap: "Real-time stock view",  generic: false, cooklyt: true  },
-  { cap: "KDS integration",       generic: true,  cooklyt: true  },
-  { cap: "Offline-first POS",     generic: false, cooklyt: true  },
-  { cap: "AI demand forecast",    generic: false, cooklyt: true, soon: true  },
-  { cap: "Margin alerts",         generic: false, cooklyt: true, soon: true  },
+  { cap: "Waste tracking by dish",   generic: false, cooklyt: true },
+  { cap: "Recipe-linked food cost %", generic: false, cooklyt: true },
+  { cap: "AI demand & prep forecast", generic: false, cooklyt: true },
+  { cap: "Margin intelligence",       generic: false, cooklyt: true },
+  { cap: "Morning AI brief",          generic: false, cooklyt: true },
+  { cap: "KDS + offline-tolerant POS", generic: true,  cooklyt: true },
+  { cap: "FSSAI compliance tracking", generic: false, cooklyt: true },
 ];
 
 function ScoreCardPreview() {
@@ -68,13 +68,15 @@ function ScoreCardPreview() {
 }
 
 const CMP_ROWS = [
-  { cap: "Waste logging by ingredient & shift",  generic: "Not available",  cooklyt: "Full breakdown",       soon: false },
-  { cap: "Waste cost in rupees (not just kg)",   generic: "Not available",  cooklyt: "Recipe-linked",        soon: false },
-  { cap: "Inventory check before ordering",      generic: "Manual only",    cooklyt: "Real-time stock view", soon: false },
-  { cap: "Weather-correlated waste analysis",    generic: "Not available",  cooklyt: "AI-driven",            soon: true  },
-  { cap: "AI demand forecasting",               generic: "Not available",  cooklyt: "Zero-shot",            soon: true  },
-  { cap: "Live margin alerts on price change",   generic: "Not available",  cooklyt: "Invoice-triggered",    soon: true  },
-  { cap: "Billing, floor & kitchen management",  generic: "Standard",       cooklyt: "Full POS suite",       soon: false, genericHas: true },
+  { cap: "Waste logging by dish & shift",        generic: "Not available", cooklyt: "Measured per dish",     soon: false },
+  { cap: "Food cost % per dish (in rupees)",     generic: "Not available", cooklyt: "Recipe-linked",        soon: false },
+  { cap: "AI demand & prep forecasting",         generic: "Not available", cooklyt: "Accuracy-scored",      soon: false },
+  { cap: "Coupon & per-cover economics",         generic: "Not available", cooklyt: "Net kept, in rupees",  soon: false },
+  { cap: "Morning brief, narrated by AI",        generic: "Not available", cooklyt: "Every day",            soon: false },
+  { cap: "FSSAI & compliance calendar",          generic: "Not available", cooklyt: "Built-in",             soon: false },
+  { cap: "Multi-outlet SSSG & sales / labour hr", generic: "Not available", cooklyt: "Group view",          soon: false },
+  { cap: "WhatsApp alerts to staff",             generic: "Not available", cooklyt: "In development",        soon: true  },
+  { cap: "Billing, floor & kitchen management",  generic: "Standard",      cooklyt: "Full POS suite",       soon: false, genericHas: true },
 ];
 
 export default function Compare() {
@@ -94,10 +96,10 @@ export default function Compare() {
             <div>
               <span style={SEC}>How we compare</span>
               <h1 style={{ fontSize: "clamp(36px, 6vw, 72px)", letterSpacing: "-.03em", lineHeight: 1.0, fontWeight: 600, margin: "12px 0 20px", maxWidth: 760 }}>
-                Waste control isn't an add-on here. It's the entire point.
+                Margin control isn't an add-on here. It's the entire point.
               </h1>
               <p style={{ color: "var(--mute)", fontSize: 17, maxWidth: 480, margin: 0, lineHeight: 1.55 }}>
-                Generic POS systems were built to record transactions. CookLyt was built to reduce food cost — billing is just how it pays for itself.
+                Generic POS systems were built to record transactions. CookLyt was built to defend the margin — waste, food cost, coupons, per-cover spend — with an AI brief on top. Billing is just how it pays for itself.
               </p>
             </div>
             <div className="page-hero-preview" style={{ paddingBottom: 32, paddingRight: 32 }}>
