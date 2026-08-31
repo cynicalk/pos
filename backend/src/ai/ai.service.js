@@ -415,14 +415,12 @@ function dateContext(settings) {
 // qwen3's context is small and the system prompt + 15 tool schemas already eat
 // a third of it. When the replayed tail outgrows the budget, fold the older
 // messages into a model-written summary (kept per session in ai_conversations)
-// and replay summary + recent tail — same idea as auto-compaction.
+// and replay summary + recent tail — same idea as auto-compaction. The WHEN/WHICH
+// decision is the pure planCompaction; folding (the LLM call + DB write) is here.
 
-const KEEP_TAIL = 6;                 // most recent messages stay verbatim
-const COMPACT_CHAR_BUDGET = 3000;    // ~750 tokens of tail triggers a fold
-const COMPACT_MSG_BUDGET = 16;       // or this many tail messages
+const { planCompaction } = require('../modules/ai/compaction');
+
 const FETCH_LIMIT = 60;              // how deep we look past the summary boundary
-
-const tailChars = (msgs) => msgs.reduce((n, m) => n + (m.content?.length || 0), 0);
 
 async function compactHistory(sessionId, restaurantId, userId, oldSummary, toFold) {
   try {
@@ -441,7 +439,9 @@ async function compactHistory(sessionId, restaurantId, userId, oldSummary, toFol
       userId,
       role: 'summary',
       content: summary,
-      coversUntil: toFold[toFold.length - 1].created_at,
+      // The monotonic seq of the last folded message — the exact, tie-proof
+      // boundary the next turn replays from.
+      coversSeq: toFold[toFold.length - 1].seq,
     });
     console.log(`[ai] compacted ${toFold.length} messages for session ${sessionId}`);
     return summary;
@@ -457,13 +457,14 @@ async function buildMessages(sessionId, restaurantId, userId, role, userMessage)
     settingsRepo.getAll(restaurantId).catch(() => ({})),
   ]);
   let summary = summaryRow?.content || null;
-  let tail = await repo.getMessagesSince(sessionId, restaurantId, summaryRow?.covers_until, FETCH_LIMIT);
+  let tail = await repo.getMessagesSince(sessionId, restaurantId, summaryRow?.covers_seq, FETCH_LIMIT);
 
-  if (tail.length > KEEP_TAIL && (tailChars(tail) > COMPACT_CHAR_BUDGET || tail.length > COMPACT_MSG_BUDGET)) {
-    const folded = await compactHistory(sessionId, restaurantId, userId, summary, tail.slice(0, tail.length - KEEP_TAIL));
+  const { shouldFold, toFold, keptTail } = planCompaction(tail);
+  if (shouldFold) {
+    const folded = await compactHistory(sessionId, restaurantId, userId, summary, toFold);
     if (folded) {
       summary = folded;
-      tail = tail.slice(tail.length - KEEP_TAIL);
+      tail = keptTail;
     }
   }
 

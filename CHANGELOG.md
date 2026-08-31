@@ -41,6 +41,18 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   plan, and outcome tracking (the dish's margin, higher-is-better), so "did
   repricing the plowhorse work?" is answered on the same dish.
 
+#### Fixed
+- **AI chat context compaction now actually shrinks the context.** The assistant
+  already folded older turns into a running summary once a conversation ran long,
+  but marked the fold boundary with the last-folded message's `created_at` — which,
+  read into the app as a millisecond-precision JS Date, failed to exclude the folded
+  messages on the next turn (`created_at > boundary` re-included them), so the summary
+  was written but the replayed tail never shrank, and a frozen clock or rapid turns
+  broke it outright. Replaced the timestamp boundary with a monotonic `seq`
+  (`BIGSERIAL`, migration 092) recorded as `covers_seq` on the summary, so the replay
+  is an exact, tie-proof `seq > covers_seq`. The when/which-to-fold decision was also
+  extracted to a pure, tested `modules/ai/compaction.js`.
+
 #### Changed
 - **Outcome Tracking, closed on the operator-intelligence loop** (catalogue:
   partial → effectively built). Marking a finding "acted on" already snapshotted a

@@ -237,23 +237,24 @@ const findIngredientsByName = (restaurantId, search) =>
 // Only user and assistant text is replayed as LLM history; role='tool' rows are
 // an audit trail of confirmed write actions, not part of the prompt.
 
-const saveMessage = ({ sessionId, restaurantId, userId, role, content, toolName, coversUntil }) =>
+const saveMessage = ({ sessionId, restaurantId, userId, role, content, toolName, coversUntil, coversSeq }) =>
   db
     .query(
-      `INSERT INTO ai_conversations (session_id, restaurant_id, user_id, role, content, tool_name, covers_until)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [sessionId, restaurantId, userId || null, role, content, toolName || null, coversUntil || null],
+      `INSERT INTO ai_conversations (session_id, restaurant_id, user_id, role, content, tool_name, covers_until, covers_seq)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, seq`,
+      [sessionId, restaurantId, userId || null, role, content, toolName || null, coversUntil || null, coversSeq ?? null],
     )
     .then((r) => r.rows[0]);
 
-// Latest compacted summary for the session (if any)
+// Latest compacted summary for the session (if any). covers_seq is the tie-proof
+// boundary — how far the summary folded — for reconstructing the replay tail.
 const getLatestSummary = (sessionId, restaurantId) =>
   db
     .query(
-      `SELECT content, covers_until
+      `SELECT content, covers_seq
        FROM ai_conversations
        WHERE session_id = $1 AND restaurant_id = $2 AND role = 'summary'
-       ORDER BY created_at DESC
+       ORDER BY seq DESC
        LIMIT 1`,
       [sessionId, restaurantId],
     )
@@ -261,18 +262,23 @@ const getLatestSummary = (sessionId, restaurantId) =>
 
 // Chat tail: user/assistant messages after the summary boundary (or all, when
 // the session has never been compacted)
-const getMessagesSince = (sessionId, restaurantId, since, limit = 30) =>
+// The replay tail: user/assistant messages after the fold boundary (`sinceSeq`,
+// the summary's covers_seq), newest `limit` then re-ordered oldest-first. Bounded
+// by the monotonic `seq`, so folded messages are excluded exactly — no timestamp
+// precision or tie ambiguity. Each row carries its seq so the caller can mark the
+// next fold boundary.
+const getMessagesSince = (sessionId, restaurantId, sinceSeq, limit = 30) =>
   db
     .query(
-      `SELECT role, content, created_at FROM (
-         SELECT role, content, created_at
+      `SELECT role, content, seq FROM (
+         SELECT role, content, seq
          FROM ai_conversations
          WHERE session_id = $1 AND restaurant_id = $2 AND role IN ('user', 'assistant')
-           AND ($3::timestamptz IS NULL OR created_at > $3::timestamptz)
-         ORDER BY created_at DESC
+           AND ($3::bigint IS NULL OR seq > $3::bigint)
+         ORDER BY seq DESC
          LIMIT $4
-       ) recent ORDER BY created_at ASC`,
-      [sessionId, restaurantId, since || null, limit],
+       ) recent ORDER BY seq ASC`,
+      [sessionId, restaurantId, sinceSeq ?? null, limit],
     )
     .then((r) => r.rows);
 
