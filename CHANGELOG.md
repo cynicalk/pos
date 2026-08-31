@@ -10,6 +10,13 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **AI-narrated Action Centre** — a "Your plan" card on `/actions` that turns the
+  ranked list of findings into a plain-language plan: what to tackle first and why,
+  the next one or two in the same order, and the rupees at stake across only the
+  actions that carry a figure ("at least ₹X", never the whole list). It narrates
+  the actions exactly as the opportunity ranking ordered them — it never re-ranks,
+  invents a finding, or puts a number on an unquantified one — with an honest
+  templated plan when the model is offline (`GET /api/actions/brief`).
 - **AI Evening Wrap** — the Daily Brief's bookend, on the Shift close-out screen:
   how today traded against the target, and the one signal no brief carries — the
   **cash reconciliation** (what the drawer should hold since the last count, and,

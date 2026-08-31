@@ -1,10 +1,73 @@
 import { useState } from 'react';
 import {
   Megaphone, AlertTriangle, Lightbulb, RefreshCw, Check, X, CircleCheck,
-  TrendingDown, TrendingUp, Minus,
+  TrendingDown, TrendingUp, Minus, Sparkles, ListChecks,
 } from 'lucide-react';
-import { useActions, useEvaluateActions, useSetActionStatus } from '../hooks/useActions';
+import { useActions, useActionBrief, useEvaluateActions, useSetActionStatus } from '../hooks/useActions';
 import { useCurrency } from '../context/CurrencyContext';
+
+// Split a narrated plan into sentence beats so each reads on its own line.
+const briefBeats = (text) =>
+  String(text || '').split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+
+// The AI plan over the ranked open actions — sequences them into "do these first,
+// and why", never re-ordering or inventing. Deterministic ranking underneath, an
+// honest template when the model is offline. Hidden on a clear list or a failure.
+function ActionBriefCard() {
+  const { data, isLoading, isError } = useActionBrief();
+  if (isError || (data && data.signals?.totalOpen === 0)) return null;
+
+  const shell = {
+    position: 'relative', overflow: 'hidden', margin: '16px 0 0',
+    border: '1px solid var(--line)', borderRadius: 12,
+    background: 'linear-gradient(135deg, var(--paper-2) 0%, var(--paper) 60%)',
+    padding: '15px 18px',
+  };
+  const Head = ({ right }) => (
+    <div className="flex items-center gap-2" style={{ marginBottom: 10, position: 'relative' }}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 24, height: 24, borderRadius: 7, background: 'var(--accent-soft, rgba(194,104,58,.14))' }}>
+        <ListChecks size={13} style={{ color: 'var(--accent, #C2683A)' }} />
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>Your plan</span>
+      {right}
+    </div>
+  );
+
+  if (isLoading || !data) {
+    return (
+      <div style={shell}>
+        <Head right={<span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>reading the queue…</span>} />
+        <div className="plan-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 7, width: '94%' }} />
+        <div className="plan-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', width: '66%' }} />
+        <style>{`@keyframes planPulse{0%,100%{opacity:.55}50%{opacity:1}}.plan-pulse{animation:planPulse 1.4s ease-in-out infinite}`}</style>
+      </div>
+    );
+  }
+
+  const beats = briefBeats(data.narrative);
+  return (
+    <div style={shell}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)' }} />
+      <Head right={
+        <span className="flex items-center gap-1" style={{
+          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', padding: '3px 8px', borderRadius: 999,
+          background: data.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
+          color: data.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
+        }}>
+          {data.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+        </span>
+      } />
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {beats.map((b, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span style={{ flexShrink: 0, marginTop: 7, width: 5, height: 5, borderRadius: 999, background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)' }} />
+            <span style={{ fontSize: i === 0 ? 14 : 13.5, lineHeight: 1.5, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))' }}>{b}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Action Center — the operator's queue of what the rules engine found.
@@ -174,6 +237,8 @@ export default function Actions() {
         Findings from your own data, checked every fifteen minutes. Highest rupee impact first —
         anything without a figure could not be quantified honestly, so none is shown.
       </p>
+
+      {tab === 'open' && <ActionBriefCard />}
 
       <div style={{ display: 'flex', gap: 4, margin: '18px 0 14px', flexWrap: 'wrap' }}>
         {TABS.map((t) => (

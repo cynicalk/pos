@@ -20,6 +20,18 @@ export function useActions(status, { enabled = true } = {}) {
   });
 }
 
+// The AI-narrated plan over the ranked open actions. Narrates through the local
+// model, so it gets the long timeout; admin-only like the list itself.
+export function useActionBrief({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['actions', 'brief'],
+    queryFn: async () => (await api.get('/actions/brief', { timeout: 20_000 })).data,
+    enabled: enabled && !!localStorage.getItem('pos_user'),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
 export function useEvaluateActions() {
   return useMutation({
     mutationFn: async () => {

@@ -1,6 +1,8 @@
 const repo = require('./actions.repository');
 const engine = require('../modules/rules/engine');
 const opportunity = require('../modules/rules/opportunity');
+const actionBrief = require('../modules/rules/action-brief');
+const { narrateOrFallback } = require('../ai/narrate');
 const tracker = require('../modules/outcomes/tracker');
 const procurementRepo = require('../procurement/procurement.repository');
 const complianceService = require('../compliance/compliance.service');
@@ -193,6 +195,23 @@ async function list(restaurantId, status) {
   return opportunity.rankActions(actions, { cancellationLoss, payoutLeakage, couponDiscount });
 }
 
+/**
+ * The AI-narrated action centre: a plain-language plan over the SAME ranked open
+ * actions the list returns. The rules engine decided and ranked everything; this
+ * only sequences it into "do these first, and why", never re-ordering or inventing
+ * a finding, with an honest templated plan when the model is offline.
+ */
+async function getActionBrief(restaurantId) {
+  const actions = await list(restaurantId, 'open');
+  const signals = actionBrief.buildActionSignals(actions);
+  const { narrative, aiUsed, model } = await narrateOrFallback(
+    actionBrief.buildActionMessages(signals),
+    actionBrief.fallbackActionBrief(signals),
+    { maxTokens: 200 },
+  );
+  return { generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
+}
+
 /** Current value of a tracked metric, or null when it isn't computable. */
 async function computeMetric(restaurantId, metricName) {
   switch (metricName) {
@@ -274,7 +293,7 @@ async function measureDueOutcomes() {
 }
 
 module.exports = {
-  evaluate, evaluateAll, list, setStatus, assign,
+  evaluate, evaluateAll, list, getActionBrief, setStatus, assign,
   computeMetric, measureDueOutcomes,
   VALID_STATUSES, OUTCOME_MIN_AGE_HOURS, RAISE_COOLDOWN_HOURS,
 };
