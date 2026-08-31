@@ -135,9 +135,12 @@ it to per-cover is the natural next step. A true menu-engineering quadrant
 
 ### 3.6 Reviews & Reputation (4)
 **What.** First-party guest reviews classified into complaint themes (worst-first),
-positive/neutral/negative split, and manually-entered search rankings & competitor
-ratings.
-**How.** `reviews/`, `reputation/`.
+positive/neutral/negative split, an **AI review analysis** (narrated sentiment +
+what-to-do), and manually-entered search rankings & competitor ratings.
+**How.** `reviews/`, `reputation/`. The analyser (`reputation.service.getReviewAnalysis`
++ pure `modules/reputation/analysis.js`) narrates the same summary the Insights tab
+computes; recurring themes are raised as tracked actions by the `review_theme` rule
+in the engine, so the narration and the action centre read the same reviews.
 **Why/limits.** Reviews are **first-party only** — CookLyt cannot read Swiggy /
 Zomato / Google, and says so rather than implying full coverage. Rankings are as
 current as the operator's last manual reading.
@@ -222,14 +225,25 @@ The brief one horizon up: last seven closed days vs the seven before them
 attach mover, top action). Reuses `narrateOrFallback`. `GET /api/ai/weekly-review`,
 lazy-loaded behind the *Yesterday / This week* toggle on the Overview brief card.
 
-### 4.5 Extending the pattern
-The brief/review pair is a reusable recipe: **deterministic signals gatherer →
-`narrateOrFallback` → honest templated fallback.** Natural next builds on the
-same rails (see ROADMAP): an **Evening Wrap** (end-of-shift close), an
-**AI-narrated Action Centre** (plain-language "why this matters" per finding), a
-**Group Brief** (the daily brief at multi-outlet level), a **Menu-engineering
-digest**, a **Reputation digest**. Each is a new signals gatherer plus a prompt;
-the narration/fallback machinery already exists.
+### 4.6 The Review Analyser — `reputation.service.getReviewAnalysis`
+The reputation-digest instance of the pattern, and the first that also **raises
+actions**: `modules/reputation/analysis.js` builds the strict prompt + templated
+fallback over the `summarizeReviews` / `buildActionQueue` output, and the
+`review_theme` rule in `modules/rules/engine.js` turns each recurring complaint
+into a tracked, ranked action (over `REVIEW_THEME_WINDOW` reviews, a wider lens
+than `rating_drop`'s tight `RATING_WINDOW`). Surfaced as a card on Reviews →
+Insights. The template to copy for the next "analyse + recommend + act" feature.
+
+### 4.7 Extending the pattern
+The recipe is reusable: **deterministic signals gatherer → `narrateOrFallback`
+(now in `ai/narrate.js`) → honest templated fallback**, and, where a threshold is
+crossed, a **rule → tracked action**. Natural next builds on the same rails (see
+ROADMAP): an **Evening Wrap** (end-of-shift close), an **AI-narrated Action
+Centre** (plain-language "why this matters" per finding), a **Group Brief** (the
+daily brief at multi-outlet level), and **Menu engineering** (the star / plowhorse
+/ puzzle / dog quadrant from item sales × margin, each quadrant with its action).
+Each is a new signals gatherer plus a prompt; the narration/fallback and
+rule→action machinery already exist.
 
 ### 4.6 Where the AI layer can be better
 - **Client timeout vs cold model.** First narration on a cold 7B can take

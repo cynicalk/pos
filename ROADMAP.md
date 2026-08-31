@@ -29,7 +29,12 @@ _Last updated: 2026-08-30._
 | external | 4 | Lives in the guest app / another surface |
 | blocked-ext | 3 | Needs infrastructure the product deliberately does not run |
 
-Recently shipped: the guest dine-in app integration (`/api/guest`); the
+Recently shipped: the **AI narration set** — the **Daily Brief** and its
+**Weekly Review** on the Overview, and the **AI Review Analyser** (narrated
+sentiment + what-to-do on Reviews → Insights), all sharing one narrate-or-fallback
+helper and the abstention discipline; the analyser also raises recurring
+complaint themes as tracked actions via a new `review_theme` rule. The guest
+dine-in app integration (`/api/guest`); the
 **Tier 0 forecasting set** — Demand Forecast, Prep Sheet, Inventory Forecast,
 Auto Reorder, Shift Planning, Cost-based Scheduling — all on one seasonal-naive
 engine, each carrying the accuracy it earned and abstaining where it cannot
