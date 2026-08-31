@@ -207,7 +207,7 @@ async function getActionBrief(restaurantId) {
   const { narrative, aiUsed, model } = await narrateOrFallback(
     actionBrief.buildActionMessages(signals),
     actionBrief.fallbackActionBrief(signals),
-    { maxTokens: 200 },
+    { maxTokens: 200, restaurantId },
   );
   return { generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }

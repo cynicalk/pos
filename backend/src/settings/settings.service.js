@@ -1,5 +1,6 @@
 const repo = require('./settings.repository');
 const { ValidationError, AppError } = require('../shared/errors');
+const { isValidLanguage } = require('../shared/ai-languages');
 const { validateTimezone } = require('../shared/timezone');
 const { bustFeatureFlags } = require('../shared/middleware/featureGate');
 
@@ -21,6 +22,9 @@ const ALLOWED_KEYS = new Set([
   // WhatsApp number operator alerts (raised actions) are queued to. Blank keeps
   // them queued with no recipient until one is set.
   'alert_whatsapp',
+  // Language the AI narrations (brief, weekly review, evening wrap, review
+  // analysis, action plan) are written in. Defaults to English when unset.
+  'ai_language',
 ]);
 
 function validateCurrency(code) {
@@ -116,6 +120,9 @@ async function update(key, value, restaurantId) {
       const n = parseFloat(value);
       if (isNaN(n) || n < 0) throw new ValidationError('daily_revenue_target must be a non-negative number');
     }
+  }
+  if (key === 'ai_language') {
+    if (!isValidLanguage(value)) throw new ValidationError('ai_language must be a supported language code');
   }
   if (key === 'cash_denominations') {
     const parts = String(value).split(',').map((s) => parseFloat(s.trim()));

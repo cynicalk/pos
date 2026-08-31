@@ -191,7 +191,7 @@ async function getReviewAnalysis(restaurantId, { days } = {}) {
   const { narrative, aiUsed, model } = await narrateOrFallback(
     analysisMod.buildAnalysisMessages(signals),
     analysisMod.fallbackAnalysis(signals),
-    { maxTokens: 220 },
+    { maxTokens: 220, restaurantId },
   );
   return { windowDays, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }

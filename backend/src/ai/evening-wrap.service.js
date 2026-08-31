@@ -160,7 +160,7 @@ async function getEveningWrap(restaurantId) {
   const { narrative, aiUsed, model } = await narrateOrFallback(
     buildMessages(signals),
     fallbackNarrative(signals),
-    { maxTokens: 200 },
+    { maxTokens: 200, restaurantId },
   );
   return { date: signals.date, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }

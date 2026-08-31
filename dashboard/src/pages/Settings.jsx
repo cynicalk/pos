@@ -1,5 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, Globe, Clock, AlertCircle, Percent, Package, UserCheck, CalendarClock, ChevronDown, Search, Zap, RefreshCw, Gift, Banknote, Lock, LockOpen, MapPin } from 'lucide-react';
+import { Check, Globe, Clock, AlertCircle, Percent, Package, UserCheck, CalendarClock, ChevronDown, Search, Zap, RefreshCw, Gift, Banknote, Lock, LockOpen, MapPin, Languages } from 'lucide-react';
+
+// The languages the AI narrations can be written in — mirrors the backend's
+// shared/ai-languages.js. English is the default.
+const AI_LANGS = [
+  ['en', 'English', 'English'], ['hi', 'Hindi', 'हिन्दी'], ['ta', 'Tamil', 'தமிழ்'],
+  ['te', 'Telugu', 'తెలుగు'], ['bn', 'Bengali', 'বাংলা'], ['mr', 'Marathi', 'मराठी'],
+  ['kn', 'Kannada', 'ಕನ್ನಡ'], ['gu', 'Gujarati', 'ગુજરાતી'], ['ml', 'Malayalam', 'മലയാളം'],
+  ['pa', 'Punjabi', 'ਪੰਜਾਬੀ'],
+];
 import { useCurrency } from '../context/CurrencyContext';
 import { useTimezone } from '../context/TimezoneContext';
 import { useSettings, useUpdateSetting } from '../hooks/useSettings';
@@ -328,6 +337,15 @@ export default function Settings() {
     }
   }
 
+  async function handleLanguageChange(code) {
+    setSaveError('');
+    try {
+      await updateSetting.mutateAsync({ key: 'ai_language', value: code });
+    } catch {
+      setSaveError('Failed to save AI language.');
+    }
+  }
+
   async function handleDenomLockToggle() {
     if (denomLocked) {
       setDenomErr('');
@@ -379,6 +397,20 @@ export default function Settings() {
           <p className="truncate" style={{ fontSize: 10.5, color: 'var(--mute)' }}>{t.iana}</p>
         </div>
         <span className="mono shrink-0" style={{ fontSize: 10.5, color: 'var(--mute)' }}>{t.offset}</span>
+      </div>
+    ),
+  }));
+
+  const aiLang = settings?.ai_language || 'en';
+  const selectedLang = AI_LANGS.find(([c]) => c === aiLang) || AI_LANGS[0];
+  const languageItems = AI_LANGS.map(([lcode, lname, lnative]) => ({
+    key:      lcode,
+    selected: lcode === aiLang,
+    matches:  (q) => !q || lname.toLowerCase().includes(q) || lnative.toLowerCase().includes(q),
+    render:   () => (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>{lname}</span>
+        <span className="truncate" style={{ fontSize: 11.5, color: 'var(--mute)' }}>{lnative}</span>
       </div>
     ),
   }));
@@ -459,6 +491,28 @@ export default function Settings() {
           items={tzItems}
           onSelect={handleTimezoneChange}
           dropdownWidth={360}
+          disabled={updateSetting.isPending}
+        />
+      </div>
+
+      {/* ── AI narration language ───────────────────────────── */}
+      <SectionHead icon={Languages} title="AI Language" />
+      <p style={{ fontSize: 11.5, color: 'var(--mute)', margin: '0 0 10px', lineHeight: 1.5, maxWidth: 520 }}>
+        The language the AI writes the daily brief, weekly review, evening wrap, review analysis
+        and action plan in. Figures stay in numerals and ₹; only the words are translated. When the
+        model is offline, the plain-English fallback is used.
+      </p>
+      <div className="flex items-center gap-3 flex-wrap mb-5">
+        <SearchSelect
+          triggerContent={
+            <span className="flex items-center gap-2" style={{ fontSize: 13 }}>
+              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{selectedLang[1]}</span>
+              <span style={{ color: 'var(--mute)' }}>{selectedLang[2]}</span>
+            </span>
+          }
+          items={languageItems}
+          onSelect={handleLanguageChange}
+          dropdownWidth={260}
           disabled={updateSetting.isPending}
         />
       </div>

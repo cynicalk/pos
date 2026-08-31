@@ -200,6 +200,7 @@ async function getDailyBrief(restaurantId) {
   const { narrative, aiUsed, model } = await narrateOrFallback(
     buildMessages(signals),
     fallbackNarrative(signals),
+    { restaurantId },
   );
   return { date: signals.date, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }

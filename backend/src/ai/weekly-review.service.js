@@ -152,6 +152,7 @@ async function getWeeklyReview(restaurantId) {
   const { narrative, aiUsed, model } = await briefService.narrateOrFallback(
     buildMessages(signals),
     fallbackNarrative(signals),
+    { restaurantId },
   );
   return { weekEnding: signals.weekEnding, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }

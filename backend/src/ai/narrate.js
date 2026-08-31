@@ -9,15 +9,41 @@
 // pulling in another surface's dependencies (and without a require cycle).
 
 const llm = require('./llm.client');
+const settingsRepo = require('../settings/settings.repository');
+const { languageDirective } = require('../shared/ai-languages');
+
+/**
+ * Resolve the restaurant's AI language and, if it isn't English, append the
+ * language directive to the narration's system prompt. Central here so every
+ * surface (brief, weekly, wrap, review, action plan) localises the same way just
+ * by passing its restaurantId — the fallback stays English, the safe net when the
+ * model is offline. Best-effort: any failure leaves the prompt untouched.
+ */
+async function applyLanguage(messages, restaurantId) {
+  if (!restaurantId) return messages;
+  let directive = null;
+  try {
+    const code = await settingsRepo.getValue(restaurantId, 'ai_language');
+    directive = languageDirective(code);
+  } catch { /* leave the prompt in English */ }
+  if (!directive) return messages;
+
+  const out = messages.map((m) => ({ ...m }));
+  const sys = out.find((m) => m.role === 'system');
+  if (sys) sys.content = `${sys.content} ${directive}`;
+  else out.unshift({ role: 'system', content: directive });
+  return out;
+}
 
 /**
  * @param {Array<{role,content}>} messages  the strict narration prompt
  * @param {string} fallback                  the honest templated narrative
- * @param {{maxTokens?:number, temperature?:number, timeoutMs?:number}} [opts]
+ * @param {{maxTokens?:number, temperature?:number, timeoutMs?:number, restaurantId?:string}} [opts]
  * @returns {Promise<{narrative:string, aiUsed:boolean, model:string|null}>}
  */
 async function narrateOrFallback(messages, fallback, opts = {}) {
   if (await llm.reachable()) {
+    messages = await applyLanguage(messages, opts.restaurantId);
     try {
       const res = await llm.chat(messages, {
         temperature: opts.temperature ?? 0.4,

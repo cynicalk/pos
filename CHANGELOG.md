@@ -9,6 +9,18 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 
 ### 2026-08-31
 
+#### Added
+- **Regional-language AI narration** (catalogue: absent → built). A per-restaurant
+  **AI Language** setting (Settings) makes all five narrated surfaces — daily brief,
+  weekly review, evening wrap, review analysis, action plan — speak Hindi, Tamil,
+  Telugu, Bengali, Marathi, Kannada, Gujarati, Malayalam or Punjabi instead of
+  English. It's a single injection point: `narrateOrFallback` resolves the setting
+  and appends a directive that translates only the prose while pinning every number,
+  the ₹ sign, percentages, coupon codes and proper names, so a localised brief still
+  quotes the exact figures the deterministic layer computed. The English fallback
+  stays the safe net when the model is offline. One language list
+  (`shared/ai-languages.js`) backs both the settings validation and the narrator.
+
 #### Changed
 - **Outcome Tracking, closed on the operator-intelligence loop** (catalogue:
   partial → effectively built). Marking a finding "acted on" already snapshotted a
