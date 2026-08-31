@@ -262,9 +262,29 @@ describe('rule catalogue', () => {
     const types = engine.DEFAULT_RULES.map((r) => r.ruleType).sort();
     expect(types).toEqual([
       'attach_drop', 'cert_expiry', 'cost_spike', 'coupon_loss', 'high_cancellation',
-      'license_expiry', 'menu_underperformer', 'rank_drop', 'rating_drop', 'revenue_anomaly',
-      'review_theme', 'sc_removal_high', 'stalled_table',
+      'license_expiry', 'menu_underperformer', 'rank_drop', 'rating_drop',
+      'reco_underexposed', 'revenue_anomaly', 'review_theme', 'sc_removal_high',
+      'stalled_table',
     ]);
+  });
+
+  test('reco_underexposed raises "feature it" for unfeatured high-margin puzzles, only when reco is active', () => {
+    const rules = [{ id: 'r', rule_type: 'reco_underexposed', enabled: true, severity: 'low' }];
+    const promote = [
+      { menuItemId: 'a', dishName: 'Iced Tea', profitMargin: 96, impressions: 0, recoAdds: 0, featured: false },
+      { menuItemId: 'b', dishName: 'Onion Rings', profitMargin: 95, impressions: 1, recoAdds: 0, featured: true },
+      { menuItemId: 'c', dishName: 'Gulab Jamun', profitMargin: 89, impressions: 0, recoAdds: 0, featured: false },
+    ];
+
+    // Recommender not yet active → abstain (don't mistake "no guests" for a leak).
+    expect(engine.buildCandidates(rules, { recoPromote: promote, recoActive: false })).toEqual([]);
+
+    const out = engine.buildCandidates(rules, { recoPromote: promote, recoActive: true });
+    const keys = out.map((c) => c.dedupeKey);
+    expect(keys).toContain('reco_underexposed:a'); // unfeatured puzzle
+    expect(keys).toContain('reco_underexposed:c');
+    expect(keys).not.toContain('reco_underexposed:b'); // already featured — lever pulled
+    expect(out[0].description).toMatch(/margin/);
   });
 
   test('every default rule carries a template with no unfilled placeholder', () => {

@@ -44,4 +44,13 @@ describe('menu_underperformer → actions', () => {
     // The dish id is the tail of the `<quadrant>:<id>` entity.
     expect(tracker.entityFromDedupeKey('menu_underperformer:plowhorse:abc-123')).toBe('plowhorse:abc-123');
   });
+
+  test('featuring is tracked by reco impressions, which improve when they rise', () => {
+    expect(tracker.metricForRuleType('reco_underexposed')).toMatchObject({ name: 'reco_dish_impressions', perEntity: true });
+    // Featured a dish at 0 shown; a later window shows 12 → it worked.
+    expect(tracker.evaluateChange(0, 12, 'reco_dish_impressions').verdict).toBe('improved');
+    expect(tracker.evaluateChange(12, 3, 'reco_dish_impressions').verdict).toBe('worsened');
+    // Entity is the bare dish id.
+    expect(tracker.entityFromDedupeKey('reco_underexposed:abc-123')).toBe('abc-123');
+  });
 });

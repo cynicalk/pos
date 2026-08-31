@@ -85,7 +85,7 @@ async function evaluate(restaurantId, now = Date.now()) {
   if (!rules.length) return [];
 
   const [orderStats, reviews, reviewComments, seatedTables, priceChanges, compliance, rankings, anomalies,
-    couponEconomics, attach, scRemoved, menuInsights] =
+    couponEconomics, attach, scRemoved, menuInsights, recoPerf] =
     await Promise.all([
     repo.getOrderStats(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
     repo.getRecentReviews(restaurantId, engine.RATING_WINDOW),
@@ -106,6 +106,9 @@ async function evaluate(restaurantId, now = Date.now()) {
     insightsService.getAttachRate(restaurantId, OI_WINDOW_DAYS),
     insightsService.getScRemoved(restaurantId, OI_WINDOW_DAYS),
     insightsService.getMenuInsights(restaurantId, OI_WINDOW_DAYS),
+    // The reco→margin loop, as an action source: high-margin dishes the
+    // recommender under-shows become "feature it" nudges.
+    insightsService.getRecoPerformance(restaurantId, OI_WINDOW_DAYS),
   ]);
 
   const candidates = engine.buildCandidates(rules, {
@@ -123,6 +126,8 @@ async function evaluate(restaurantId, now = Date.now()) {
     attach,
     scRemoved,
     menuMatrix: menuInsights?.matrix || null,
+    recoPromote: recoPerf?.promote || [],
+    recoActive: recoPerf?.funnel?.enoughData === true,
     windowDays: OI_WINDOW_DAYS,
   }, now);
 
@@ -275,6 +280,13 @@ async function computeMetric(restaurantId, metricName, entity = null) {
       const { performance = [] } = await insightsService.getMenuInsights(restaurantId, OI_WINDOW_DAYS);
       const dish = performance.find((p) => p.id === dishId);
       return dish && dish.hasCost ? Number(dish.profitMargin) : null;
+    }
+    case 'reco_dish_impressions': {
+      // entity is the dishId — measure how often the recommender showed it, so
+      // "did featuring it work?" is answered as impressions rising from the
+      // baseline taken when the operator featured it. Measurable from zero.
+      if (!entity) return null;
+      return insightsService.getRecoImpressionsForDish(restaurantId, OI_WINDOW_DAYS, entity);
     }
     default:
       return null;

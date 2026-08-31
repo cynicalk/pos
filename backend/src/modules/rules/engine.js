@@ -75,6 +75,19 @@ const DEFAULT_RULES = [
     messageTemplate: '{name}: {detail}',
   },
   {
+    // The reco→margin loop, raised. A high-margin puzzle the group recommender
+    // rarely surfaces is money left on the table; this turns each into a "feature
+    // it" action, and the outcome tracker then measures whether featuring raised
+    // how often it's shown. Only fires when the recommender is actually active
+    // (enough sessions saw picks) — otherwise "rarely shown" is just "no guests
+    // yet", not a leak. No numeric condition; the gate is the puzzle membership
+    // plus that it isn't already featured.
+    ruleType: 'reco_underexposed',
+    condition: { field: 'reco_impressions', op: '<', value: 1 },
+    severity: 'low',
+    messageTemplate: '{name}: {detail}',
+  },
+  {
     ruleType: 'rank_drop',
     // Three places, not one. Manual readings are taken at slightly different
     // times of day against a ranking that reshuffles constantly; a one-place
@@ -386,6 +399,47 @@ function evaluateMenuUnderperformers(rules, { menuMatrix }) {
 }
 
 /**
+ * High-margin puzzles the group recommender rarely puts in front of a table.
+ *
+ * The Recommendations page's reco→margin loop already identifies these; this
+ * raises the most valuable few as tracked "feature it" actions so the operator is
+ * nudged rather than having to open the page. Guarded on `recoActive` — the
+ * funnel having enough sessions to mean anything — so a quiet week doesn't
+ * mislabel "no guests" as "the recommender is hiding your best dishes". Already-
+ * featured dishes drop out (the lever is pulled), which is also how the outcome
+ * closes: featuring is the action, and its verdict is the dish's impressions rising.
+ */
+const RECO_UNDEREXPOSED_MAX = 3;
+function evaluateRecoUnderexposed(rules, { recoPromote, recoActive }) {
+  const applicable = rules.filter((r) => r.rule_type === 'reco_underexposed');
+  if (!applicable.length || !recoActive || !Array.isArray(recoPromote)) return [];
+
+  const round1 = (n) => Math.round(Number(n) * 10) / 10;
+  const candidates = recoPromote
+    .filter((p) => !p.featured && p.profitMargin != null)
+    .sort((a, b) => b.profitMargin - a.profitMargin)
+    .slice(0, RECO_UNDEREXPOSED_MAX);
+
+  const out = [];
+  for (const rule of applicable) {
+    for (const p of candidates) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: `reco_underexposed:${p.menuItemId}`,
+        title: `${p.dishName} earns well but the picks rarely show it`,
+        description:
+          `${p.dishName} runs a ${round1(p.profitMargin)}% margin, yet the recommender put it in ` +
+          `front of guests only ${p.impressions}× this window (${p.recoAdds} added). Feature it on ` +
+          `the Recommendations page to push it into more tables' picks.`,
+        priority: 'medium',
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Tables seated past the threshold with nothing ordered.
  *
  * Keyed per occupancy (table id + the moment it was seated), so once the table
@@ -493,6 +547,7 @@ function buildCandidates(rules, context, now = Date.now()) {
     ...evaluateRatings(enabled, context),
     ...evaluateReviewThemes(enabled, context),
     ...evaluateMenuUnderperformers(enabled, context),
+    ...evaluateRecoUnderexposed(enabled, context),
     ...evaluateStalledTables(enabled, context, now),
     ...evaluateCostSpikes(enabled, context),
     ...expiries.evaluateLicenceExpiry(enabled, context),

@@ -46,6 +46,17 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
   linear model (a nudge within diet/taste bands, never an override of a
   diet/allergy veto). The same funnel then measures whether featuring moved the
   dish — find the leak, pull a lever, watch the number.
+- **Reco leak → action centre → tracked outcome.** The reco→margin loop now rides
+  the same rules → ranked actions → outcome rails as every other finding. A new
+  `reco_underexposed` rule raises a "feature it" action for the top high-margin
+  puzzles the recommender rarely surfaces (guarded on the funnel being active, so
+  a quiet week isn't mistaken for a leak; already-featured dishes drop out).
+  Acting on one snapshots the dish's current reco impressions as the baseline, and
+  the outcome tracker re-measures later into an improved / no-change / worsened
+  verdict — because featuring should raise how often the recommender shows it, the
+  metric is impressions (measurable from zero), tracked per dish. Closes the loop
+  the operator started on the Recommendations page without them having to keep it
+  open.
 
 ### 2026-08-31
 

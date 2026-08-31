@@ -463,6 +463,25 @@ const getRecoImpressions = (restaurantId, days) =>
     GROUP BY did, mi.name
   `, [restaurantId, days]).then((r) => r.rows);
 
+/**
+ * How many times one dish was put in front of a table over the window — the
+ * outcome metric for a "feature this dish" action. Featuring should raise this
+ * (the recommender surfaces it more), so it's measurable from zero, unlike a
+ * conversion rate that has no base when the dish is never shown.
+ */
+const getRecoImpressionsForDish = (restaurantId, days, menuItemId) =>
+  db.query(`
+    SELECT COUNT(*)::int AS impressions
+    FROM guest_events ge
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+      COALESCE(ge.props->'dishIds', '[]'::jsonb)
+    ) AS did
+    WHERE ge.restaurant_id = $1
+      AND ge.event = 'recommendations_shown'
+      AND did = $3
+      AND ge.occurred_at >= now() - make_interval(days => $2)
+  `, [restaurantId, days, menuItemId]).then((r) => r.rows[0].impressions);
+
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>
   db.query(
@@ -478,4 +497,5 @@ module.exports = {
   getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
+  getRecoImpressionsForDish,
 };

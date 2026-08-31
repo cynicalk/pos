@@ -244,8 +244,14 @@ async function getRecoPerformance(restaurantId, daysRaw) {
   };
 }
 
+/** Passthrough for outcome tracking: one dish's reco impressions over a window. */
+function getRecoImpressionsForDish(restaurantId, days, menuItemId) {
+  return repo.getRecoImpressionsForDish(restaurantId, parseDays(days), menuItemId);
+}
+
 module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
   getCouponEconomics, getAttachRate, getScRemoved, getRecoPerformance,
+  getRecoImpressionsForDish,
 };
