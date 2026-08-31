@@ -52,6 +52,19 @@ const DEFAULT_RULES = [
       'Lowest-scoring area: {weakest_area}.',
   },
   {
+    // A recurring complaint THEME, not the average. rating_drop says the score
+    // fell; this says what it fell about and what to do — one tracked action per
+    // theme, gated by the same "two people, not one" floor the Reviews page uses.
+    // No numeric condition: the pattern floor lives in buildActionQueue, so the
+    // condition is a nominal presence check the evaluator does not read.
+    ruleType: 'review_theme',
+    condition: { field: 'negative_pattern', op: '>=', value: 2 },
+    severity: 'medium',
+    messageTemplate:
+      '{negative_count} of {total_count} recent reviews about {label} were negative ' +
+      '({negative_share}%). {suggested_action}',
+  },
+  {
     ruleType: 'rank_drop',
     // Three places, not one. Manual readings are taken at slightly different
     // times of day against a ranking that reshuffles constantly; a one-place
@@ -140,6 +153,11 @@ const DEFAULT_RULES = [
 // bad night drags the mean under the threshold and the alert is noise.
 const MIN_REVIEWS_FOR_RATING = 5;
 const RATING_WINDOW = 10;
+// A recurring THEME needs a wider lens than the rolling average does: two guests
+// complaining about the same thing rarely land inside the last ten reviews, so
+// the theme rule reads a larger recent window while rating_drop keeps its tight
+// one. Recent, not all-time — the action centre is about what to fix now.
+const REVIEW_THEME_WINDOW = 40;
 const CANCELLATION_WINDOW_DAYS = 30;
 
 // ── Primitives ─────────────────────────────────────────────────────────────
@@ -248,6 +266,68 @@ function evaluateRatings(rules, { reviews }) {
 }
 
 /**
+ * Recurring complaint themes → one tracked action each.
+ *
+ * rating_drop already fires on the average; this is the complementary "what
+ * about, and what to do" — it reuses the exact summarize + action-queue maths
+ * the Reviews page shows, so the action centre and the page can never rank a
+ * different complaint. Themes are keyword-classified as a deterministic floor
+ * when the LLM classifier has not run yet, so this works without waiting on a
+ * model; a review already classified keeps its stored theme.
+ *
+ * Priority is the theme's own risk, not a flat severity: hygiene is always high
+ * (it is the complaint an inspector hears about), otherwise the share of the
+ * theme that is negative decides. dedupeKey is per theme, so each recurring
+ * complaint is its own trackable action and clears independently.
+ */
+function evaluateReviewThemes(rules, { reviewComments }) {
+  const applicable = rules.filter((r) => r.rule_type === 'review_theme');
+  if (!applicable.length || !reviewComments?.length) return [];
+
+  const themes = require('../reputation/themes');
+  const summaryMod = require('../reputation/summary');
+
+  // Attach a theme/sentiment where the row has not been classified yet — the
+  // keyword classifier and the rating are the honest deterministic floor.
+  const classified = reviewComments.map((r) => ({
+    ...r,
+    theme: r.theme || themes.classifyByKeywords(r.comment),
+    sentiment: r.sentiment || themes.sentimentFromRating(r.overall_rating),
+  }));
+
+  const queue = summaryMod.buildActionQueue(summaryMod.summarizeReviews(classified));
+  if (!queue.length) return [];
+
+  const priorityFor = (t) => {
+    if (t.theme === 'hygiene') return 'high';
+    if (t.negativeSharePct >= 50) return 'high';
+    if (t.negativeSharePct >= 30) return 'medium';
+    return 'low';
+  };
+
+  const out = [];
+  for (const rule of applicable) {
+    for (const t of queue) {
+      out.push({
+        ruleId: rule.id,
+        ruleType: rule.rule_type,
+        dedupeKey: `review_theme:${t.theme}`,
+        title: `${t.negativeCount} guests flagged ${t.label.toLowerCase()}`,
+        description: interpolate(rule.message_template, {
+          negative_count: t.negativeCount,
+          total_count: t.totalCount,
+          label: t.label,
+          negative_share: t.negativeSharePct,
+          suggested_action: t.suggestedAction,
+        }),
+        priority: priorityFor(t),
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Tables seated past the threshold with nothing ordered.
  *
  * Keyed per occupancy (table id + the moment it was seated), so once the table
@@ -353,6 +433,7 @@ function buildCandidates(rules, context, now = Date.now()) {
   return [
     ...evaluateCancellations(enabled, context),
     ...evaluateRatings(enabled, context),
+    ...evaluateReviewThemes(enabled, context),
     ...evaluateStalledTables(enabled, context, now),
     ...evaluateCostSpikes(enabled, context),
     ...expiries.evaluateLicenceExpiry(enabled, context),
@@ -388,6 +469,7 @@ module.exports = {
   DEFAULT_RULES,
   MIN_REVIEWS_FOR_RATING,
   RATING_WINDOW,
+  REVIEW_THEME_WINDOW,
   CANCELLATION_WINDOW_DAYS,
   evaluateCondition,
   interpolate,

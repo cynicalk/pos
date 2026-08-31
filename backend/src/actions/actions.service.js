@@ -82,11 +82,12 @@ async function evaluate(restaurantId, now = Date.now()) {
   const rules = await repo.listRules(restaurantId);
   if (!rules.length) return [];
 
-  const [orderStats, reviews, seatedTables, priceChanges, compliance, rankings, anomalies,
+  const [orderStats, reviews, reviewComments, seatedTables, priceChanges, compliance, rankings, anomalies,
     couponEconomics, attach, scRemoved] =
     await Promise.all([
     repo.getOrderStats(restaurantId, engine.CANCELLATION_WINDOW_DAYS),
     repo.getRecentReviews(restaurantId, engine.RATING_WINDOW),
+    repo.getRecentReviewsWithText(restaurantId, engine.REVIEW_THEME_WINDOW),
     repo.getSeatedTables(restaurantId),
     getPriceChanges(restaurantId),
     complianceService.getOverview(restaurantId),
@@ -108,6 +109,7 @@ async function evaluate(restaurantId, now = Date.now()) {
     totalOrders: Number(orderStats?.total_orders || 0),
     cancelledOrders: Number(orderStats?.cancelled_orders || 0),
     reviews,
+    reviewComments,
     seatedTables,
     priceChanges,
     licence: compliance.licence,

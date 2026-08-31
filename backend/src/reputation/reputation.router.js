@@ -19,6 +19,11 @@ router.get('/insights', authenticate, authorize('admin'), asyncHandler(async (re
   res.json(await service.getInsights(rid(req), { days: req.query.days }));
 }));
 
+// AI review analysis: narrated sentiment + what-to-do over the same insights.
+router.get('/analysis', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
+  res.json(await service.getReviewAnalysis(rid(req), { days: req.query.days }));
+}));
+
 router.get('/reviews', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   res.json(await service.listReviews(rid(req), { days: req.query.days }));
 }));

@@ -37,6 +37,19 @@ export const useReviewInsights = (days, { enabled = true } = {}) =>
     enabled: enabled && common.enabled,
   });
 
+// The AI review analysis narrates through the local model, so it needs the same
+// long timeout the reply/classify calls use — the shared 8s ceiling would surface
+// as an error while the server was still narrating (and about to fall back to the
+// honest template anyway). Admin-only, so switchable off like the insights read.
+export const useReviewAnalysis = (days, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: ['reputation', 'analysis', days ?? null],
+    queryFn: async () => (await api.get(`/reputation/analysis${days ? `?days=${days}` : ''}`, { timeout: MODEL_TIMEOUT_MS })).data,
+    staleTime: 30 * 60_000,
+    retry: false,
+    enabled: enabled && common.enabled,
+  });
+
 export const useReviewQueue = (days) =>
   useQuery({
     queryKey: ['reputation', 'reviews', days ?? null],

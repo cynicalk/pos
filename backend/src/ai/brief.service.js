@@ -10,7 +10,7 @@
 // abstaining one (null where a cost or a count is missing), and the brief prints
 // "not available" rather than a zero that reads like a fact.
 
-const llm = require('./llm.client');
+const { narrateOrFallback } = require('./narrate');
 const briefRepo = require('./brief.repository');
 const aiRepo = require('./ai.repository');
 const snapshotsRepo = require('../snapshots/snapshots.repository');
@@ -188,39 +188,6 @@ function fallbackNarrative(signals) {
   }
 
   return parts.join(' ');
-}
-
-/**
- * Narrate a set of signals, or keep the honest templated fallback if the model
- * is unreachable or slow. Shared by the daily brief and its weekly sibling: the
- * operator opens these expecting a fast answer, so a quick fallback always beats
- * a slow wait, and a failed model never fails the surface.
- *
- * @returns {{narrative: string, aiUsed: boolean, model: string|null}}
- */
-async function narrateOrFallback(messages, fallback) {
-  if (await llm.reachable()) {
-    try {
-      const res = await llm.chat(messages, {
-        temperature: 0.4,
-        // A short brief needs far fewer tokens than a long answer; the tighter cap
-        // keeps a local 7B's generation comfortably inside the budget.
-        maxTokens: 180,
-        // At least one attempt — postCompletions' loop runs `attempt <= retries`,
-        // so retries:0 would never fire a request and always fall through.
-        retries: 1,
-        // Sized to let the narration finish while still staying under the client's
-        // 20s request timeout; past this the templated fallback already stands.
-        timeoutMs: 18_000,
-      });
-      const text = (res.content || '').trim();
-      if (text) return { narrative: text, aiUsed: true, model: llm.LLM_MODEL };
-    } catch {
-      // Fall through to the templated fallback; the surface must never fail
-      // because the model did.
-    }
-  }
-  return { narrative: fallback, aiUsed: false, model: null };
 }
 
 /**

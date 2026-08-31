@@ -2,8 +2,79 @@ import { useState } from 'react';
 import { AlertTriangle, Sparkles, Copy, Check, Info, RefreshCw } from 'lucide-react';
 import {
   useReviewInsights, useReviewQueue, useDraftReply, useSaveReply,
-  useMarkReplySent, useClassifyReviews,
+  useMarkReplySent, useClassifyReviews, useReviewAnalysis,
 } from '../hooks/useReputation';
+
+// Split a narrated analysis into sentence beats so each reads on its own line.
+const sentenceBeats = (text) =>
+  String(text || '').split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+
+// The narrated sentiment read + what-to-do, over the same window as the panel.
+// The maths is the summary below; this only phrases it (or falls back to an
+// honest template server-side). Recurring patterns are also raised as tracked
+// actions in the action centre — this card says so.
+function AnalysisCard({ days }) {
+  const { data, isLoading, isError } = useReviewAnalysis(days);
+  if (isError) return null;
+
+  const shell = {
+    position: 'relative', overflow: 'hidden', margin: '0 0 16px',
+    border: '1px solid var(--line)', borderRadius: 12,
+    background: 'linear-gradient(135deg, var(--paper-2) 0%, var(--paper) 60%)',
+    padding: '15px 18px',
+  };
+  const Header = ({ badge }) => (
+    <div className="flex items-center gap-2" style={{ marginBottom: 10, position: 'relative' }}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 24, height: 24, borderRadius: 7, background: 'var(--accent-soft, rgba(194,104,58,.14))' }}>
+        <Sparkles size={13} style={{ color: 'var(--accent, #C2683A)' }} />
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--label)' }}>
+        AI review analysis
+      </span>
+      {badge}
+    </div>
+  );
+
+  if (isLoading || !data) {
+    return (
+      <div style={shell}>
+        <Header badge={<span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--mute-2)' }}>reading the reviews…</span>} />
+        <div className="ai-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', marginBottom: 7, width: '94%' }} />
+        <div className="ai-pulse" style={{ height: 11, borderRadius: 6, background: 'var(--paper-3)', width: '72%' }} />
+        <style>{`@keyframes aiPulse{0%,100%{opacity:.55}50%{opacity:1}}.ai-pulse{animation:aiPulse 1.4s ease-in-out infinite}`}</style>
+      </div>
+    );
+  }
+
+  const beats = sentenceBeats(data.narrative);
+  return (
+    <div style={shell}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg, var(--accent, #C2683A), transparent)' }} />
+      <Header badge={
+        <span className="flex items-center gap-1" style={{
+          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', padding: '3px 8px', borderRadius: 999,
+          background: data.aiUsed ? 'var(--accent-soft, rgba(194,104,58,.12))' : 'var(--paper-3)',
+          color: data.aiUsed ? 'var(--accent, #C2683A)' : 'var(--mute-2)',
+        }}>
+          {data.aiUsed ? <><Sparkles size={10} /> AI NARRATED</> : 'OFFLINE · SIGNALS'}
+        </span>
+      } />
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {beats.map((b, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span style={{ flexShrink: 0, marginTop: 7, width: 5, height: 5, borderRadius: 999, background: i === 0 ? 'var(--accent, #C2683A)' : 'var(--line-2)' }} />
+            <span style={{ fontSize: i === 0 ? 14 : 13.5, lineHeight: 1.5, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? 'var(--ink)' : 'var(--ink-2, var(--ink))' }}>{b}</span>
+          </div>
+        ))}
+      </div>
+      {data.signals?.patterns?.length > 0 && (
+        <p style={{ margin: '11px 0 0', paddingTop: 9, borderTop: '1px solid var(--line)', fontSize: 11.5, color: 'var(--mute)', position: 'relative' }}>
+          Recurring patterns are raised as tracked actions in the action centre.
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * Review insights and the reply queue (MERGE_PLAN.md Phase 6).
@@ -180,6 +251,8 @@ export default function ReviewInsights() {
           {classify.isPending ? 'Sorting…' : 'Re-sort themes'}
         </button>
       </div>
+
+      <AnalysisCard days={days} />
 
       {isLoading && <p style={{ fontSize: 13, color: 'var(--mute)' }}>Loading…</p>}
 

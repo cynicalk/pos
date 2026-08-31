@@ -10,6 +10,19 @@ for *what exists*, and [ROADMAP.md](ROADMAP.md) for *what's next*.
 ### 2026-08-31
 
 #### Added
+- **AI Review Analyser** — a narrated sentiment read and *what-to-do* on the
+  Reviews → Insights tab, tied into the action centre. It narrates the same
+  deterministic summary the page already shows (sentiment split, recurring
+  complaint themes with their negative counts and per-theme remedy), under a
+  strict *"use only these figures, invent no complaint, first-party only"*
+  prompt, with an honest templated analysis when the model is offline
+  (`GET /api/reputation/analysis`). Separately, a new **`review_theme` rule**
+  raises each recurring complaint pattern as a tracked, ranked action — hygiene
+  always high, otherwise by the theme's negative share — carrying the deterministic
+  remedy as the action, over a wider review window than the rolling average uses.
+  The narration and the action centre read the same reviews, so they can never
+  point at different complaints. The brief/review narration helper was extracted
+  to `ai/narrate.js` and is now shared by all three surfaces.
 - **AI Weekly Review** — the Daily Brief's sibling, one horizon up. The Overview
   brief card now carries a *Yesterday / This week* toggle; the weekly read
   (`GET /api/ai/weekly-review`, lazy-loaded on demand) narrates the last seven

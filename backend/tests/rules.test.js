@@ -240,7 +240,7 @@ describe('rule catalogue', () => {
     expect(types).toEqual([
       'attach_drop', 'cert_expiry', 'cost_spike', 'coupon_loss', 'high_cancellation',
       'license_expiry', 'rank_drop', 'rating_drop', 'revenue_anomaly',
-      'sc_removal_high', 'stalled_table',
+      'review_theme', 'sc_removal_high', 'stalled_table',
     ]);
   });
 

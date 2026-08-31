@@ -3,9 +3,11 @@ const themes = require('../modules/reputation/themes');
 const summaryMod = require('../modules/reputation/summary');
 const replyMod = require('../modules/reputation/reply');
 const rankings = require('../modules/reputation/rankings');
+const analysisMod = require('../modules/reputation/analysis');
 const guests = require('../modules/guests/repeat');
 const churn = require('../modules/guests/churn');
 const llm = require('../ai/llm.client');
+const { narrateOrFallback } = require('../ai/narrate');
 const { ValidationError, NotFoundError } = require('../shared/errors');
 
 /*
@@ -172,6 +174,26 @@ async function getInsights(restaurantId, { days } = {}) {
     // reply queue from being mostly dead ends.
     contactable: rows.filter((r) => r.customer_phone).length,
   };
+}
+
+/**
+ * The AI review analysis: a narrated sentiment read and what-to-do, grounded
+ * strictly in the same summary + action queue the Reviews page shows. The maths
+ * (sentiment split, recurring patterns, per-theme remedy) is deterministic; the
+ * model only phrases it, and an honest templated analysis stands in when it's
+ * offline. The recurring patterns are separately raised as tracked actions by the
+ * rules engine (rule_type 'review_theme'), so this narration and the action
+ * centre read the same reviews and can never disagree.
+ */
+async function getReviewAnalysis(restaurantId, { days } = {}) {
+  const { windowDays, summary, actionQueue } = await getInsights(restaurantId, { days });
+  const signals = analysisMod.buildAnalysisSignals(summary, actionQueue, windowDays);
+  const { narrative, aiUsed, model } = await narrateOrFallback(
+    analysisMod.buildAnalysisMessages(signals),
+    analysisMod.fallbackAnalysis(signals),
+    { maxTokens: 220 },
+  );
+  return { windowDays, generatedAt: new Date().toISOString(), signals, narrative, model, aiUsed };
 }
 
 /** Review rows with their draft state attached, for the reply queue. */
@@ -489,6 +511,7 @@ module.exports = {
   classifyPending,
   classifyAll,
   getInsights,
+  getReviewAnalysis,
   listReviews,
   draftReply,
   saveReply,

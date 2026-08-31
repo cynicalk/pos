@@ -88,6 +88,16 @@ const getRecentReviews = (restaurantId, limit) =>
     [restaurantId, limit],
   ).then((r) => r.rows);
 
+// Same window, but with the text and any stored classification — the review_theme
+// rule reuses the reputation summary maths, which needs comment/theme/sentiment.
+const getRecentReviewsWithText = (restaurantId, limit) =>
+  db.query(
+    `SELECT id, overall_rating, comment, theme, sentiment
+     FROM reviews WHERE restaurant_id = $1
+     ORDER BY created_at DESC LIMIT $2`,
+    [restaurantId, limit],
+  ).then((r) => r.rows);
+
 /**
  * Occupied tables with a count of their unfinished orders.
  *
@@ -243,7 +253,7 @@ const listActiveRestaurants = () =>
 
 module.exports = {
   listRules, seedRules,
-  getOrderStats, getCancellationLoss, getRecentReviews, getSeatedTables,
+  getOrderStats, getCancellationLoss, getRecentReviews, getRecentReviewsWithText, getSeatedTables,
   findSuppressedDedupeKeys, createAction, listActions, getAction, updateStatus, assign,
   createOutcome, getOutcomeByAction, recordMeasurement, findUnmeasuredOutcomes,
   listActiveRestaurants,
