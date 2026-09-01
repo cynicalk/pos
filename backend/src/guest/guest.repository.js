@@ -313,10 +313,25 @@ async function getRecoDishActivity(restaurantId, days = 30, recentDays = 14) {
          AND menu_item_id IS NOT NULL
          AND occurred_at >= now() - make_interval(days => $2)
        GROUP BY menu_item_id
+     ),
+     -- Average slot the dish was shown at, from the logged picks ranks. Position
+     -- bias: a top-slot dish is added because it's on top, not because it's better,
+     -- so the prior discounts adds from high slots and rewards adds from low ones.
+     ranks AS (
+       SELECT lower(p->>'id') AS menu_item_id, AVG((p->>'rank')::numeric) AS avg_rank
+       FROM guest_events ge
+       CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ge.props->'picks', '[]'::jsonb)) AS p
+       WHERE ge.restaurant_id = $1 AND ge.event = 'recommendations_shown'
+         AND ge.occurred_at >= now() - make_interval(days => $2)
+         AND (p->>'id') ~ '^[0-9a-fA-F-]{36}$' AND (p->>'rank') ~ '^[0-9]+$'
+       GROUP BY lower(p->>'id')
      )
      SELECT s.menu_item_id, s.impressions, s.recent_impressions,
-            COALESCE(a.adds, 0) AS adds, COALESCE(a.recent_adds, 0) AS recent_adds
-     FROM shown s LEFT JOIN added a ON a.menu_item_id = s.menu_item_id`,
+            COALESCE(a.adds, 0) AS adds, COALESCE(a.recent_adds, 0) AS recent_adds,
+            r.avg_rank
+     FROM shown s
+     LEFT JOIN added a ON a.menu_item_id = s.menu_item_id
+     LEFT JOIN ranks r ON r.menu_item_id = s.menu_item_id`,
     [restaurantId, days, recentDays],
   );
   return rows;

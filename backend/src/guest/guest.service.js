@@ -76,6 +76,7 @@ async function getMenu(outletId) {
       adds: a.adds,
       recentImpressions: a.recent_impressions,
       recentAdds: a.recent_adds,
+      avgRank: a.avg_rank,
     })),
   );
 

@@ -328,3 +328,26 @@ describe('buildConcentration (cannibalization proxy)', () => {
     expect(buildConcentration([{ recoAdds: 3 }]).enoughData).toBe(false);
   });
 });
+
+describe('learned prior — position de-bias', () => {
+  const { buildAcceptancePriors } = require('../src/modules/recsys/prior');
+  test('an add from a deep slot outweighs the same acceptance from the top slot', () => {
+    // Two dishes, identical impressions/adds — one always shown at the top, one
+    // always deep. The deep one should earn a higher lift (its adds are harder-won).
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'top',  impressions: 60, adds: 24, recentImpressions: 0, recentAdds: 0, avgRank: 1 },
+      { menuItemId: 'deep', impressions: 60, adds: 24, recentImpressions: 0, recentAdds: 0, avgRank: 5 },
+      { menuItemId: 'mid',  impressions: 60, adds: 18, recentImpressions: 0, recentAdds: 0, avgRank: 3 },
+    ]);
+    expect(priors.get('deep')).toBeGreaterThan(priors.get('top'));
+  });
+
+  test('no rank history → neutral (does not change the ordering by acceptance alone)', () => {
+    const priors = buildAcceptancePriors([
+      { menuItemId: 'a', impressions: 60, adds: 30, recentImpressions: 0, recentAdds: 0 },
+      { menuItemId: 'b', impressions: 60, adds: 10, recentImpressions: 0, recentAdds: 0 },
+      { menuItemId: 'c', impressions: 60, adds: 20, recentImpressions: 0, recentAdds: 0 },
+    ]);
+    expect(priors.get('a')).toBeGreaterThan(priors.get('b'));
+  });
+});
