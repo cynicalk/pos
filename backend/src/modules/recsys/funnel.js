@@ -25,6 +25,8 @@
  *   rejects_capped        reco_rejected with reason 'capped'
  */
 
+const { twoProportionZ } = require('./stats');
+
 // Below this many sessions that saw picks, rates are noise — abstain.
 const MIN_SESSIONS = 20;
 
@@ -63,15 +65,21 @@ function buildRecoFunnel(counts = {}, priorCounts = null) {
   const enoughData = sawRecos >= MIN_SESSIONS;
 
   // Week-over-week acceptance, only when BOTH windows cleared the floor — a
-  // delta against a thin prior window is noise, so it's withheld, not shown.
+  // delta against a thin prior window is noise, so it's withheld, not shown. And
+  // even with both windows sized, whether the move is real is a two-proportion
+  // z-test, not just "the number fell by N points" — a 10-point swing on 30
+  // sessions is noise, on 400 it's a signal, and the test knows the difference.
   let priorAcceptanceRate = null;
   let acceptanceDelta = null;
+  let acceptanceDropSignificant = false;
   if (priorCounts) {
     const priorSaw = n(priorCounts.sessions_saw_recos);
     if (enoughData && priorSaw >= MIN_SESSIONS) {
       priorAcceptanceRate = pct(n(priorCounts.dish_adds_reco), n(priorCounts.dish_adds));
       if (acceptanceRate != null && priorAcceptanceRate != null) {
         acceptanceDelta = Math.round((acceptanceRate - priorAcceptanceRate) * 10) / 10;
+        const test = twoProportionZ(dishAddsReco, dishAdds, n(priorCounts.dish_adds_reco), n(priorCounts.dish_adds));
+        acceptanceDropSignificant = test.significant && acceptanceDelta < 0;
       }
     }
   }
@@ -86,6 +94,7 @@ function buildRecoFunnel(counts = {}, priorCounts = null) {
     conversionRate: enoughData ? conversionRate : null,
     priorAcceptanceRate,
     acceptanceDelta,
+    acceptanceDropSignificant,
     dishAdds,
     dishAddsReco,
     rejections: {

@@ -70,7 +70,13 @@ async function getMenu(outletId) {
   // abstaining (absent) for dishes without enough impressions to judge. The guest
   // app multiplies its learnedAcceptance weight by this; a missing dish gets 0.
   const priors = recsysPrior.buildAcceptancePriors(
-    recoActivity.map((a) => ({ menuItemId: a.menu_item_id, impressions: a.impressions, adds: a.adds })),
+    recoActivity.map((a) => ({
+      menuItemId: a.menu_item_id,
+      impressions: a.impressions,
+      adds: a.adds,
+      recentImpressions: a.recent_impressions,
+      recentAdds: a.recent_adds,
+    })),
   );
 
   const dishes = (menu.dishes || []).map((d) => ({

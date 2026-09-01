@@ -299,12 +299,14 @@ describe('rule catalogue', () => {
     expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: false }, recoMargin: { verdict: 'margin_leak', highMarginShare: 18 } })).toEqual([]);
   });
 
-  test('reco_acceptance_drop fires only on a real week-over-week fall', () => {
+  test('reco_acceptance_drop fires only on a real, significant week-over-week fall', () => {
     const rules = [{ id: 'r', rule_type: 'reco_acceptance_drop', enabled: true, severity: 'medium' }];
-    const dropped = { enoughData: true, acceptanceRate: 48, priorAcceptanceRate: 66, acceptanceDelta: -18 };
+    const dropped = { enoughData: true, acceptanceRate: 48, priorAcceptanceRate: 66, acceptanceDelta: -18, acceptanceDropSignificant: true };
     expect(engine.buildCandidates(rules, { recoFunnel: dropped }).map((c) => c.dedupeKey)).toEqual(['reco_acceptance_drop']);
+    // Big-looking drop but NOT statistically significant (thin volume) → nothing.
+    expect(engine.buildCandidates(rules, { recoFunnel: { ...dropped, acceptanceDropSignificant: false } })).toEqual([]);
     // A small dip is noise, not an action.
-    expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: true, acceptanceDelta: -4 } })).toEqual([]);
+    expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: true, acceptanceDelta: -4, acceptanceDropSignificant: true } })).toEqual([]);
     // No prior comparison available (thin prior window) → delta null → nothing.
     expect(engine.buildCandidates(rules, { recoFunnel: { enoughData: true, acceptanceDelta: null } })).toEqual([]);
   });

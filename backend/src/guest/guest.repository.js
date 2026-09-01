@@ -287,10 +287,14 @@ async function insertGuestEvents(rows) {
 // Per-dish reco activity over the window: how often each dish was shown (unnested
 // from recommendations_shown.dishIds) and how often it was added from a pick.
 // Feeds the learned acceptance prior the recommender blends in.
-async function getRecoDishActivity(restaurantId, days = 30) {
+async function getRecoDishActivity(restaurantId, days = 30, recentDays = 14) {
   const { rows } = await db.query(
     `WITH shown AS (
-       SELECT lower(did) AS menu_item_id, COUNT(DISTINCT ge.session_id)::int AS impressions
+       SELECT lower(did) AS menu_item_id,
+              COUNT(DISTINCT ge.session_id)::int AS impressions,
+              COUNT(DISTINCT ge.session_id) FILTER (
+                WHERE ge.occurred_at >= now() - make_interval(days => $3)
+              )::int AS recent_impressions
        FROM guest_events ge
        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ge.props->'dishIds', '[]'::jsonb)) AS did
        WHERE ge.restaurant_id = $1 AND ge.event = 'recommendations_shown'
@@ -299,16 +303,21 @@ async function getRecoDishActivity(restaurantId, days = 30) {
        GROUP BY lower(did)
      ),
      added AS (
-       SELECT menu_item_id::text AS menu_item_id, COUNT(DISTINCT session_id)::int AS adds
+       SELECT menu_item_id::text AS menu_item_id,
+              COUNT(DISTINCT session_id)::int AS adds,
+              COUNT(DISTINCT session_id) FILTER (
+                WHERE occurred_at >= now() - make_interval(days => $3)
+              )::int AS recent_adds
        FROM guest_events
        WHERE restaurant_id = $1 AND event = 'dish_added' AND source = 'reco'
          AND menu_item_id IS NOT NULL
          AND occurred_at >= now() - make_interval(days => $2)
        GROUP BY menu_item_id
      )
-     SELECT s.menu_item_id, s.impressions, COALESCE(a.adds, 0) AS adds
+     SELECT s.menu_item_id, s.impressions, s.recent_impressions,
+            COALESCE(a.adds, 0) AS adds, COALESCE(a.recent_adds, 0) AS recent_adds
      FROM shown s LEFT JOIN added a ON a.menu_item_id = s.menu_item_id`,
-    [restaurantId, days],
+    [restaurantId, days, recentDays],
   );
   return rows;
 }

@@ -155,46 +155,74 @@ describe('buildRecoMargin', () => {
   });
 });
 
-describe('buildAcceptancePriors (learned prior)', () => {
+describe('buildAcceptancePriors (learned prior, Wilson + recency)', () => {
+  const A = (id, imp, adds) => ({ menuItemId: id, impressions: imp, adds, recentImpressions: 0, recentAdds: 0 });
+
   test('dishes accepted above the menu average get a positive lift, below get negative', () => {
+    const priors = buildAcceptancePriors([A('a', 100, 50), A('b', 100, 10), A('c', 100, 30)]);
+    expect(priors.get('a')).toBeGreaterThan(0);   // well above the (Wilson) mean
+    expect(priors.get('b')).toBeLessThan(0);       // well below
+    expect(Math.abs(priors.get('c'))).toBeLessThan(Math.abs(priors.get('a'))); // near the middle
+  });
+
+  test('Wilson keeps a lucky thin sample from rocketing up the ranking', () => {
+    // Same 75% point estimate, but 3/4 is far less certain than 150/200; its lower
+    // bound is much smaller, so it does NOT out-rank the high-volume dish.
     const priors = buildAcceptancePriors([
-      { menuItemId: 'a', impressions: 40, adds: 20 }, // 50% acceptance
-      { menuItemId: 'b', impressions: 40, adds: 4 },  // 10%
-      { menuItemId: 'c', impressions: 40, adds: 12 }, // 30%  (mean = 30%)
+      A('lucky', 6, 5),     // ~83% point, but tiny n
+      A('proven', 200, 150), // 75% on real volume
+      A('meh', 100, 20),
     ]);
-    expect(priors.get('a')).toBeGreaterThan(0);
-    expect(priors.get('b')).toBeLessThan(0);
-    expect(priors.get('c')).toBeCloseTo(0, 5); // at the mean → no nudge
+    expect(priors.get('proven')).toBeGreaterThan(priors.get('lucky'));
   });
 
   test('a dish shown fewer than the floor is not judged at all (model unchanged)', () => {
     const priors = buildAcceptancePriors([
-      { menuItemId: 'a', impressions: 40, adds: 20 },
-      { menuItemId: 'b', impressions: 40, adds: 10 },
-      { menuItemId: 'c', impressions: 40, adds: 30 },
-      { menuItemId: 'thin', impressions: MIN_IMPRESSIONS - 1, adds: 5 },
+      A('a', 40, 20), A('b', 40, 10), A('c', 40, 30),
+      A('thin', MIN_IMPRESSIONS - 1, 4),
     ]);
     expect(priors.has('thin')).toBe(false);
   });
 
-  test('too few judged dishes to form a baseline → nothing learned yet', () => {
+  test('recent adds weigh more than old ones', () => {
+    // Two dishes with identical totals, but one earned its adds recently.
     const priors = buildAcceptancePriors([
-      { menuItemId: 'a', impressions: 40, adds: 20 },
-      { menuItemId: 'b', impressions: 40, adds: 10 },
+      { menuItemId: 'recent', impressions: 40, adds: 20, recentImpressions: 20, recentAdds: 18 },
+      { menuItemId: 'stale', impressions: 40, adds: 20, recentImpressions: 20, recentAdds: 2 },
+      { menuItemId: 'base', impressions: 40, adds: 12, recentImpressions: 6, recentAdds: 6 },
     ]);
+    expect(priors.get('recent')).toBeGreaterThan(priors.get('stale'));
+  });
+
+  test('too few judged dishes to form a baseline → nothing learned yet', () => {
+    const priors = buildAcceptancePriors([A('a', 40, 20), A('b', 40, 10)]);
     expect(priors.size).toBe(0);
   });
 
-  test('lift is clamped to [-1, 1] so one runaway dish cannot dominate', () => {
-    const priors = buildAcceptancePriors([
-      { menuItemId: 'a', impressions: 40, adds: 40 }, // 100%
-      { menuItemId: 'b', impressions: 40, adds: 1 },
-      { menuItemId: 'c', impressions: 40, adds: 1 },
-    ]);
+  test('lift is clamped to [-1, 1]', () => {
+    const priors = buildAcceptancePriors([A('a', 40, 40), A('b', 40, 1), A('c', 40, 1)]);
     for (const v of priors.values()) {
       expect(v).toBeGreaterThanOrEqual(-1);
       expect(v).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('recsys stats', () => {
+  const { wilsonLowerBound, twoProportionZ } = require('../src/modules/recsys/stats');
+
+  test('Wilson lower bound is below the point estimate and rises with n', () => {
+    const low = wilsonLowerBound(3, 4);   // 75% on 4 trials
+    const high = wilsonLowerBound(150, 200); // 75% on 200 trials
+    expect(low).toBeLessThan(0.75);
+    expect(high).toBeGreaterThan(low);
+    expect(wilsonLowerBound(0, 0)).toBe(0);
+  });
+
+  test('two-proportion z flags a real move and shrugs off a thin one', () => {
+    expect(twoProportionZ(40, 200, 90, 200).significant).toBe(true);   // 20% vs 45%, big n
+    expect(twoProportionZ(4, 10, 6, 10).significant).toBe(false);       // same gap, tiny n
+    expect(twoProportionZ(5, 0, 5, 10).significant).toBe(false);        // no trials one side
   });
 });
 

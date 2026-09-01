@@ -493,7 +493,10 @@ function evaluateRecoHealth(rules, { recoFunnel, recoMargin, windowDays }) {
 
   for (const rule of rules.filter((r) => r.rule_type === 'reco_acceptance_drop')) {
     const drop = recoFunnel.acceptanceDelta;
-    if (drop != null && drop <= -RECO_ACCEPTANCE_DROP_POINTS) {
+    // Both a meaningful size AND statistical significance (two-proportion z-test,
+    // computed in the funnel builder) — so a large-looking swing on thin volume
+    // doesn't raise an action.
+    if (drop != null && drop <= -RECO_ACCEPTANCE_DROP_POINTS && recoFunnel.acceptanceDropSignificant) {
       out.push({
         ruleId: rule.id,
         ruleType: rule.rule_type,
