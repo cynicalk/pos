@@ -24,12 +24,8 @@ const NARRATION_TTL_MS = 60_000;
  * in the prompt's user message. Each value is stored as its rounded integer so a
  * reformatted figure (₹48,231.50 → "₹48,232") still matches.
  */
-function allowedNumbers(messages) {
+function numbersFromSignals(signals) {
   const set = new Set();
-  const user = [...messages].reverse().find((m) => m.role === 'user');
-  if (!user) return set;
-  let signals;
-  try { signals = JSON.parse(user.content); } catch { return set; }
   const walk = (v) => {
     if (typeof v === 'number' && Number.isFinite(v)) {
       set.add(Math.round(v));
@@ -39,6 +35,12 @@ function allowedNumbers(messages) {
   };
   walk(signals);
   return set;
+}
+
+function allowedNumbers(messages) {
+  const user = [...messages].reverse().find((m) => m.role === 'user');
+  if (!user) return new Set();
+  try { return numbersFromSignals(JSON.parse(user.content)); } catch { return new Set(); }
 }
 
 /**
@@ -136,4 +138,4 @@ async function narrateOnce(messages, fallback, opts = {}) {
   return { narrative: fallback, aiUsed: false, model: null };
 }
 
-module.exports = { narrateOrFallback, figuresGrounded, allowedNumbers };
+module.exports = { narrateOrFallback, figuresGrounded, allowedNumbers, numbersFromSignals };
