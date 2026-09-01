@@ -36,19 +36,23 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ## 1. Supabase — the database
 
 1. **Create a project** at supabase.com → note the project ref and DB password.
-2. **Get the connection string.** In *Project → Settings → Database → Connection string*,
-   take the **Transaction pooler** URI (host `...pooler.supabase.com`, port **6543**) —
-   serverless functions must use the pooler, not a direct connection:
+2. **Get BOTH connection strings.** In *Project → Settings → Database → Connection string*:
+   - **Session pooler** (port **5432**) — for migrations and seeding. DDL runs in
+     transactions and needs a real session, which the transaction pooler can't give.
+   - **Transaction pooler** (port **6543**) — for the serverless runtime (step 2),
+     where many short-lived functions each want a connection.
    ```
-   postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+   session:     postgres://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   transaction: postgres://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:6543/postgres
    ```
-3. **Run migrations + seed** from your machine against Supabase:
+3. **Run migrations + seed** from your machine, using the **session (5432)** URI:
    ```bash
    cd backend
-   export DATABASE_URL="postgres://postgres.<ref>:<pwd>@...pooler.supabase.com:6543/postgres"
+   export DATABASE_URL="postgres://postgres.<ref>:<pwd>@...pooler.supabase.com:5432/postgres"
    export PGSSL=require
    npm run migrate:deploy             # uses the ambient DATABASE_URL (the plain
-                                      # `migrate` script is hardcoded to local Docker)
+                                      # `migrate` script is hardcoded to local Docker).
+                                      # Only gen_random_uuid() is used — no extensions to enable.
    npm run seed:deploy                # demo menu, users, a fortnight of trade
    node scripts/backfill-history.js   # 90 days behind the seed (optional, richer demo)
    node scripts/backfill-guest-events.js  # reco funnel demo data (optional)
@@ -71,9 +75,9 @@ Set env vars (Vercel dashboard → Project → Settings → Environment Variable
 
 | Variable | Value |
 | --- | --- |
-| `DATABASE_URL` | the Supabase **pooler** URI from step 1 |
+| `DATABASE_URL` | the Supabase **transaction pooler** URI (port **6543**) — the runtime one |
 | `PGSSL` | `require` |
-| `PGPOOL_MAX` | `1` (serverless: one connection per instance against the pooler) |
+| `PGPOOL_MAX` | `1` (serverless: one connection per instance against the transaction pooler) |
 | `JWT_SECRET` | the secret you generated |
 | `NODE_ENV` | `production` |
 | `CORS_ORIGINS` | the frontend URLs once known (comma-separated) — see step 5 |
@@ -86,6 +90,13 @@ vercel --prod
 ```
 
 Note the resulting API URL, e.g. `https://cooklyt-api.vercel.app`.
+
+> **Function duration + the LLM.** `backend/vercel.json` sets `maxDuration: 30`,
+> which needs a **Pro** plan; on **Hobby** the cap is 10s — lower it to `10` there.
+> If you set `LLM_BASE_URL` (hosted model), keep `LLM_TIMEOUT_MS` **below** that cap
+> so a slow model returns the honest fallback instead of the function timing out.
+> Leaving `LLM_BASE_URL` unset runs every narrated surface on its fallback, which
+> is fast and safe.
 
 > **Health check:** `curl https://cooklyt-api.vercel.app/health` → `{"status":"ok"}`.
 
