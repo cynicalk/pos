@@ -39,3 +39,6 @@ export const useRecoPerformance = (days = 30) =>
 
 export const useStaffPerformance = (days = 30) =>
   useQuery({ queryKey: ['insights', 'staff', days], queryFn: get('/insights/staff', { days }), ...common });
+
+export const useGuestCohorts = () =>
+  useQuery({ queryKey: ['insights', 'cohorts'], queryFn: get('/insights/cohorts'), ...common });

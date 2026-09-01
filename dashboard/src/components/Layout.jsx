@@ -165,6 +165,7 @@ export const ALL_NAV = [
       { to: '/reviews',  label: 'Reviews',  Icon: MessageSquare  },
       { to: '/rankings', label: 'Rankings', Icon: Radar           },
       { to: '/guests',   label: 'Guests',   Icon: Users           },
+      { to: '/cohorts',  label: 'Cohorts',  Icon: TrendingUp      },
     ],
   },
   // Not-yet-possible features (MERGE_PLAN.md §2 Tier 3). They sit in the nav

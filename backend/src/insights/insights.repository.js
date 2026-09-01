@@ -671,6 +671,40 @@ const getStaffPerformance = (restaurantId, days) =>
     ORDER BY revenue DESC
   `, [restaurantId, days]).then((r) => r.rows);
 
+/**
+ * Guest cohort activity: each loyalty guest's paid orders bucketed by the month
+ * offset from their FIRST order, so the pure builder can draw the classic
+ * retention triangle (what share of a cohort comes back in month N) and the
+ * cumulative revenue-per-guest (LTV) curve. Revenue is summed in a subquery per
+ * order to avoid split-bill double-counting.
+ */
+const getGuestCohorts = (restaurantId) =>
+  db.query(`
+    WITH cust_orders AS (
+      SELECT o.loyalty_customer_id AS cid,
+             o.created_at,
+             (SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.order_id = o.id AND p.status = 'completed') AS amount
+      FROM orders o
+      WHERE o.restaurant_id = $1 AND o.status = 'paid' AND o.loyalty_customer_id IS NOT NULL
+    ),
+    firsts AS (
+      SELECT cid, date_trunc('month', MIN(created_at)) AS cohort FROM cust_orders GROUP BY cid
+    ),
+    joined AS (
+      SELECT f.cohort, co.cid, co.amount,
+             (EXTRACT(YEAR FROM co.created_at) - EXTRACT(YEAR FROM f.cohort)) * 12
+               + (EXTRACT(MONTH FROM co.created_at) - EXTRACT(MONTH FROM f.cohort)) AS month_offset
+      FROM cust_orders co JOIN firsts f ON f.cid = co.cid
+    )
+    SELECT to_char(cohort, 'YYYY-MM')      AS cohort,
+           month_offset::int               AS month_offset,
+           COUNT(DISTINCT cid)::int         AS active_guests,
+           COALESCE(SUM(amount), 0)::float8 AS revenue
+    FROM joined
+    GROUP BY cohort, month_offset
+    ORDER BY cohort, month_offset
+  `, [restaurantId]).then((r) => r.rows);
+
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>
   db.query(
@@ -687,5 +721,5 @@ module.exports = {
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
   getRecoImpressionsForDish, getRecoRevenue, getRecoFunnelBySegment, getRecoRefineStats,
-  getRecoCoverage, getRecoTiming, getStaffPerformance,
+  getRecoCoverage, getRecoTiming, getStaffPerformance, getGuestCohorts,
 };

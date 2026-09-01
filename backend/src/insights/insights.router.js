@@ -46,4 +46,8 @@ router.get('/staff', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.getStaffPerformance(req.user.restaurantId, req.query.days));
 }));
 
+router.get('/cohorts', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getGuestCohorts(req.user.restaurantId));
+}));
+
 module.exports = router;

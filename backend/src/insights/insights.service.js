@@ -10,6 +10,7 @@ const recsysFunnel = require('../modules/recsys/funnel');
 const recsysMargin = require('../modules/recsys/margin');
 const recsysAnalytics = require('../modules/recsys/analytics');
 const staffPerformance = require('../modules/staff/performance');
+const cohorts = require('../modules/reputation/cohorts');
 const { createTtlCache } = require('../shared/ttl-cache');
 
 const recoCache = createTtlCache();
@@ -294,6 +295,12 @@ function getRecoImpressionsForDish(restaurantId, days, menuItemId) {
   return repo.getRecoImpressionsForDish(restaurantId, parseDays(days), menuItemId);
 }
 
+/** Guest cohorts — first-visit-month retention triangle + cumulative LTV. */
+async function getGuestCohorts(restaurantId) {
+  const rows = await repo.getGuestCohorts(restaurantId);
+  return cohorts.buildCohorts(rows);
+}
+
 /** Per-server performance over the window — dine-in orders, revenue, AOV, attach. */
 async function getStaffPerformance(restaurantId, daysRaw) {
   const days = parseDays(daysRaw);
@@ -310,5 +317,5 @@ module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
   getCouponEconomics, getAttachRate, getScRemoved, getRecoPerformance,
-  getRecoImpressionsForDish, getStaffPerformance,
+  getRecoImpressionsForDish, getStaffPerformance, getGuestCohorts,
 };
