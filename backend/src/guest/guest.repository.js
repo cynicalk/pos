@@ -337,6 +337,34 @@ async function getRecoDishActivity(restaurantId, days = 30, recentDays = 14) {
   return rows;
 }
 
+// ── Dish embeddings (content-based cold-start) ───────────────────────────────
+
+// Available dishes with the text that gets embedded (name + description).
+const getMenuItemsForEmbedding = (restaurantId) =>
+  db.query(
+    `SELECT id, name, COALESCE(description, '') AS description
+       FROM menu_items
+      WHERE restaurant_id = $1 AND available = true AND archived_at IS NULL`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
+// Upsert one dish's vector; re-embedding overwrites in place.
+const upsertDishEmbedding = (menuItemId, restaurantId, embedding, sourceText) =>
+  db.query(
+    `INSERT INTO dish_embeddings (menu_item_id, restaurant_id, embedding, source_text, updated_at)
+     VALUES ($1, $2, $3::jsonb, $4, now())
+     ON CONFLICT (menu_item_id) DO UPDATE
+        SET embedding = EXCLUDED.embedding, source_text = EXCLUDED.source_text, updated_at = now()`,
+    [menuItemId, restaurantId, JSON.stringify(embedding), sourceText],
+  );
+
+// All stored dish vectors for a restaurant.
+const getDishEmbeddings = (restaurantId) =>
+  db.query(
+    `SELECT menu_item_id, embedding FROM dish_embeddings WHERE restaurant_id = $1`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
 // Resolves the dishIds the guest app sends (which are our menu_item ids) to the
 // live rows, so ingest can store menu_item_id/dish_name and drop ids that no
 // longer exist. Returns a Map id → name.
@@ -354,6 +382,9 @@ module.exports = {
   resolveOutlet,
   insertGuestEvents,
   getRecoDishActivity,
+  getMenuItemsForEmbedding,
+  upsertDishEmbedding,
+  getDishEmbeddings,
   resolveMenuItemNames,
   createSession,
   findSessionByCode,

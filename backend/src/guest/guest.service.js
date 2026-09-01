@@ -4,6 +4,7 @@ const guestMenuService = require('../guestmenu/guestmenu.service');
 const ordersService = require('../orders/orders.service');
 const crossSell = require('../modules/menu/cross-sell');
 const recsysPrior = require('../modules/recsys/prior');
+const recsysColdStart = require('../modules/recsys/coldstart');
 const ws = require('../shared/websocket');
 const { createTtlCache } = require('../shared/ttl-cache');
 
@@ -80,6 +81,18 @@ async function getMenu(outletId) {
     })),
   );
 
+  // Content-based cold-start: a dish with no learned lift borrows a dampened one
+  // from the dishes it resembles that do convert (see modules/recsys/coldstart).
+  // Best-effort — no embeddings indexed yet ⇒ this simply adds nothing.
+  let coldStart = new Map();
+  try {
+    const vecs = await priorCache.wrap(`dishvecs:${o.id}`, PRIOR_CACHE_TTL_MS, () => repo.getDishEmbeddings(o.id));
+    coldStart = recsysColdStart.inferColdStartLifts(
+      vecs.map((v) => ({ menuItemId: v.menu_item_id, embedding: v.embedding })),
+      priors,
+    );
+  } catch { /* embeddings optional — cold-start abstains */ }
+
   const dishes = (menu.dishes || []).map((d) => ({
     id: d.id,
     name: d.name,
@@ -89,9 +102,10 @@ async function getMenu(outletId) {
     tags: [],
     // Operator's promote flag — the recommender boosts these (see recommend-core).
     featured: d.featured === true,
-    // Learned acceptance lift in [-1, 1] from the recommender's own logs; 0 (the
-    // model unchanged) for dishes without enough impressions to judge.
-    recoLift: priors.get(d.id) ?? 0,
+    // Learned acceptance lift in [-1, 1]: the observed prior where the dish has
+    // history, else a dampened content-based cold-start lift inferred from similar
+    // dishes, else 0 (model unchanged).
+    recoLift: priors.get(d.id) ?? coldStart.get(d.id)?.lift ?? 0,
     allergens: Array.isArray(d.allergens) ? d.allergens : [],
     // Derived from declared ingredients; unknown stays non-veg-safe (false), and
     // the app shows dishes either way — this only drives its veg filter.

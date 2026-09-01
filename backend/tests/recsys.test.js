@@ -351,3 +351,31 @@ describe('learned prior — position de-bias', () => {
     expect(priors.get('a')).toBeGreaterThan(priors.get('b'));
   });
 });
+
+describe('inferColdStartLifts (content-based cold-start)', () => {
+  const { inferColdStartLifts } = require('../src/modules/recsys/coldstart');
+  // 3-d vectors: 'a' and 'new' point the same way; 'b' is orthogonal.
+  const vectors = [
+    { menuItemId: 'a',   embedding: [1, 0, 0] },
+    { menuItemId: 'b',   embedding: [0, 1, 0] },
+    { menuItemId: 'new', embedding: [0.99, 0.1, 0] },
+  ];
+  test('a dish with no history borrows a dampened lift from its nearest neighbour', () => {
+    const learned = new Map([['a', 0.8], ['b', -0.6]]);
+    const cold = inferColdStartLifts(vectors, learned);
+    expect(cold.has('new')).toBe(true);
+    expect(cold.get('new').inferred).toBe(true);
+    // Nearest neighbour is 'a' (+0.8), dampened by 0.5 → ~+0.4, not the full 0.8.
+    expect(cold.get('new').lift).toBeGreaterThan(0);
+    expect(cold.get('new').lift).toBeLessThan(0.8);
+  });
+
+  test('a dish that already has a learned lift is not cold-started', () => {
+    const learned = new Map([['a', 0.8], ['b', -0.6], ['new', 0.2]]);
+    expect(inferColdStartLifts(vectors, learned).has('new')).toBe(false);
+  });
+
+  test('nothing to borrow from → nothing inferred', () => {
+    expect(inferColdStartLifts(vectors, new Map()).size).toBe(0);
+  });
+});
