@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useFlow } from "@/hooks/use-flow";
 import { useMenu } from "@/hooks/use-menu";
 import { fetchTable, pushTable } from "@/lib/backend";
+import { sessionVariant, sessionExplores } from "@/lib/experiment";
 import groupsData from "@/data/groups.json";
 import type {
   Allergen,
@@ -139,6 +140,8 @@ export default function JoinTable() {
       groupPrefs: {},
       refineTags: [],
       cart: [],
+      variant: sessionVariant(),
+      explore: sessionExplores(),
     });
 
     // Seed the shared cart with a couple of dishes the group already added,

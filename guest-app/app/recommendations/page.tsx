@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, RefreshCw, Users } from "lucide-react";
 import { track } from "@/lib/analytics";
+import { sessionVariant } from "@/lib/experiment";
 import { Shell, ActionBar } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -36,9 +37,15 @@ export default function Recommendations() {
       // operator can see which kinds of table the picks convert for.
       groupType: state.groupType,
       partySize: state.partySize,
+      // A/B arm for the holdout comparison (control = plain model).
+      variant: sessionVariant(),
       // The dishes actually put in front of the table — the per-dish impression
       // denominator the operator's reco→margin loop needs (impression → add).
       dishIds: state.recommendations.map((r) => r.dish.id),
+      // Per-dish rank (1-based) — logged now so a position-debiased learned model
+      // has the history when it's built; the raw acceptance is contaminated by
+      // position without it.
+      picks: state.recommendations.map((r, i) => ({ id: r.dish.id, rank: i + 1 })),
     });
   }, [ready, state.refineRounds, state.recommendations.length, state.entryPath]);
 

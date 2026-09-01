@@ -284,3 +284,27 @@ describe('buildRefineStats', () => {
     expect(r.verdict).toBeNull();
   });
 });
+
+describe('buildExperiment (A/B holdout)', () => {
+  const { buildExperiment } = require('../src/modules/recsys/analytics');
+  test('reports control vs treatment lift and significance when both arms are sized', () => {
+    const e = buildExperiment([
+      { segment: 'treatment', saw: 200, adds: 300, adds_reco: 210, ordered: 110 },
+      { segment: 'control',   saw: 60,  adds: 90,  adds_reco: 45,  ordered: 24 },
+    ]);
+    expect(e.enoughData).toBe(true);
+    expect(e.treatment.acceptancePct).toBe(70);
+    expect(e.control.acceptancePct).toBe(50);
+    expect(e.acceptanceLift).toBe(20);
+    expect(e.significant).toBe(true);
+  });
+
+  test('abstains until both arms clear the floor', () => {
+    const e = buildExperiment([
+      { segment: 'treatment', saw: 200, adds: 300, adds_reco: 210, ordered: 110 },
+      { segment: 'control',   saw: 5,   adds: 6,   adds_reco: 3,   ordered: 2 },
+    ]);
+    expect(e.enoughData).toBe(false);
+    expect(e.acceptanceLift).toBeNull();
+  });
+});

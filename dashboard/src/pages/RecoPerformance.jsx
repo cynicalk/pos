@@ -86,6 +86,8 @@ export default function RecoPerformance() {
   const revenue = data?.revenue;
   const segments = data?.segments;
   const refine = data?.refine;
+  const experiment = data?.experiment;
+  const coverage = data?.coverage;
   const noActivity = funnel && funnel.window.sessions === 0;
   const maxStage = funnel ? Math.max(1, ...funnel.stages.map((s) => s.count)) : 1;
 
@@ -176,7 +178,42 @@ export default function RecoPerformance() {
               value={funnel.rejections.total}
               sub={`${funnel.rejections.refine} refined · ${funnel.rejections.capped} capped`}
             />
+            {coverage && coverage.pct != null && (
+              <Tile
+                label="Menu coverage"
+                value={`${coverage.pct}%`}
+                sub={`${coverage.shownDishes} of ${coverage.availableDishes} dishes ever shown`}
+              />
+            )}
           </div>
+
+          {/* ── A/B holdout ────────────────────────────────────────── */}
+          {experiment && experiment.enoughData && (
+            <>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+                Is the smart recommender actually helping?
+                <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 9px', borderRadius: 999,
+                               color: experiment.significant ? 'var(--ok)' : 'var(--mute)',
+                               border: `1px solid ${experiment.significant ? 'var(--ok)' : 'var(--line-2)'}` }}>
+                  {experiment.significant ? 'Significant' : 'Not yet significant'}
+                </span>
+              </h2>
+              <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                A fifth of tables are held out on the plain model — no featured lever, no learned prior — as a
+                control. Acceptance for the treatment vs that control, with the difference tested for significance
+                so a small sample isn't read as proof.
+              </p>
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                <Tile label="Treatment acceptance" value={`${experiment.treatment.acceptancePct}%`} sub={`${experiment.treatment.sessions} sessions`} />
+                <Tile label="Control acceptance" value={`${experiment.control.acceptancePct}%`} sub={`${experiment.control.sessions} sessions`} />
+                <Tile
+                  label="Lift"
+                  value={experiment.acceptanceLift == null ? '—' : `${experiment.acceptanceLift > 0 ? '+' : ''}${experiment.acceptanceLift} pts`}
+                  sub={experiment.significant ? 'real difference' : 'within noise so far'}
+                />
+              </div>
+            </>
+          )}
 
           {/* ── Revenue attribution ────────────────────────────────── */}
           {revenue && revenue.orders > 0 && (

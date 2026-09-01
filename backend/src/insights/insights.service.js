@@ -213,7 +213,7 @@ async function getRecoPerformance(restaurantId, daysRaw) {
 async function computeRecoPerformance(restaurantId, days) {
   const tz = await tzFor(restaurantId);
   const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds,
-    revenueRow, byOccasionRows, byPartyRows, refineRow] = await Promise.all([
+    revenueRow, byOccasionRows, byPartyRows, refineRow, byVariantRows, coverageRow] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),
     repo.getRecoFunnelCounts(restaurantId, days, days), // the equal window before this one
     repo.getRecoDishStats(restaurantId, days),
@@ -225,6 +225,8 @@ async function computeRecoPerformance(restaurantId, days) {
     repo.getRecoFunnelBySegment(restaurantId, days, 'entry'),
     repo.getRecoFunnelBySegment(restaurantId, days, 'partySize'),
     repo.getRecoRefineStats(restaurantId, days),
+    repo.getRecoFunnelBySegment(restaurantId, days, 'variant'),
+    repo.getRecoCoverage(restaurantId, days),
   ]);
 
   const matrix = perf.buildMatrix(perf.buildPerformance(perfRows, { spanDays }));
@@ -266,6 +268,14 @@ async function computeRecoPerformance(restaurantId, days) {
       byPartySize: recsysAnalytics.buildSegments(byPartyRows),
     },
     refine: recsysAnalytics.buildRefineStats(refineRow),
+    experiment: recsysAnalytics.buildExperiment(byVariantRows),
+    coverage: {
+      shownDishes: Number(coverageRow?.shown_dishes || 0),
+      availableDishes: Number(coverageRow?.available_dishes || 0),
+      pct: coverageRow && coverageRow.available_dishes > 0
+        ? Math.round((coverageRow.shown_dishes / coverageRow.available_dishes) * 1000) / 10
+        : null,
+    },
   };
 }
 

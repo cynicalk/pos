@@ -105,11 +105,61 @@ function buildRefineStats(row = {}) {
   };
 }
 
+/**
+ * The A/B holdout read: control (plain model) vs treatment (featured + learned
+ * prior), on the same acceptance and conversion, plus the lift and whether the
+ * acceptance difference is statistically significant. This is the only honest
+ * answer to "does the recommender's smarts actually help" — everything else
+ * assumes it. Abstains until BOTH arms have enough sessions.
+ */
+const { twoProportionZ } = require('./stats');
+const MIN_ARM_SESSIONS = 20;
+
+function buildExperiment(rows = []) {
+  const byArm = new Map(rows.map((r) => [r.segment, r]));
+  const control = byArm.get('control');
+  const treatment = byArm.get('treatment');
+
+  const arm = (r) => {
+    if (!r) return { sessions: 0, acceptancePct: null, conversionPct: null };
+    const saw = n(r.saw);
+    const enough = saw >= MIN_ARM_SESSIONS;
+    return {
+      sessions: saw,
+      acceptancePct: enough ? pct(n(r.adds_reco), n(r.adds)) : null,
+      conversionPct: enough ? pct(n(r.ordered), saw) : null,
+    };
+  };
+
+  const c = arm(control);
+  const t = arm(treatment);
+  const enoughData = c.acceptancePct != null && t.acceptancePct != null;
+
+  let acceptanceLift = null;
+  let significant = false;
+  if (enoughData) {
+    acceptanceLift = Math.round((t.acceptancePct - c.acceptancePct) * 10) / 10;
+    significant = twoProportionZ(
+      n(treatment.adds_reco), n(treatment.adds), n(control.adds_reco), n(control.adds),
+    ).significant;
+  }
+
+  return {
+    enoughData,
+    control: c,
+    treatment: t,
+    acceptanceLift,     // treatment − control, in points
+    significant,
+  };
+}
+
 module.exports = {
   buildRevenueAttribution,
   buildSegments,
   buildRefineStats,
+  buildExperiment,
   MIN_ORDERS_FOR_AOV,
   MIN_SEGMENT_SESSIONS,
   MIN_REFINE_SESSIONS,
+  MIN_ARM_SESSIONS,
 };

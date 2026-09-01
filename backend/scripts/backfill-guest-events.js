@@ -106,20 +106,26 @@ async function main() {
     const shownDishes = [];
     for (let k = 0; k < 6; k += 1) shownDishes.push(dishes[Math.floor(rand() * rand() * dishes.length)]);
     const shownIds = [...new Set(shownDishes.map((d) => d.id))];
+    const picks = shownIds.map((id, i) => ({ id, rank: i + 1 }));
     const entry = pick(['walkin', 'reservation', 'join']);
     const groupType = pick(['date', 'family', 'friends', 'business', 'solo']);
     const partySize = 1 + Math.floor(rand() * 6);
+    // A fifth of tables are the control arm — the plain model, no featured lever
+    // or learned prior — and they accept the picks a little less, so the holdout
+    // shows a real (positive) treatment lift.
+    const variant = rand() < 0.2 ? 'control' : 'treatment';
+    const acceptBias = variant === 'control' ? -0.12 : 0;
 
     // Everyone walks the onboarding steps up to picks.
     for (const [step, label, route] of FUNNEL_STEPS) push('funnel_step', null, null, { step, label, route });
-    push('recommendations_shown', null, null, { round: 0, count: 6, entry, groupType, partySize, dishIds: shownIds });
+    push('recommendations_shown', null, null, { round: 0, count: 6, entry, groupType, partySize, variant, dishIds: shownIds, picks });
 
     // A quarter of tables refine the picks once (a second shown round). Refiners
     // are a bit less likely to convert — the first picks weren't quite right — but
     // they still add and order, so the refine read isn't a pure-rejecter artifact.
     const refined = rand() < 0.25;
     if (refined) {
-      push('recommendations_shown', null, null, { round: 1, count: 6, entry, groupType, partySize, dishIds: shownIds });
+      push('recommendations_shown', null, null, { round: 1, count: 6, entry, groupType, partySize, variant, dishIds: shownIds, picks });
       if (rand() < 0.5) push('reco_rejected', null, null, { reason: 'refine', round: 1 });
     }
 
@@ -129,7 +135,7 @@ async function main() {
     if (rand() < (refined ? 0.6 : 0.72)) {
       const adds = 1 + Math.floor(rand() * 3);
       for (let a = 0; a < adds; a += 1) {
-        const fromReco = rand() < 0.64; // most adds come from a pick, some from browsing
+        const fromReco = rand() < (0.64 + acceptBias); // control accepts a bit less
         const dish = fromReco ? pick(shownDishes) : pick(dishes);
         push('dish_added', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 1 });
         if (fromReco) recoAdds += 1; else manualAdds += 1;

@@ -100,6 +100,13 @@ export interface EngineInput {
   refineTags: string[];
   /** Current cart, when refining after adds — powers co-order boosts. */
   cart?: CartItem[];
+  /** A/B arm. 'control' gets the plain hand-tuned model — no featured boost, no
+   *  learned prior — so its acceptance is the baseline the treatment is measured
+   *  against. Defaults to treatment. */
+  variant?: 'control' | 'treatment';
+  /** When true, one exploration slot replaces the weakest pick with an eligible
+   *  dish the ranking wouldn't have surfaced, so the long tail gets exposure. */
+  explore?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -369,6 +376,8 @@ interface ScoredDish {
   score: number;
   contributions: Contribution[];
   excluded: boolean;
+  /** Set when this slot was chosen by exploration rather than by score. */
+  explored?: boolean;
 }
 
 const OCCASION_RULES: Record<GroupType, Array<{ tag: string; fit: boolean; reason?: string }>> = {
@@ -430,11 +439,14 @@ function scoreDish(
 
   if (dish.tags.includes('popular')) add('popularity', 1, 'Ordered by most tables tonight');
 
-  if (dish.featured) add('featured', 1, "One of the kitchen's picks tonight");
+  // The control arm of the A/B holdout gets neither the operator's featured lever
+  // nor the learned prior — that is the whole point of the arm.
+  const learned = input.variant !== 'control';
+  if (learned && dish.featured) add('featured', 1, "One of the kitchen's picks tonight");
 
   // Learned from the recommender's own logs: a signed lift, multiplied straight
   // into the weight, so a well-accepted dish rises and a poorly-accepted one dips.
-  if (dish.recoLift) add('learnedAcceptance', dish.recoLift);
+  if (learned && dish.recoLift) add('learnedAcceptance', dish.recoLift);
 
   // Occasion rules.
   if (input.groupType) {
@@ -662,9 +674,22 @@ export function createRecommender(dishes: Dish[]): Recommender {
         .map((dish) => ({ dish, score: 0, contributions: [], excluded: false }));
     }
 
+    // ---- Stage 5: exploration slot (ε-greedy) ----
+    // Replace the weakest pick with an eligible dish the ranking wouldn't have
+    // surfaced, so the long tail gets looked at and the learned prior can't become
+    // a closed rich-get-richer loop. Safety-filtered `safe` dishes only.
+    if (input.explore && result.length >= 3) {
+      const shownIds = new Set(result.map((s) => s.dish.id));
+      const pool = safe.filter((d) => !shownIds.has(d.id));
+      if (pool.length > 0) {
+        const wild = pool[Math.floor(Math.random() * pool.length)];
+        result = [...result.slice(0, result.length - 1), { dish: wild, score: 0, contributions: [], excluded: false, explored: true }];
+      }
+    }
+
     return result.map((s) => ({
       dish: s.dish,
-      reason: pickReason(s, allergens),
+      reason: s.explored ? 'A little something different' : pickReason(s, allergens),
     }));
   }
 

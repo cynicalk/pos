@@ -587,6 +587,27 @@ const getRecoRefineStats = (restaurantId, days) =>
     FROM sess s LEFT JOIN ord o ON o.session_id = s.session_id
   `, [restaurantId, days]).then((r) => r.rows[0]);
 
+/**
+ * Catalog coverage: how many DISTINCT dishes the recommender ever put in front of
+ * a table over the window, against how many available dishes there are. A
+ * recommender that only ever shows a handful is starving the long tail — the
+ * signal that exploration is (or isn't) doing its job.
+ */
+const getRecoCoverage = (restaurantId, days) =>
+  db.query(`
+    WITH shown AS (
+      SELECT DISTINCT lower(did) AS id
+      FROM guest_events ge
+      CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ge.props->'dishIds', '[]'::jsonb)) AS did
+      WHERE ge.restaurant_id = $1 AND ge.event = 'recommendations_shown'
+        AND ge.occurred_at >= now() - make_interval(days => $2)
+        AND did ~ '^[0-9a-fA-F-]{36}$'
+    )
+    SELECT
+      (SELECT COUNT(*) FROM shown s JOIN menu_items mi ON mi.id::text = s.id AND mi.restaurant_id = $1)::int AS shown_dishes,
+      (SELECT COUNT(*) FROM menu_items WHERE restaurant_id = $1 AND available = true AND archived_at IS NULL)::int AS available_dishes
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>
   db.query(
@@ -603,4 +624,5 @@ module.exports = {
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
   getRecoImpressionsForDish, getRecoRevenue, getRecoFunnelBySegment, getRecoRefineStats,
+  getRecoCoverage,
 };

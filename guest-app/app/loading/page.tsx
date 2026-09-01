@@ -10,6 +10,7 @@ import { useGuard } from "@/hooks/use-guard";
 import { useMenu } from "@/hooks/use-menu";
 import { setMinedAffinities } from "@/lib/recommend";
 import { fetchMinedAffinities } from "@/lib/backend";
+import { sessionVariant, sessionExplores } from "@/lib/experiment";
 
 export default function AiLoading() {
   const router = useRouter();
@@ -33,6 +34,8 @@ export default function AiLoading() {
       groupPrefs: state.groupPrefs,
       refineTags: state.refineTags,
       cart: state.cart,
+      variant: sessionVariant(),
+      explore: sessionExplores(),
     });
     patch({ recommendations });
     router.replace("/recommendations");
