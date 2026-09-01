@@ -53,7 +53,7 @@ async function main() {
     (await db.query(`SELECT id FROM restaurants WHERE name = 'Demo Restaurant' LIMIT 1`)).rows[0]?.id;
   if (!restaurantId) throw new Error('No restaurant id given and no "Demo Restaurant" found');
 
-  const sessionCount = Number(flag('sessions', 60));
+  const sessionCount = Number(flag('sessions', 140));
   const days = Number(flag('days', 14));
 
   // Recommendable dishes: real menu items, biased toward the best sellers so the
@@ -106,37 +106,50 @@ async function main() {
     const shownDishes = [];
     for (let k = 0; k < 6; k += 1) shownDishes.push(dishes[Math.floor(rand() * rand() * dishes.length)]);
     const shownIds = [...new Set(shownDishes.map((d) => d.id))];
+    const entry = pick(['walkin', 'reservation', 'join']);
+    const groupType = pick(['date', 'family', 'friends', 'business', 'solo']);
+    const partySize = 1 + Math.floor(rand() * 6);
 
     // Everyone walks the onboarding steps up to picks.
     for (const [step, label, route] of FUNNEL_STEPS) push('funnel_step', null, null, { step, label, route });
-    push('recommendations_shown', null, null, { round: 0, count: 6, entry: pick(['walkin', 'reservation', 'join']), dishIds: shownIds });
+    push('recommendations_shown', null, null, { round: 0, count: 6, entry, groupType, partySize, dishIds: shownIds });
 
-    // Drop-off: ~70% add a dish, of those ~75% add a recommended one.
-    const willAdd = rand() < 0.7;
-    let addedReco = false;
-    if (willAdd) {
-      const adds = 1 + Math.floor(rand() * 3);
-      for (let a = 0; a < adds; a += 1) {
-        // Most adds come from a pick; a minority are manual menu browsing. A
-        // reco add is one of the dishes actually shown this round, so per-dish
-        // impressions and adds line up the way they would in the real app.
-        const fromReco = rand() < 0.75;
-        const dish = fromReco ? pick(shownDishes) : pick(dishes);
-        push('dish_added', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 1 });
-        if (fromReco) addedReco = true;
-        // A few adds are undone.
-        if (rand() < 0.12) push('dish_removed', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 0 });
-      }
-    } else if (rand() < 0.5) {
-      // Some who don't add reject the picks — refine once, or hit the round cap.
-      const reason = rand() < 0.7 ? 'refine' : 'capped';
-      push('recommendations_shown', null, null, { round: 1, count: 6 });
-      push('reco_rejected', null, null, { reason, round: 1 });
+    // A quarter of tables refine the picks once (a second shown round). Refiners
+    // are a bit less likely to convert — the first picks weren't quite right — but
+    // they still add and order, so the refine read isn't a pure-rejecter artifact.
+    const refined = rand() < 0.25;
+    if (refined) {
+      push('recommendations_shown', null, null, { round: 1, count: 6, entry, groupType, partySize, dishIds: shownIds });
+      if (rand() < 0.5) push('reco_rejected', null, null, { reason: 'refine', round: 1 });
     }
 
-    // Of sessions that added a reco dish, ~70% place the order.
-    if (addedReco && rand() < 0.7) {
-      push('order_placed', null, null, { items: 1 + Math.floor(rand() * 3), recoShare: 0.5 + rand() * 0.5, refineRounds: 0 });
+    // ~70% of tables add at least one dish; refiners a little less.
+    let recoAdds = 0;
+    let manualAdds = 0;
+    if (rand() < (refined ? 0.6 : 0.72)) {
+      const adds = 1 + Math.floor(rand() * 3);
+      for (let a = 0; a < adds; a += 1) {
+        const fromReco = rand() < 0.64; // most adds come from a pick, some from browsing
+        const dish = fromReco ? pick(shownDishes) : pick(dishes);
+        push('dish_added', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 1 });
+        if (fromReco) recoAdds += 1; else manualAdds += 1;
+        if (rand() < 0.12) push('dish_removed', fromReco ? 'reco' : 'manual', dish, { dishId: dish.id, from: fromReco ? 'reco' : 'manual', qty: 0 });
+      }
+    } else if (rand() < 0.4) {
+      push('reco_rejected', null, null, { reason: 'capped', round: refined ? 1 : 0 });
+    }
+    const addedCount = recoAdds + manualAdds;
+
+    // Sessions that added anything mostly order. recoShare is the real fraction of
+    // items that came from a pick, so a manual-only table books a non-reco order —
+    // giving revenue attribution and the AOV-lift comparison genuine both sides.
+    if (addedCount > 0 && rand() < (refined ? 0.6 : 0.68)) {
+      const items = addedCount;
+      const usedReco = recoAdds > 0;
+      const perItem = usedReco ? 210 + rand() * 320 : 170 + rand() * 220; // reco tables order a touch richer
+      const total = Math.round(items * perItem * 100) / 100;
+      const recoShare = Math.round((recoAdds / items) * 100) / 100; // the true fraction
+      push('order_placed', null, null, { items, total, recoShare, refineRounds: refined ? 1 : 0 });
     }
   }
 

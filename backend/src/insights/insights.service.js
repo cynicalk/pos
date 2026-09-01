@@ -8,6 +8,7 @@ const couponEconomics = require('../modules/economics/coupon-economics');
 const attachRate = require('../modules/menu/attach-rate');
 const recsysFunnel = require('../modules/recsys/funnel');
 const recsysMargin = require('../modules/recsys/margin');
+const recsysAnalytics = require('../modules/recsys/analytics');
 const { createTtlCache } = require('../shared/ttl-cache');
 
 const recoCache = createTtlCache();
@@ -211,7 +212,8 @@ async function getRecoPerformance(restaurantId, daysRaw) {
 
 async function computeRecoPerformance(restaurantId, days) {
   const tz = await tzFor(restaurantId);
-  const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds] = await Promise.all([
+  const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds,
+    revenueRow, byOccasionRows, byPartyRows, refineRow] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),
     repo.getRecoFunnelCounts(restaurantId, days, days), // the equal window before this one
     repo.getRecoDishStats(restaurantId, days),
@@ -219,6 +221,10 @@ async function computeRecoPerformance(restaurantId, days) {
     repo.getMenuPerformance(restaurantId, days),
     repo.getSpanDays(restaurantId, tz, days),
     repo.getFeaturedMenuItemIds(restaurantId),
+    repo.getRecoRevenue(restaurantId, days),
+    repo.getRecoFunnelBySegment(restaurantId, days, 'entry'),
+    repo.getRecoFunnelBySegment(restaurantId, days, 'partySize'),
+    repo.getRecoRefineStats(restaurantId, days),
   ]);
 
   const matrix = perf.buildMatrix(perf.buildPerformance(perfRows, { spanDays }));
@@ -254,6 +260,12 @@ async function computeRecoPerformance(restaurantId, days) {
     margin,
     promote,
     featuredCount: featured.size,
+    revenue: recsysAnalytics.buildRevenueAttribution(revenueRow),
+    segments: {
+      byOccasion: recsysAnalytics.buildSegments(byOccasionRows),
+      byPartySize: recsysAnalytics.buildSegments(byPartyRows),
+    },
+    refine: recsysAnalytics.buildRefineStats(refineRow),
   };
 }
 

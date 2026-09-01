@@ -33,6 +33,16 @@ const VERDICT = {
   margin_leak: { label: 'Leaking margin',     color: 'var(--bad)',  note: 'Picks that land in carts skew to low-margin dishes.' },
 };
 
+const REFINE_VERDICT = {
+  first_picks_weak: { label: 'First picks are off', color: 'var(--bad)',  note: 'Tables that refined convert better — the opening picks miss.' },
+  refine_helps:     { label: 'Refining helps',      color: 'var(--ok)',   note: 'Refining lifts conversion — the loop is doing its job.' },
+  similar:          { label: 'No difference',       color: 'var(--mute)', note: 'Refined and un-refined tables convert about the same.' },
+};
+
+const fmtInr = (n) => (n == null ? '—' : `₹${Math.round(Number(n)).toLocaleString('en-IN')}`);
+
+const OCCASION_LABEL = { walkin: 'Walk-in', reservation: 'Reservation', join: 'Joined a table', date: 'Date night', family: 'Family', friends: 'Friends', business: 'Business', solo: 'Solo' };
+
 function Tile({ label, value, sub }) {
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '13px 16px', background: 'var(--paper)', flex: 1, minWidth: 150 }}>
@@ -73,6 +83,9 @@ export default function RecoPerformance() {
   const funnel = data?.funnel;
   const margin = data?.margin;
   const promote = data?.promote || [];
+  const revenue = data?.revenue;
+  const segments = data?.segments;
+  const refine = data?.refine;
   const noActivity = funnel && funnel.window.sessions === 0;
   const maxStage = funnel ? Math.max(1, ...funnel.stages.map((s) => s.count)) : 1;
 
@@ -164,6 +177,34 @@ export default function RecoPerformance() {
               sub={`${funnel.rejections.refine} refined · ${funnel.rejections.capped} capped`}
             />
           </div>
+
+          {/* ── Revenue attribution ────────────────────────────────── */}
+          {revenue && revenue.orders > 0 && (
+            <>
+              <h2 style={{ margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>What the picks are worth</h2>
+              <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                Attributed from each order's bill and the share of its items that came from a pick — the app's own
+                total, an estimate, not the settled POS figure.
+              </p>
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                <Tile
+                  label="Reco-driven revenue"
+                  value={fmtInr(revenue.recoRevenue)}
+                  sub={revenue.recoRevenuePct == null ? null : `${revenue.recoRevenuePct}% of ${fmtInr(revenue.totalRevenue)}`}
+                />
+                <Tile
+                  label="AOV — picks used"
+                  value={revenue.aovReco == null ? '—' : fmtInr(revenue.aovReco)}
+                  sub={revenue.aovReco == null ? 'need more orders' : 'per order'}
+                />
+                <Tile
+                  label="AOV lift vs no picks"
+                  value={revenue.aovLift == null ? '—' : `+${fmtInr(revenue.aovLift)}`}
+                  sub={revenue.aovLift == null ? 'learning' : `${revenue.aovLiftPct}% higher than ${fmtInr(revenue.aovNonReco)}`}
+                />
+              </div>
+            </>
+          )}
 
           {/* ── Margin loop ────────────────────────────────────────── */}
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
@@ -297,8 +338,64 @@ export default function RecoPerformance() {
               ))}
             </div>
           )}
+
+          {/* ── Who it converts for (segments) ─────────────────────── */}
+          {segments && (segments.byOccasion.some((s) => s.enoughData) || segments.byPartySize.some((s) => s.enoughData)) && (
+            <>
+              <h2 style={{ margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Who it converts for</h2>
+              <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                The same funnel split by the table. A segment with too few sessions to judge is shown greyed, not
+                as a confident rate.
+              </p>
+              <div style={{ display: 'flex', gap: 22, marginTop: 12, flexWrap: 'wrap' }}>
+                <SegmentTable title="By occasion" rows={segments.byOccasion} />
+                <SegmentTable title="By party size" rows={segments.byPartySize} sizeLabel />
+              </div>
+            </>
+          )}
+
+          {/* ── Refine loop ────────────────────────────────────────── */}
+          {refine && refine.verdict && (
+            <>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+                The refine loop
+                <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 9px', borderRadius: 999,
+                               color: REFINE_VERDICT[refine.verdict].color, border: `1px solid ${REFINE_VERDICT[refine.verdict].color}` }}>
+                  {REFINE_VERDICT[refine.verdict].label}
+                </span>
+              </h2>
+              <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                {refine.refineRate}% of tables refined the picks at least once. Tables that refined ordered
+                {' '}<b style={{ color: 'var(--ink)' }}>{refine.refinedConversionPct}%</b> of the time versus
+                {' '}<b style={{ color: 'var(--ink)' }}>{refine.unrefinedConversionPct}%</b> that didn't —
+                {' '}{REFINE_VERDICT[refine.verdict].note}
+              </p>
+            </>
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+function SegmentTable({ title, rows, sizeLabel }) {
+  const shown = rows.filter((r) => r.sessions > 0).slice(0, 6);
+  if (shown.length === 0) return null;
+  return (
+    <div style={{ minWidth: 240, flex: 1 }}>
+      <div style={{ fontSize: 11.5, color: 'var(--mute-2)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>{title}</div>
+      {shown.map((r) => (
+        <div key={r.segment} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--line)', fontSize: 13,
+                                      color: r.enoughData ? 'var(--ink)' : 'var(--mute-2)' }}>
+          <span style={{ flex: 1 }}>{sizeLabel ? `Party of ${r.segment}` : (OCCASION_LABEL[r.segment] || r.segment)}</span>
+          <span style={{ width: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {r.acceptancePct == null ? `${r.sessions}× · learning` : `${r.acceptancePct}% acc`}
+          </span>
+          <span style={{ width: 64, textAlign: 'right', color: r.enoughData ? 'var(--mute)' : 'var(--mute-2)', fontVariantNumeric: 'tabular-nums' }}>
+            {r.conversionPct == null ? '' : `${r.conversionPct}% conv`}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

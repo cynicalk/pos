@@ -197,3 +197,62 @@ describe('buildAcceptancePriors (learned prior)', () => {
     }
   });
 });
+
+const { buildRevenueAttribution, buildSegments, buildRefineStats } = require('../src/modules/recsys/analytics');
+
+describe('buildRevenueAttribution', () => {
+  test('attributes revenue by reco share and computes AOV lift when both sides are big enough', () => {
+    const r = buildRevenueAttribution({
+      orders: 40, total_revenue: 40000, reco_revenue: 18000,
+      reco_orders: 25, reco_order_revenue: 30000,   // AOV 1200
+      nonreco_orders: 15, nonreco_order_revenue: 12000, // AOV 800
+    });
+    expect(r.recoRevenue).toBe(18000);
+    expect(r.recoRevenuePct).toBe(45);
+    expect(r.aovReco).toBe(1200);
+    expect(r.aovNonReco).toBe(800);
+    expect(r.aovLift).toBe(400);
+    expect(r.enoughForAov).toBe(true);
+  });
+
+  test('abstains on AOV lift when one side is too thin', () => {
+    const r = buildRevenueAttribution({
+      orders: 12, total_revenue: 10000, reco_revenue: 6000,
+      reco_orders: 11, reco_order_revenue: 9000,
+      nonreco_orders: 1, nonreco_order_revenue: 1000, // too few
+    });
+    expect(r.aovLift).toBeNull();
+    expect(r.enoughForAov).toBe(false);
+    expect(r.recoRevenuePct).toBe(60); // attribution still reported
+  });
+});
+
+describe('buildSegments', () => {
+  test('each segment abstains below its own session floor; sorted by size', () => {
+    const segs = buildSegments([
+      { segment: 'walkin', saw: 40, adds: 60, adds_reco: 36, ordered: 20 },
+      { segment: 'reservation', saw: 5, adds: 8, adds_reco: 6, ordered: 3 },
+    ]);
+    expect(segs[0].segment).toBe('walkin');
+    expect(segs[0].acceptancePct).toBe(60);   // 36/60
+    expect(segs[0].conversionPct).toBe(50);    // 20/40
+    expect(segs[1].enoughData).toBe(false);    // reservation too thin
+    expect(segs[1].acceptancePct).toBeNull();
+  });
+});
+
+describe('buildRefineStats', () => {
+  test('flags weak first picks when refiners convert much worse', () => {
+    const r = buildRefineStats({ sessions: 100, refined_sessions: 40, refined_ordered: 8, unrefined_ordered: 42 });
+    expect(r.refineRate).toBe(40);
+    expect(r.refinedConversionPct).toBe(20);   // 8/40
+    expect(r.unrefinedConversionPct).toBe(70);  // 42/60
+    expect(r.verdict).toBe('first_picks_weak');
+  });
+
+  test('abstains on verdict when a side is too thin', () => {
+    const r = buildRefineStats({ sessions: 20, refined_sessions: 3, refined_ordered: 1, unrefined_ordered: 10 });
+    expect(r.refinedConversionPct).toBeNull();
+    expect(r.verdict).toBeNull();
+  });
+});

@@ -498,6 +498,95 @@ const getRecoImpressionsForDish = (restaurantId, days, menuItemId) =>
       AND ge.occurred_at >= now() - make_interval(days => $2)
   `, [restaurantId, days, menuItemId]).then((r) => r.rows[0].impressions);
 
+/**
+ * Revenue the recommender moved — from order_placed events' bill total and the
+ * share of items that came from a pick. Numbers are parsed defensively (a bad
+ * `total` becomes NULL and is excluded, `recoShare` is clamped to [0,1]) so a
+ * malformed client payload can't skew or crash the aggregate.
+ */
+const getRecoRevenue = (restaurantId, days) =>
+  db.query(`
+    WITH o AS (
+      SELECT
+        CASE WHEN (props->>'total') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (props->>'total')::numeric END AS total,
+        LEAST(GREATEST(
+          COALESCE(CASE WHEN (props->>'recoShare') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (props->>'recoShare')::numeric END, 0),
+        0), 1) AS share
+      FROM guest_events
+      WHERE restaurant_id = $1 AND event = 'order_placed'
+        AND occurred_at >= now() - make_interval(days => $2)
+    )
+    SELECT
+      COUNT(*) FILTER (WHERE total IS NOT NULL)                         AS orders,
+      COALESCE(SUM(total), 0)                                           AS total_revenue,
+      COALESCE(SUM(total * share), 0)                                   AS reco_revenue,
+      COUNT(*) FILTER (WHERE total IS NOT NULL AND share > 0)           AS reco_orders,
+      COALESCE(SUM(total) FILTER (WHERE share > 0), 0)                  AS reco_order_revenue,
+      COUNT(*) FILTER (WHERE total IS NOT NULL AND share = 0)           AS nonreco_orders,
+      COALESCE(SUM(total) FILTER (WHERE share = 0), 0)                  AS nonreco_order_revenue
+    FROM o
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
+/**
+ * The funnel split by a per-session key carried on recommendations_shown (its
+ * `entry` — the occasion the table checked in as — or `partySize`). The session's
+ * key is read from its recommendations_shown event, then all of that session's
+ * events are attributed to it, so adds and orders line up with the segment. Only
+ * sessions whose key is present are counted (older events without it simply
+ * don't segment).
+ */
+const getRecoFunnelBySegment = (restaurantId, days, field) =>
+  db.query(`
+    WITH seg AS (
+      SELECT DISTINCT ON (session_id) session_id, NULLIF(props->>$3, '') AS segment
+      FROM guest_events
+      WHERE restaurant_id = $1 AND event = 'recommendations_shown'
+        AND NULLIF(props->>$3, '') IS NOT NULL
+        AND occurred_at >= now() - make_interval(days => $2)
+      ORDER BY session_id, seq ASC
+    )
+    SELECT seg.segment AS segment,
+      COUNT(DISTINCT ge.session_id) FILTER (WHERE ge.event = 'recommendations_shown') AS saw,
+      COUNT(DISTINCT ge.session_id) FILTER (WHERE ge.event = 'order_placed')          AS ordered,
+      COUNT(DISTINCT ge.session_id || ':' || COALESCE(ge.menu_item_id::text, ge.seq::text))
+        FILTER (WHERE ge.event = 'dish_added')                                        AS adds,
+      COUNT(DISTINCT ge.session_id || ':' || COALESCE(ge.menu_item_id::text, ge.seq::text))
+        FILTER (WHERE ge.event = 'dish_added' AND ge.source = 'reco')                 AS adds_reco
+    FROM seg
+    JOIN guest_events ge ON ge.session_id = seg.session_id AND ge.restaurant_id = $1
+      AND ge.occurred_at >= now() - make_interval(days => $2)
+    GROUP BY seg.segment
+  `, [restaurantId, days, field]).then((r) => r.rows);
+
+/**
+ * Refine-loop counts: per session, whether it refined the picks (saw a round ≥ 1)
+ * and whether it ordered — so the operator can see if the first picks or the
+ * refined ones are what convert.
+ */
+const getRecoRefineStats = (restaurantId, days) =>
+  db.query(`
+    WITH sess AS (
+      SELECT session_id,
+             BOOL_OR((props->>'round') ~ '^[0-9]+$' AND (props->>'round')::int >= 1) AS refined
+      FROM guest_events
+      WHERE restaurant_id = $1 AND event = 'recommendations_shown'
+        AND occurred_at >= now() - make_interval(days => $2)
+      GROUP BY session_id
+    ),
+    ord AS (
+      SELECT DISTINCT session_id
+      FROM guest_events
+      WHERE restaurant_id = $1 AND event = 'order_placed'
+        AND occurred_at >= now() - make_interval(days => $2)
+    )
+    SELECT
+      COUNT(*)                                                    AS sessions,
+      COUNT(*) FILTER (WHERE s.refined)                           AS refined_sessions,
+      COUNT(*) FILTER (WHERE s.refined AND o.session_id IS NOT NULL)     AS refined_ordered,
+      COUNT(*) FILTER (WHERE NOT s.refined AND o.session_id IS NOT NULL) AS unrefined_ordered
+    FROM sess s LEFT JOIN ord o ON o.session_id = s.session_id
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>
   db.query(
@@ -513,5 +602,5 @@ module.exports = {
   getCouponEconomics, getAvgCommissionRate, getCategoryAttach, getPeriodOrderTotals,
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
-  getRecoImpressionsForDish,
+  getRecoImpressionsForDish, getRecoRevenue, getRecoFunnelBySegment, getRecoRefineStats,
 };

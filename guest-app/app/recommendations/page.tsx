@@ -32,6 +32,10 @@ export default function Recommendations() {
       round: state.refineRounds,
       count: state.recommendations.length,
       entry: state.entryPath,
+      // Segmentation keys: the occasion the table chose and its size, so the
+      // operator can see which kinds of table the picks convert for.
+      groupType: state.groupType,
+      partySize: state.partySize,
       // The dishes actually put in front of the table — the per-dish impression
       // denominator the operator's reco→margin loop needs (impression → add).
       dishIds: state.recommendations.map((r) => r.dish.id),
