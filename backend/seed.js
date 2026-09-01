@@ -1300,25 +1300,36 @@ async function main() {
 
   // ── 15. Reservations ───────────────────────────────────────────────────────
   console.log('Seeding reservations…');
-  // Two past (seated), two upcoming dinner slots
+  // Real reservations sit in the DINNER SERVICE, not scattered across the clock.
+  // Each is a specific evening slot (IST) on a day relative to today: negative
+  // days already happened (seated), today/future are still upcoming. Stored as the
+  // correct UTC instant so the floor view shows a sensible 7–10 PM time.
+  const IST = '+05:30';                       // the demo restaurant's timezone
+  const istDateOffset = (dayOffset) => {
+    // The IST calendar date `dayOffset` days from now, as YYYY-MM-DD.
+    const d = new Date(Date.now() + dayOffset * 86400000 + 5.5 * 3600000);
+    return d.toISOString().slice(0, 10);
+  };
+  const slot = (dayOffset, hhmm) => new Date(`${istDateOffset(dayOffset)}T${hhmm}:00${IST}`).toISOString();
+
   const RESERVATIONS = [
-    { guestName: 'Rahul Sharma',     guestPhone: '9876543210', partySize: 2, tableIdx: 0, hoursOffset:  -4, status: 'seated',   notes: 'Window seat preferred' },
-    { guestName: 'Priya Nair',       guestPhone: '9812345678', partySize: 4, tableIdx: 2, hoursOffset:  -2, status: 'seated',   notes: null },
-    { guestName: 'Vikram Mehta',     guestPhone: '9700011223', partySize: 3, tableIdx: 1, hoursOffset:   2, status: 'upcoming', notes: 'Anniversary dinner — surprise cake' },
-    { guestName: 'Sunita Kapoor',    guestPhone: '9988776655', partySize: 6, tableIdx: 4, hoursOffset:   4, status: 'upcoming', notes: 'Birthday party, need high chair' },
-    { guestName: 'Arjun Reddy',      guestPhone: '9811223344', partySize: 2, tableIdx: 0, hoursOffset: -28, status: 'seated',   notes: null },
-    { guestName: 'Meera Nambiar',    guestPhone: '9922334455', partySize: 5, tableIdx: 3, hoursOffset: -26, status: 'seated',   notes: 'Vegetarian only — confirmed' },
-    { guestName: 'Dev Anand',        guestPhone: '9633221100', partySize: 8, tableIdx: 5, hoursOffset: -50, status: 'seated',   notes: 'Corporate lunch, separate bills' },
-    { guestName: 'Kavya Pillai',     guestPhone: '9745612398', partySize: 2, tableIdx: 1, hoursOffset: -48, status: 'seated',   notes: null },
-    { guestName: 'Rohit Shetty',     guestPhone: '9123409876', partySize: 4, tableIdx: 2, hoursOffset:   6, status: 'upcoming', notes: 'Allergy: nuts, please inform kitchen' },
-    { guestName: 'Ishaan Chaudhary', guestPhone: '9867452301', partySize: 3, tableIdx: 3, hoursOffset:   8, status: 'upcoming', notes: 'Jain food only' },
-    { guestName: 'Aditya Kumar',     guestPhone: '9087654321', partySize: 6, tableIdx: 4, hoursOffset:  24, status: 'upcoming', notes: 'Team dinner, keep a table near the window' },
-    { guestName: 'Nisha Verma',      guestPhone: '9345678012', partySize: 2, tableIdx: 0, hoursOffset:  48, status: 'upcoming', notes: null },
+    { guestName: 'Rahul Sharma',     guestPhone: '9876543210', partySize: 2, tableIdx: 0, day: -1, time: '20:00', status: 'seated',   notes: 'Window seat preferred' },
+    { guestName: 'Priya Nair',       guestPhone: '9812345678', partySize: 4, tableIdx: 2, day: -1, time: '21:00', status: 'seated',   notes: null },
+    { guestName: 'Vikram Mehta',     guestPhone: '9700011223', partySize: 3, tableIdx: 1, day:  0, time: '19:30', status: 'upcoming', notes: 'Anniversary dinner — surprise cake' },
+    { guestName: 'Sunita Kapoor',    guestPhone: '9988776655', partySize: 6, tableIdx: 4, day:  0, time: '20:00', status: 'upcoming', notes: 'Birthday party, need high chair' },
+    { guestName: 'Arjun Reddy',      guestPhone: '9811223344', partySize: 2, tableIdx: 0, day: -2, time: '19:00', status: 'seated',   notes: null },
+    { guestName: 'Meera Nambiar',    guestPhone: '9922334455', partySize: 5, tableIdx: 3, day: -2, time: '20:30', status: 'seated',   notes: 'Vegetarian only — confirmed' },
+    { guestName: 'Dev Anand',        guestPhone: '9633221100', partySize: 8, tableIdx: 5, day: -3, time: '13:00', status: 'seated',   notes: 'Corporate lunch, separate bills' },
+    { guestName: 'Kavya Pillai',     guestPhone: '9745612398', partySize: 2, tableIdx: 1, day: -2, time: '21:15', status: 'seated',   notes: null },
+    { guestName: 'Rohit Shetty',     guestPhone: '9123409876', partySize: 4, tableIdx: 2, day:  0, time: '20:30', status: 'upcoming', notes: 'Allergy: nuts, please inform kitchen' },
+    { guestName: 'Ishaan Chaudhary', guestPhone: '9867452301', partySize: 3, tableIdx: 3, day:  0, time: '21:00', status: 'upcoming', notes: 'Jain food only' },
+    { guestName: 'Aditya Kumar',     guestPhone: '9087654321', partySize: 6, tableIdx: 4, day:  1, time: '20:00', status: 'upcoming', notes: 'Team dinner, keep a table near the window' },
+    { guestName: 'Nisha Verma',      guestPhone: '9345678012', partySize: 2, tableIdx: 0, day:  2, time: '19:30', status: 'upcoming', notes: null },
   ];
   let resCount = 0;
   for (const r of RESERVATIONS) {
-    const reservedAt = new Date(Date.now() + r.hoursOffset * 3600 * 1000).toISOString();
-    const notifiedAt = r.status === 'seated' ? new Date(Date.now() + (r.hoursOffset + 0.25) * 3600 * 1000).toISOString() : null;
+    const reservedAt = slot(r.day, r.time);
+    const notifiedAt = r.status === 'seated' ? new Date(new Date(reservedAt).getTime() + 15 * 60000).toISOString() : null;
     await client.query(`
       INSERT INTO reservations
         (restaurant_id, table_id, guest_name, guest_phone, party_size, reserved_at, status, notes, notified_at)

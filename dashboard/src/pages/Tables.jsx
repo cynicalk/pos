@@ -7,6 +7,7 @@ import { useActiveOrders } from '../hooks/useOrders';
 import { useUsers, useMeProfile } from '../hooks/useUsers';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useTimezone } from '../context/TimezoneContext';
 import { useCreateReservation } from '../hooks/useReservations';
 import Modal from '../components/Modal';
 import NewOrderModal from '../components/NewOrderModal';
@@ -60,6 +61,7 @@ export default function Tables() {
   const { data: tables = [], isLoading } = useTables();
   const { data: activeOrders = [] } = useActiveOrders();
   const { data: settings } = useSettings();
+  const { iana } = useTimezone();
   const { data: allUsers = [] }  = useUsers();
   const { data: meProfile }      = useMeProfile();
   const updateStatus   = useUpdateTableStatus();
@@ -805,7 +807,7 @@ const [newOrderForTable, setNewOrderForTable] = useState(null);
                       {t.reservation_time && (
                         <span style={{ fontSize: 11, color: 'var(--mute)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <Clock size={10} />
-                          {new Date(t.reservation_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(t.reservation_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: iana })}
                         </span>
                       )}
                     </div>
