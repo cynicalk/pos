@@ -88,6 +88,8 @@ export default function RecoPerformance() {
   const refine = data?.refine;
   const experiment = data?.experiment;
   const coverage = data?.coverage;
+  const timing = data?.timing;
+  const concentration = data?.concentration;
   const noActivity = funnel && funnel.window.sessions === 0;
   const maxStage = funnel ? Math.max(1, ...funnel.stages.map((s) => s.count)) : 1;
 
@@ -183,6 +185,20 @@ export default function RecoPerformance() {
                 label="Menu coverage"
                 value={`${coverage.pct}%`}
                 sub={`${coverage.shownDishes} of ${coverage.availableDishes} dishes ever shown`}
+              />
+            )}
+            {timing && timing.medianSecondsToFirstAdd != null && (
+              <Tile
+                label="Time to first add"
+                value={`${timing.medianSecondsToFirstAdd}s`}
+                sub="median, picks shown → first add"
+              />
+            )}
+            {concentration && concentration.enoughData && (
+              <Tile
+                label="Pick concentration"
+                value={`${concentration.topSharePct}%`}
+                sub={`top dish's share of adds · HHI ${concentration.hhi}`}
               />
             )}
           </div>

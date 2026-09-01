@@ -308,3 +308,23 @@ describe('buildExperiment (A/B holdout)', () => {
     expect(e.acceptanceLift).toBeNull();
   });
 });
+
+describe('buildConcentration (cannibalization proxy)', () => {
+  const { buildConcentration } = require('../src/modules/recsys/analytics');
+  test('spread adds give a low HHI; concentrated adds give a high one', () => {
+    const spread = buildConcentration([
+      { recoAdds: 10 }, { recoAdds: 10 }, { recoAdds: 10 }, { recoAdds: 10 }, { recoAdds: 10 },
+    ]);
+    expect(spread.enoughData).toBe(true);
+    expect(spread.hhi).toBeCloseTo(0.2, 2);   // 5 equal dishes → 1/5
+    expect(spread.topSharePct).toBe(20);
+
+    const concentrated = buildConcentration([{ recoAdds: 45 }, { recoAdds: 3 }, { recoAdds: 2 }]);
+    expect(concentrated.hhi).toBeGreaterThan(spread.hhi);
+    expect(concentrated.topSharePct).toBeGreaterThan(80);
+  });
+
+  test('abstains below the add floor', () => {
+    expect(buildConcentration([{ recoAdds: 3 }]).enoughData).toBe(false);
+  });
+});

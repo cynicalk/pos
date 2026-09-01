@@ -588,6 +588,31 @@ const getRecoRefineStats = (restaurantId, days) =>
   `, [restaurantId, days]).then((r) => r.rows[0]);
 
 /**
+ * How fast tables decide: the median seconds from a table being shown picks to
+ * its first reco-driven add. The whole pitch is "dishes everyone agrees on in
+ * under a minute" — this measures it. Only sessions where an add followed the
+ * picks count; a negative or missing gap is excluded, never guessed.
+ */
+const getRecoTiming = (restaurantId, days) =>
+  db.query(`
+    WITH firsts AS (
+      SELECT session_id,
+             MIN(occurred_at) FILTER (WHERE event = 'recommendations_shown')             AS shown_at,
+             MIN(occurred_at) FILTER (WHERE event = 'dish_added' AND source = 'reco')     AS first_add_at
+      FROM guest_events
+      WHERE restaurant_id = $1
+        AND event IN ('recommendations_shown', 'dish_added')
+        AND occurred_at >= now() - make_interval(days => $2)
+      GROUP BY session_id
+    )
+    SELECT
+      COUNT(*) FILTER (WHERE shown_at IS NOT NULL AND first_add_at IS NOT NULL AND first_add_at >= shown_at)::int AS sessions,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_add_at - shown_at)))
+        FILTER (WHERE shown_at IS NOT NULL AND first_add_at IS NOT NULL AND first_add_at >= shown_at)             AS median_seconds
+    FROM firsts
+  `, [restaurantId, days]).then((r) => r.rows[0]);
+
+/**
  * Catalog coverage: how many DISTINCT dishes the recommender ever put in front of
  * a table over the window, against how many available dishes there are. A
  * recommender that only ever shows a handful is starving the long tail — the
@@ -624,5 +649,5 @@ module.exports = {
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
   getRecoImpressionsForDish, getRecoRevenue, getRecoFunnelBySegment, getRecoRefineStats,
-  getRecoCoverage,
+  getRecoCoverage, getRecoTiming,
 };

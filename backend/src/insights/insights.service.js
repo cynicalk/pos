@@ -213,7 +213,7 @@ async function getRecoPerformance(restaurantId, daysRaw) {
 async function computeRecoPerformance(restaurantId, days) {
   const tz = await tzFor(restaurantId);
   const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds,
-    revenueRow, byOccasionRows, byPartyRows, refineRow, byVariantRows, coverageRow] = await Promise.all([
+    revenueRow, byOccasionRows, byPartyRows, refineRow, byVariantRows, coverageRow, timingRow] = await Promise.all([
     repo.getRecoFunnelCounts(restaurantId, days),
     repo.getRecoFunnelCounts(restaurantId, days, days), // the equal window before this one
     repo.getRecoDishStats(restaurantId, days),
@@ -227,6 +227,7 @@ async function computeRecoPerformance(restaurantId, days) {
     repo.getRecoRefineStats(restaurantId, days),
     repo.getRecoFunnelBySegment(restaurantId, days, 'variant'),
     repo.getRecoCoverage(restaurantId, days),
+    repo.getRecoTiming(restaurantId, days),
   ]);
 
   const matrix = perf.buildMatrix(perf.buildPerformance(perfRows, { spanDays }));
@@ -276,6 +277,14 @@ async function computeRecoPerformance(restaurantId, days) {
         ? Math.round((coverageRow.shown_dishes / coverageRow.available_dishes) * 1000) / 10
         : null,
     },
+    timing: {
+      sessions: Number(timingRow?.sessions || 0),
+      // Median seconds shown → first pick added; null below a small floor.
+      medianSecondsToFirstAdd: timingRow && Number(timingRow.sessions) >= 10 && timingRow.median_seconds != null
+        ? Math.round(Number(timingRow.median_seconds))
+        : null,
+    },
+    concentration: recsysAnalytics.buildConcentration(stats),
   };
 }
 

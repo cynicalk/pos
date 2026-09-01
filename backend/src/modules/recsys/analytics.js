@@ -153,11 +153,34 @@ function buildExperiment(rows = []) {
   };
 }
 
+/**
+ * How concentrated the reco-driven adds are across the menu — a cannibalization
+ * signal. Featuring and the learned prior push volume toward a few dishes; if
+ * they push it too hard, a handful of dishes soak up every add and the rest
+ * starve. The Herfindahl index (sum of squared shares, 0→perfectly spread,
+ * 1→one dish takes everything) and the single top dish's share make that visible,
+ * so an operator can see the lever concentrating demand before it cannibalizes.
+ * `dishStats` is the per-dish reco-add rows; abstains below a floor of total adds.
+ */
+const MIN_ADDS_FOR_CONCENTRATION = 20;
+function buildConcentration(dishStats = []) {
+  const adds = dishStats.map((d) => Math.max(0, n(d.recoAdds))).filter((a) => a > 0);
+  const total = adds.reduce((s, a) => s + a, 0);
+  if (total < MIN_ADDS_FOR_CONCENTRATION) {
+    return { enoughData: false, hhi: null, topSharePct: null, dishes: adds.length };
+  }
+  const shares = adds.map((a) => a / total);
+  const hhi = Math.round(shares.reduce((s, x) => s + x * x, 0) * 1000) / 1000;
+  const topSharePct = Math.round(Math.max(...shares) * 1000) / 10;
+  return { enoughData: true, hhi, topSharePct, dishes: adds.length };
+}
+
 module.exports = {
   buildRevenueAttribution,
   buildSegments,
   buildRefineStats,
   buildExperiment,
+  buildConcentration,
   MIN_ORDERS_FOR_AOV,
   MIN_SEGMENT_SESSIONS,
   MIN_REFINE_SESSIONS,
