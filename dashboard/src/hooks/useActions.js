@@ -51,3 +51,29 @@ export function useSetActionStatus() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['actions'] }),
   });
 }
+
+// Autopilot audit trail + revert (admin-only, like the actions above).
+export function useAutopilotLog() {
+  return useQuery({
+    queryKey: ['autopilot', 'log'],
+    queryFn: async () => {
+      const { data } = await api.get('/actions/autopilot');
+      return data.log || [];
+    },
+    enabled: !!localStorage.getItem('pos_user'),
+    staleTime: 60_000,
+  });
+}
+
+export function useRevertAutopilot() {
+  return useMutation({
+    mutationFn: async (id) => {
+      const { data } = await api.post(`/actions/autopilot/${id}/revert`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['autopilot', 'log'] });
+      queryClient.invalidateQueries({ queryKey: ['insights', 'reco-performance'] });
+    },
+  });
+}

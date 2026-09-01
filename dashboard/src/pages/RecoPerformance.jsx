@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Sparkles, AlertCircle, Info, Star } from 'lucide-react';
 import { useRecoPerformance } from '../hooks/useInsights';
 import { useUpdateMenuItem } from '../hooks/useMenu';
+import { useAutopilotLog, useRevertAutopilot } from '../hooks/useActions';
 import { queryClient } from '../lib/queryClient';
 
 /**
@@ -72,6 +73,8 @@ export default function RecoPerformance() {
   const [days, setDays] = useState(30);
   const { data, isLoading } = useRecoPerformance(days);
   const updateItem = useUpdateMenuItem();
+  const { data: autopilotLog = [] } = useAutopilotLog();
+  const revertAutopilot = useRevertAutopilot();
 
   const toggleFeatured = (menuItemId, next) => {
     updateItem.mutate(
@@ -390,6 +393,36 @@ export default function RecoPerformance() {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* ── Autopilot activity ─────────────────────────────────── */}
+          {autopilotLog.length > 0 && (
+            <>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '30px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+                <Sparkles size={15} strokeWidth={2} /> Autopilot
+              </h2>
+              <p style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--mute)', lineHeight: 1.55 }}>
+                Actions the system took on its own when the recommender was leaking margin. Reversible — undo any of them.
+              </p>
+              <div style={{ marginTop: 10 }}>
+                {autopilotLog.slice(0, 5).map((a) => (
+                  <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
+                    <span style={{ flex: 1, color: a.reverted_at ? 'var(--mute-2)' : 'var(--ink)', textDecoration: a.reverted_at ? 'line-through' : 'none' }}>
+                      {a.detail}
+                    </span>
+                    {a.reverted_at ? (
+                      <span style={{ fontSize: 11.5, color: 'var(--mute-2)' }}>reverted</span>
+                    ) : (
+                      <button
+                        onClick={() => revertAutopilot.mutate(a.id)}
+                        disabled={revertAutopilot.isPending}
+                        style={{ padding: '4px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 12, border: '1px solid var(--line)', background: 'transparent', color: 'var(--mute)' }}
+                      >Undo</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* ── Who it converts for (segments) ─────────────────────── */}

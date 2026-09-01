@@ -35,4 +35,17 @@ router.patch('/:id/assign', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.assign(req.params.id, req.user.restaurantId, req.body.userId));
 }));
 
+// Autopilot audit trail + manual run + revert.
+router.get('/autopilot', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json({ log: await service.getAutopilotLog(req.user.restaurantId) });
+}));
+
+router.post('/autopilot/run', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.runAutopilot(req.user.restaurantId));
+}));
+
+router.post('/autopilot/:id/revert', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.revertAutopilotAction(req.params.id, req.user.restaurantId));
+}));
+
 module.exports = router;

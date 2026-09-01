@@ -255,10 +255,62 @@ const listActiveRestaurants = () =>
   db.query(`SELECT id FROM restaurants WHERE is_active IS NOT false`)
     .then((r) => r.rows.map((x) => x.id));
 
+// ── Autopilot (the one autonomous action) ────────────────────────────────────
+
+const setDishFeatured = (restaurantId, menuItemId, featured) =>
+  db.query(
+    'UPDATE menu_items SET featured = $3 WHERE id = $2 AND restaurant_id = $1',
+    [restaurantId, menuItemId, featured],
+  );
+
+const insertAutopilotAction = ({ restaurantId, actionType, menuItemId, detail }) =>
+  db.query(
+    `INSERT INTO autopilot_actions (restaurant_id, action_type, menu_item_id, detail)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [restaurantId, actionType, menuItemId, detail],
+  ).then((r) => r.rows[0]);
+
+// Active (un-reverted) autopilot actions — the cap and the acted-ids read off this.
+const getActiveAutopilotActions = (restaurantId) =>
+  db.query(
+    `SELECT * FROM autopilot_actions WHERE restaurant_id = $1 AND reverted_at IS NULL ORDER BY created_at DESC`,
+    [restaurantId],
+  ).then((r) => r.rows);
+
+// Every menu item autopilot has EVER featured (so it doesn't re-act on one).
+const getAutopilotActedIds = (restaurantId) =>
+  db.query(
+    `SELECT DISTINCT menu_item_id FROM autopilot_actions WHERE restaurant_id = $1 AND menu_item_id IS NOT NULL`,
+    [restaurantId],
+  ).then((r) => r.rows.map((x) => x.menu_item_id));
+
+const getAutopilotLog = (restaurantId, limit = 20) =>
+  db.query(
+    `SELECT a.*, mi.name AS dish_name
+       FROM autopilot_actions a
+       LEFT JOIN menu_items mi ON mi.id = a.menu_item_id
+      WHERE a.restaurant_id = $1
+      ORDER BY a.created_at DESC LIMIT $2`,
+    [restaurantId, limit],
+  ).then((r) => r.rows);
+
+const getAutopilotAction = (id, restaurantId) =>
+  db.query('SELECT * FROM autopilot_actions WHERE id = $1 AND restaurant_id = $2', [id, restaurantId])
+    .then((r) => r.rows[0]);
+
+const markAutopilotReverted = (id, restaurantId) =>
+  db.query(
+    `UPDATE autopilot_actions SET reverted_at = now()
+      WHERE id = $1 AND restaurant_id = $2 AND reverted_at IS NULL RETURNING *`,
+    [id, restaurantId],
+  ).then((r) => r.rows[0]);
+
 module.exports = {
   listRules, seedRules,
   getOrderStats, getCancellationLoss, getRecentReviews, getRecentReviewsWithText, getSeatedTables,
   findSuppressedDedupeKeys, createAction, listActions, getAction, updateStatus, assign,
   createOutcome, getOutcomeByAction, recordMeasurement, findUnmeasuredOutcomes,
   listActiveRestaurants,
+  setDishFeatured, insertAutopilotAction, getActiveAutopilotActions,
+  getAutopilotActedIds, getAutopilotLog, getAutopilotAction, markAutopilotReverted,
 };

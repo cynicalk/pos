@@ -25,6 +25,10 @@ const ALLOWED_KEYS = new Set([
   // Language the AI narrations (brief, weekly review, evening wrap, review
   // analysis, action plan) are written in. Defaults to English when unset.
   'ai_language',
+  // Autopilot: when 'on', a narrow, reversible autonomous action is allowed —
+  // auto-featuring a high-margin dish when the recommender is verifiably leaking
+  // margin. Off by default; every action is logged and can be reverted.
+  'autopilot_enabled',
 ]);
 
 function validateCurrency(code) {
@@ -123,6 +127,11 @@ async function update(key, value, restaurantId) {
   }
   if (key === 'ai_language') {
     if (!isValidLanguage(value)) throw new ValidationError('ai_language must be a supported language code');
+  }
+  if (key === 'autopilot_enabled') {
+    if (!['on', 'off', 'true', 'false'].includes(String(value))) {
+      throw new ValidationError("autopilot_enabled must be 'on' or 'off'");
+    }
   }
   if (key === 'cash_denominations') {
     const parts = String(value).split(',').map((s) => parseFloat(s.trim()));

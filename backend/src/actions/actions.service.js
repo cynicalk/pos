@@ -4,6 +4,7 @@ const opportunity = require('../modules/rules/opportunity');
 const actionBrief = require('../modules/rules/action-brief');
 const { narrateOrFallback } = require('../ai/narrate');
 const tracker = require('../modules/outcomes/tracker');
+const autopilotPolicy = require('../modules/autopilot/policy');
 const procurementRepo = require('../procurement/procurement.repository');
 const complianceService = require('../compliance/compliance.service');
 const reputationService = require('../reputation/reputation.service');
@@ -172,7 +173,73 @@ async function evaluate(restaurantId, now = Date.now()) {
       console.error('[actions] outbox enqueue failed for', action.id, '—', err.message);
     }
   }
+
+  // Autopilot rides the same periodic evaluation. Best-effort and fully guarded
+  // inside runAutopilot (off unless the operator enabled it); a failure here must
+  // never fail the action evaluation.
+  try { await runAutopilot(restaurantId); } catch (err) {
+    console.error('[autopilot] run failed —', err.message);
+  }
+
   return created;
+}
+
+// ── Autopilot: the one autonomous, reversible action ─────────────────────────
+
+function autopilotOn(value) {
+  return value === 'on' || value === 'true';
+}
+
+/**
+ * Run the autopilot policy once. Reads the opt-in setting, the recommender's
+ * current margin verdict and promote candidates, and what autopilot has already
+ * done, then — if every guardrail passes — features one high-margin dish and logs
+ * it. Returns a small status the caller can surface or ignore.
+ */
+async function runAutopilot(restaurantId) {
+  const settings = await settingsRepo.getAll(restaurantId);
+  const enabled = autopilotOn(settings.autopilot_enabled);
+  if (!enabled) return { enabled: false, acted: false };
+
+  const [reco, active, actedIds] = await Promise.all([
+    insightsService.getRecoPerformance(restaurantId, OI_WINDOW_DAYS),
+    repo.getActiveAutopilotActions(restaurantId),
+    repo.getAutopilotActedIds(restaurantId),
+  ]);
+
+  const decision = autopilotPolicy.decideFeatureAction({
+    enabled: true,
+    marginVerdict: reco?.margin?.verdict,
+    promote: reco?.promote || [],
+    activeCount: active.length,
+    actedIds: new Set(actedIds),
+  });
+  if (!decision) return { enabled: true, acted: false };
+
+  await repo.setDishFeatured(restaurantId, decision.menuItemId, true);
+  const logged = await repo.insertAutopilotAction({
+    restaurantId,
+    actionType: decision.actionType,
+    menuItemId: decision.menuItemId,
+    detail: decision.detail,
+  });
+  return { enabled: true, acted: true, action: logged };
+}
+
+/** The autopilot audit trail — what it did and whether it's been reverted. */
+function getAutopilotLog(restaurantId) {
+  return repo.getAutopilotLog(restaurantId);
+}
+
+/** Undo an autopilot action: un-feature the dish and mark it reverted. */
+async function revertAutopilotAction(id, restaurantId) {
+  const action = await repo.getAutopilotAction(id, restaurantId);
+  if (!action) throw new NotFoundError('Autopilot action');
+  if (action.reverted_at) return action; // idempotent
+  if (action.action_type === 'feature_dish' && action.menu_item_id) {
+    await repo.setDishFeatured(restaurantId, action.menu_item_id, false);
+  }
+  return repo.markAutopilotReverted(id, restaurantId);
 }
 
 /** Same, for every active restaurant. One failure must not stop the rest. */
@@ -371,5 +438,6 @@ async function measureDueOutcomes() {
 module.exports = {
   evaluate, evaluateAll, list, getActionBrief, setStatus, assign,
   computeMetric, measureDueOutcomes,
+  runAutopilot, getAutopilotLog, revertAutopilotAction,
   VALID_STATUSES, OUTCOME_MIN_AGE_HOURS, RAISE_COOLDOWN_HOURS,
 };

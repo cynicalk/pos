@@ -173,6 +173,7 @@ export default function Settings() {
   const [staffAssignment,   setStaffAssignment]   = useState(false);
   const [reservationsEnabled, setReservationsEnabled] = useState(false);
   const [loyaltyEnabled,      setLoyaltyEnabled]      = useState(false);
+  const [autopilotEnabled,    setAutopilotEnabled]   = useState(false);
   const [loyaltyPointsPerUnit, setLoyaltyPointsPerUnit] = useState('');
   const [loyaltyPointsValue,   setLoyaltyPointsValue]   = useState('');
   const [denomInput,           setDenomInput]           = useState('');
@@ -209,6 +210,9 @@ export default function Settings() {
     }
     if (settings.loyalty_enabled !== undefined) {
       setLoyaltyEnabled(settings.loyalty_enabled === 'true');
+    }
+    if (settings.autopilot_enabled !== undefined) {
+      setAutopilotEnabled(settings.autopilot_enabled === 'on' || settings.autopilot_enabled === 'true');
     }
     if (settings.loyalty_points_per_unit !== undefined) setLoyaltyPointsPerUnit(settings.loyalty_points_per_unit || '');
     if (settings.loyalty_points_value    !== undefined) setLoyaltyPointsValue(settings.loyalty_points_value     || '');
@@ -268,6 +272,7 @@ export default function Settings() {
       await updateSetting.mutateAsync({ key: 'staff_assignment_enabled', value: String(staffAssignment) });
       await updateSetting.mutateAsync({ key: 'reservations_enabled', value: String(reservationsEnabled) });
       await updateSetting.mutateAsync({ key: 'loyalty_enabled', value: String(loyaltyEnabled) });
+      await updateSetting.mutateAsync({ key: 'autopilot_enabled', value: autopilotEnabled ? 'on' : 'off' });
       if (loyaltyEnabled) {
         if (loyaltyPointsPerUnit) await updateSetting.mutateAsync({ key: 'loyalty_points_per_unit', value: loyaltyPointsPerUnit });
         if (loyaltyPointsValue)   await updateSetting.mutateAsync({ key: 'loyalty_points_value',   value: loyaltyPointsValue });
@@ -289,7 +294,7 @@ export default function Settings() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => saveRef.current?.(), 900);
     return () => clearTimeout(debounceRef.current);
-  }, [taxRate, serviceCharge, packagingFee, city, latitude, longitude, staffAssignment, reservationsEnabled, loyaltyEnabled, loyaltyPointsPerUnit, loyaltyPointsValue, autosave, dirty]);
+  }, [taxRate, serviceCharge, packagingFee, city, latitude, longitude, staffAssignment, reservationsEnabled, loyaltyEnabled, autopilotEnabled, loyaltyPointsPerUnit, loyaltyPointsValue, autosave, dirty]);
 
   function markDirty() { setDirty(true); }
 
@@ -681,6 +686,23 @@ export default function Settings() {
           <Toggle
             checked={loyaltyEnabled}
             onChange={(v) => { setLoyaltyEnabled(v); markDirty(); }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between" style={{ paddingTop: 12, marginTop: 12, borderTop: '1px solid var(--line)' }}>
+          <div className="flex items-center gap-2.5">
+            <Sparkles size={13} style={{ color: 'var(--mute)', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Autopilot</p>
+              <p style={{ fontSize: 11.5, color: 'var(--mute)', marginTop: 2 }}>
+                When the recommender is verifiably leaking margin, auto-feature a high-margin dish it's under-showing.
+                One reversible action at a time, capped, and logged on the Recommendations page. Off by default.
+              </p>
+            </div>
+          </div>
+          <Toggle
+            checked={autopilotEnabled}
+            onChange={(v) => { setAutopilotEnabled(v); markDirty(); }}
           />
         </div>
       </div>
