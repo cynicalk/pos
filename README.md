@@ -1,5 +1,7 @@
 # CookLyt POS — Restaurant Management Platform
 
+[![CI](https://github.com/cynicalk/pos/actions/workflows/ci.yml/badge.svg)](https://github.com/cynicalk/pos/actions/workflows/ci.yml)
+
 A full restaurant management monorepo: a point-of-sale dashboard (which also serves the public landing page), a super-admin panel, a customer QR-menu ordering app, and a Node.js/Express + PostgreSQL backend with real-time updates over WebSocket.
 
 The product is built around **operator intelligence** — alongside the usual floor, kitchen, and billing workflows, it tracks food waste per ingredient, shift and reason (costed against live recipe data), surfaces where margin leaks in rupees, and reads the day back to the operator in plain language through a local LLM. Every figure abstains rather than guess: a number the system cannot establish is shown as "not recorded", never as zero.
