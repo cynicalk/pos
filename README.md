@@ -327,9 +327,15 @@ npm run migrate:test
 npm test
 ```
 
-Tests run serially (`--runInBand`) to avoid database race conditions. There are **60 suites / 778 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules, the AI-narration signal/prompt/fallback builders, outcome-verdict direction, semantic-search ranking, the language directive, and the recommendation funnel + reco→margin loop), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
+Tests run serially (`--runInBand`) to avoid database race conditions. There are **65 suites / 816 tests** in `backend/tests/`, spanning the HTTP routes (auth, menu, orders, payments, kitchen, …), the pure computation modules (forecasting baseline, prep reconciliation and waste prediction, promo detection, accounting journals, ETA, anomaly, rules, the AI-narration signal/prompt/fallback builders + the numeric-fidelity guard, outcome-verdict direction, semantic-search ranking, the language directive, the full recsys stack — funnel, margin loop, Wilson/z-test, learned prior with position de-bias, cold-start, A/B, revenue/segments/refine analytics — staff performance, guest cohorts, and the autopilot policy), and the feature-toggle gate. Suites suffixed `-db` exercise real Postgres.
 
 Shared fixtures live in `tests/helpers.js`; module stubs in `tests/stubs/`.
+
+**End-to-end (Playwright).** `e2e/` drives the running stack in a real browser —
+the full guest order flow (walk-in → recommendations → order) and an operator
+dashboard smoke. With the app running (see `RUN_FULL_APP_COMMANDS.txt`):
+`cd e2e && npm install && npm run install:browsers && npm test` (override
+`DASHBOARD_URL` / `GUEST_URL` for non-default ports).
 
 ---
 
