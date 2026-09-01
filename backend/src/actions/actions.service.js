@@ -216,13 +216,17 @@ async function runAutopilot(restaurantId) {
   });
   if (!decision) return { enabled: true, acted: false };
 
-  await repo.setDishFeatured(restaurantId, decision.menuItemId, true);
-  const logged = await repo.insertAutopilotAction({
+  // Feature + log atomically under the concurrent-active cap (repo advisory lock);
+  // a null result means an overlapping run already hit the cap, so nothing changed.
+  const logged = await repo.featureDishWithCap({
     restaurantId,
     actionType: decision.actionType,
     menuItemId: decision.menuItemId,
     detail: decision.detail,
-  });
+  }, autopilotPolicy.MAX_ACTIVE);
+  if (!logged) return { enabled: true, acted: false };
+
+  insightsService.bustRecoCache(restaurantId); // featured changed — drop stale reco
   return { enabled: true, acted: true, action: logged };
 }
 
@@ -238,6 +242,7 @@ async function revertAutopilotAction(id, restaurantId) {
   if (action.reverted_at) return action; // idempotent
   if (action.action_type === 'feature_dish' && action.menu_item_id) {
     await repo.setDishFeatured(restaurantId, action.menu_item_id, false);
+    insightsService.bustRecoCache(restaurantId); // un-featured — drop stale reco
   }
   return repo.markAutopilotReverted(id, restaurantId);
 }

@@ -25,6 +25,12 @@ async function create({ name, price, category, sku, customizationGroups, recipeI
 async function update(id, fields, restaurantId) {
   await getById(id, restaurantId);
   const updated = await repo.update(id, fields, restaurantId);
+  // Toggling `featured` changes the recommender's promote/margin read; drop the
+  // cached reco performance so the Recommendations page reflects it at once.
+  // Lazy require avoids a load-time cycle with the insights service.
+  if (fields.featured !== undefined) {
+    require('../insights/insights.service').bustRecoCache(restaurantId);
+  }
   return updated;
 }
 

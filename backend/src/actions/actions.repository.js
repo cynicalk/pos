@@ -263,12 +263,30 @@ const setDishFeatured = (restaurantId, menuItemId, featured) =>
     [restaurantId, menuItemId, featured],
   );
 
-const insertAutopilotAction = ({ restaurantId, actionType, menuItemId, detail }) =>
-  db.query(
-    `INSERT INTO autopilot_actions (restaurant_id, action_type, menu_item_id, detail)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [restaurantId, actionType, menuItemId, detail],
-  ).then((r) => r.rows[0]);
+// Feature a dish AND log it atomically, under the concurrent-active cap. A
+// per-restaurant advisory lock serialises overlapping autopilot runs (the
+// scheduler tick and a manual /autopilot/run), so the cap check and the insert
+// can't both pass on a stale count. Returns the logged row, or null when the cap
+// was already reached — in which case nothing was featured.
+const featureDishWithCap = ({ restaurantId, actionType, menuItemId, detail }, maxActive) =>
+  db.withTransaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`autopilot:${restaurantId}`]);
+    const { rows } = await client.query(
+      'SELECT COUNT(*)::int AS n FROM autopilot_actions WHERE restaurant_id = $1 AND reverted_at IS NULL',
+      [restaurantId],
+    );
+    if (rows[0].n >= maxActive) return null;
+    await client.query(
+      'UPDATE menu_items SET featured = true WHERE id = $2 AND restaurant_id = $1',
+      [restaurantId, menuItemId],
+    );
+    const ins = await client.query(
+      `INSERT INTO autopilot_actions (restaurant_id, action_type, menu_item_id, detail)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [restaurantId, actionType, menuItemId, detail],
+    );
+    return ins.rows[0];
+  });
 
 // Active (un-reverted) autopilot actions — the cap and the acted-ids read off this.
 const getActiveAutopilotActions = (restaurantId) =>
@@ -311,6 +329,6 @@ module.exports = {
   findSuppressedDedupeKeys, createAction, listActions, getAction, updateStatus, assign,
   createOutcome, getOutcomeByAction, recordMeasurement, findUnmeasuredOutcomes,
   listActiveRestaurants,
-  setDishFeatured, insertAutopilotAction, getActiveAutopilotActions,
+  setDishFeatured, featureDishWithCap, getActiveAutopilotActions,
   getAutopilotActedIds, getAutopilotLog, getAutopilotAction, markAutopilotReverted,
 };

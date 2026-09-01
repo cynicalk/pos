@@ -678,7 +678,7 @@ const getStaffPerformance = (restaurantId, days) =>
  * cumulative revenue-per-guest (LTV) curve. Revenue is summed in a subquery per
  * order to avoid split-bill double-counting.
  */
-const getGuestCohorts = (restaurantId) =>
+const getGuestCohorts = (restaurantId, months = 24) =>
   db.query(`
     WITH cust_orders AS (
       SELECT o.loyalty_customer_id AS cid,
@@ -686,6 +686,10 @@ const getGuestCohorts = (restaurantId) =>
              (SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.order_id = o.id AND p.status = 'completed') AS amount
       FROM orders o
       WHERE o.restaurant_id = $1 AND o.status = 'paid' AND o.loyalty_customer_id IS NOT NULL
+        -- Bounded to recent cohorts so this can't full-scan all history; a guest
+        -- whose first visit predates the window is cohorted by their first visit
+        -- WITHIN it (a recent-cohorts view, not lifetime archaeology).
+        AND o.created_at >= now() - make_interval(months => $2)
     ),
     firsts AS (
       SELECT cid, date_trunc('month', MIN(created_at)) AS cohort FROM cust_orders GROUP BY cid
@@ -703,7 +707,7 @@ const getGuestCohorts = (restaurantId) =>
     FROM joined
     GROUP BY cohort, month_offset
     ORDER BY cohort, month_offset
-  `, [restaurantId]).then((r) => r.rows);
+  `, [restaurantId, months]).then((r) => r.rows);
 
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>

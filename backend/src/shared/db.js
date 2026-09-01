@@ -12,16 +12,21 @@ types.setTypeParser(1114, (val) =>
 // Managed Postgres (Supabase, RDS, …) needs SSL, and serverless functions each
 // hold their own tiny pool against a shared connection budget — so both are
 // env-driven and default to the local Docker Postgres behaviour untouched.
-//   PGSSL=require        → TLS on (Supabase; the pooler's cert isn't in the CA
-//                          bundle, so verification is relaxed, transport still
-//                          encrypted). Auto-enabled when the URL looks like Supabase.
+//   PGSSL=require        → TLS on, transport encrypted. Certificate verification
+//                          is RELAXED by default because Supabase's pooler cert
+//                          isn't in the system CA bundle. Auto-enabled for supabase hosts.
+//   PGSSL=verify         → TLS on AND the server certificate is verified (strict).
+//                          Use this with a provider whose CA the host trusts (set
+//                          NODE_EXTRA_CA_CERTS if you have Supabase's CA) to close
+//                          the MITM window the relaxed mode leaves open.
 //   PGPOOL_MAX=<n>       → cap connections per instance (set to 1–3 on serverless,
 //                          pointed at Supabase's transaction pooler on port 6543).
 const dbUrl = process.env.DATABASE_URL || '';
-const wantSsl = process.env.PGSSL === 'require' || /supabase\.(co|com)/.test(dbUrl);
+const strictSsl = process.env.PGSSL === 'verify';
+const wantSsl = strictSsl || process.env.PGSSL === 'require' || /supabase\.(co|com)/.test(dbUrl);
 const pool = new Pool({
   connectionString: dbUrl,
-  ...(wantSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  ...(wantSsl ? { ssl: { rejectUnauthorized: strictSsl } } : {}),
   ...(process.env.PGPOOL_MAX ? { max: Number(process.env.PGPOOL_MAX) } : {}),
 });
 

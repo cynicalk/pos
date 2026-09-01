@@ -15,6 +15,11 @@ const { createTtlCache } = require('../shared/ttl-cache');
 
 const recoCache = createTtlCache();
 const RECO_CACHE_TTL_MS = 60_000; // a minute is well inside "guests ordering" pace
+// Cohorts move at the pace of days, not requests, and their query is the heaviest
+// (historical). A longer cache keeps the page snappy without staleness anyone notices.
+const slowCache = createTtlCache();
+const SLOW_CACHE_TTL_MS = 5 * 60_000;
+const COHORT_WINDOW_MONTHS = 24;
 const billingMetrics = require('../modules/economics/billing-metrics');
 const labourHours = require('../modules/labour/hours');
 const labourService = require('../labour/labour.service');
@@ -212,6 +217,16 @@ async function getRecoPerformance(restaurantId, daysRaw) {
     () => computeRecoPerformance(restaurantId, days));
 }
 
+/**
+ * Drop the cached reco performance for a restaurant. Called whenever a dish's
+ * `featured` flag changes (the manual toggle, autopilot, a revert) so the
+ * Recommendations page doesn't keep showing the dish as un-featured — or a stale
+ * margin verdict — for up to the cache TTL after the change.
+ */
+function bustRecoCache(restaurantId) {
+  recoCache.clear(`reco:${restaurantId}`);
+}
+
 async function computeRecoPerformance(restaurantId, days) {
   const tz = await tzFor(restaurantId);
   const [counts, priorCounts, dishStats, impressions, perfRows, spanDays, featuredIds,
@@ -296,9 +311,11 @@ function getRecoImpressionsForDish(restaurantId, days, menuItemId) {
 }
 
 /** Guest cohorts — first-visit-month retention triangle + cumulative LTV. */
-async function getGuestCohorts(restaurantId) {
-  const rows = await repo.getGuestCohorts(restaurantId);
-  return cohorts.buildCohorts(rows);
+function getGuestCohorts(restaurantId) {
+  return slowCache.wrap(`cohorts:${restaurantId}`, SLOW_CACHE_TTL_MS, async () => {
+    const rows = await repo.getGuestCohorts(restaurantId, COHORT_WINDOW_MONTHS);
+    return cohorts.buildCohorts(rows);
+  });
 }
 
 /** Per-server performance over the window — dine-in orders, revenue, AOV, attach. */
@@ -317,5 +334,5 @@ module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
   getCouponEconomics, getAttachRate, getScRemoved, getRecoPerformance,
-  getRecoImpressionsForDish, getStaffPerformance, getGuestCohorts,
+  getRecoImpressionsForDish, getStaffPerformance, getGuestCohorts, bustRecoCache,
 };
