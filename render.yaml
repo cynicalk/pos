@@ -1,0 +1,38 @@
+# Render blueprint for the CookLyt API on a persistent runtime — the real-time
+# path (keeps the WebSocket server that Vercel serverless can't hold). Postgres
+# still lives on Supabase; the frontends still deploy to Vercel and point their
+# /api proxy (and the guest app's NEXT_PUBLIC_COOKLYT_API) at this service's URL.
+#
+# Set the secret values (DATABASE_URL, JWT_SECRET, CORS_ORIGINS, LLM_*) in the
+# Render dashboard — they are marked sync:false so they are never committed.
+services:
+  - type: web
+    name: cooklyt-api
+    runtime: node
+    rootDir: backend
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run migrate:deploy && npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PGSSL
+        value: require
+      - key: PGPOOL_MAX
+        value: "10"          # one long-lived process → session pooler (:5432)
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false          # Supabase session-pooler URI (:5432)
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false          # comma-separated deployed frontend origins
+      - key: APP_URL
+        sync: false          # dashboard URL (email links)
+      - key: LLM_BASE_URL
+        sync: false          # OpenAI-compatible endpoint, or omit for fallback-only
+      - key: LLM_MODEL
+        sync: false

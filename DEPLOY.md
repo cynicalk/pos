@@ -47,8 +47,9 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
    cd backend
    export DATABASE_URL="postgres://postgres.<ref>:<pwd>@...pooler.supabase.com:6543/postgres"
    export PGSSL=require
-   npm run migrate
-   npm run seed                       # demo menu, users, a fortnight of trade
+   npm run migrate:deploy             # uses the ambient DATABASE_URL (the plain
+                                      # `migrate` script is hardcoded to local Docker)
+   npm run seed:deploy                # demo menu, users, a fortnight of trade
    node scripts/backfill-history.js   # 90 days behind the seed (optional, richer demo)
    node scripts/backfill-guest-events.js  # reco funnel demo data (optional)
    ```
@@ -145,12 +146,17 @@ psql "$DATABASE_URL" -c "select id from restaurants where name='Demo Restaurant'
 ## Alternative: keep real-time (persistent backend)
 
 If instant KDS push matters, deploy the backend to a persistent host instead of
-Vercel serverless — everything else (Supabase, the four frontends) is unchanged:
+Vercel serverless — everything else (Supabase, the four frontends) is unchanged.
+Two ready-made configs are in the repo:
 
-- **Railway / Render / Fly.io**: deploy `backend/` with start command `npm start`
-  (runs `server.js` → Express **+ WebSocket**). Set the same env vars as step 2,
-  plus `PORT` (the platform provides it) and a larger `PGPOOL_MAX` (e.g. `10`) since
-  it's one long-lived process, pointed at Supabase's **session** pooler (port 5432).
+- **Render** — `render.yaml` (repo root) is a blueprint: New → Blueprint → pick the
+  repo, then set the `sync:false` secrets (`DATABASE_URL`, `JWT_SECRET`,
+  `CORS_ORIGINS`, `LLM_*`) in the dashboard. It runs `npm run migrate:deploy && npm start`
+  (Express **+ WebSocket**) and health-checks `/health`.
+- **Railway** — `backend/railway.json` sets the same start command and health check;
+  `railway up` from `backend/`, then add the env vars in the Railway dashboard.
+- Either way use a larger `PGPOOL_MAX` (e.g. `10`) against Supabase's **session**
+  pooler (port **5432**), since it's one long-lived process, not many serverless ones.
 - Point the frontends' `/api` rewrite (and the guest app's `NEXT_PUBLIC_COOKLYT_API`)
   at that host's URL instead of the Vercel API URL.
 - Optionally set `REDIS_URL` to fan WebSocket broadcasts across multiple instances
@@ -163,5 +169,8 @@ Vercel serverless — everything else (Supabase, the four frontends) is unchange
 - `backend/api/index.js` — Vercel serverless entry (Express app, no WebSocket)
 - `backend/vercel.json` — routes all requests to the function
 - `backend/src/shared/db.js` — env-driven SSL (`PGSSL`) + pool size (`PGPOOL_MAX`)
+- `backend` scripts `migrate:deploy` / `seed:deploy` — honour the ambient
+  `DATABASE_URL` (the plain `migrate`/`seed` are pinned to local Docker)
 - `dashboard|admin|menu/vercel.json` — `/api` proxy + SPA fallback
+- `render.yaml` / `backend/railway.json` — persistent-host configs (the real-time path)
 - `.env.example` in each app — the variables each needs
