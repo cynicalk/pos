@@ -9,6 +9,7 @@ const attachRate = require('../modules/menu/attach-rate');
 const recsysFunnel = require('../modules/recsys/funnel');
 const recsysMargin = require('../modules/recsys/margin');
 const recsysAnalytics = require('../modules/recsys/analytics');
+const staffPerformance = require('../modules/staff/performance');
 const { createTtlCache } = require('../shared/ttl-cache');
 
 const recoCache = createTtlCache();
@@ -293,9 +294,21 @@ function getRecoImpressionsForDish(restaurantId, days, menuItemId) {
   return repo.getRecoImpressionsForDish(restaurantId, parseDays(days), menuItemId);
 }
 
+/** Per-server performance over the window — dine-in orders, revenue, AOV, attach. */
+async function getStaffPerformance(restaurantId, daysRaw) {
+  const days = parseDays(daysRaw);
+  const rows = await repo.getStaffPerformance(restaurantId, days);
+  return {
+    days,
+    ...staffPerformance.buildStaffPerformance(
+      rows.map((r) => ({ serverId: r.server_id, name: r.name, orders: r.orders, revenue: r.revenue, items: r.items })),
+    ),
+  };
+}
+
 module.exports = {
   DEFAULT_DAYS, MAX_DAYS, parseDays,
   getMenuInsights, getCrossSell, getNewItems, getServiceHours, getEconomics,
   getCouponEconomics, getAttachRate, getScRemoved, getRecoPerformance,
-  getRecoImpressionsForDish,
+  getRecoImpressionsForDish, getStaffPerformance,
 };

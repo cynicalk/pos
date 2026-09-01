@@ -633,6 +633,44 @@ const getRecoCoverage = (restaurantId, days) =>
       (SELECT COUNT(*) FROM menu_items WHERE restaurant_id = $1 AND available = true AND archived_at IS NULL)::int AS available_dishes
   `, [restaurantId, days]).then((r) => r.rows[0]);
 
+/**
+ * Per-server performance over the window — paid dine-in orders attributed to the
+ * staff member who took/was assigned them (COALESCE(assigned_staff_id, created_by),
+ * the same attribution the service-charge-removed breakdown uses). Revenue and
+ * item counts are aggregated in separate CTEs so a split bill (two payment rows)
+ * can't double-count items, and vice-versa.
+ */
+const getStaffPerformance = (restaurantId, days) =>
+  db.query(`
+    WITH so AS (
+      SELECT o.id, COALESCE(o.assigned_staff_id, o.created_by) AS server_id
+      FROM orders o
+      WHERE o.restaurant_id = $1 AND o.channel = 'dining' AND o.status = 'paid'
+        AND o.created_at >= now() - make_interval(days => $2)
+        AND COALESCE(o.assigned_staff_id, o.created_by) IS NOT NULL
+    ),
+    ord AS (SELECT server_id, COUNT(*)::int AS orders FROM so GROUP BY server_id),
+    rev AS (
+      SELECT so.server_id, COALESCE(SUM(p.amount), 0)::float8 AS revenue
+      FROM so JOIN payments p ON p.order_id = so.id AND p.status = 'completed'
+      GROUP BY so.server_id
+    ),
+    itm AS (
+      SELECT so.server_id, COALESCE(SUM(oi.quantity), 0)::int AS items
+      FROM so JOIN order_items oi ON oi.order_id = so.id AND oi.status <> 'cancelled'
+      GROUP BY so.server_id
+    )
+    SELECT u.id AS server_id, u.name,
+           ord.orders,
+           COALESCE(rev.revenue, 0) AS revenue,
+           COALESCE(itm.items, 0)   AS items
+    FROM ord
+    JOIN users u ON u.id = ord.server_id
+    LEFT JOIN rev ON rev.server_id = ord.server_id
+    LEFT JOIN itm ON itm.server_id = ord.server_id
+    ORDER BY revenue DESC
+  `, [restaurantId, days]).then((r) => r.rows);
+
 /** The menu-item ids currently flagged `featured` — the operator's promote set. */
 const getFeaturedMenuItemIds = (restaurantId) =>
   db.query(
@@ -649,5 +687,5 @@ module.exports = {
   getApc, getScRemoved, getScRemovedByServer, getServiceChargeRate,
   getRecoFunnelCounts, getRecoDishStats, getRecoImpressions, getFeaturedMenuItemIds,
   getRecoImpressionsForDish, getRecoRevenue, getRecoFunnelBySegment, getRecoRefineStats,
-  getRecoCoverage, getRecoTiming,
+  getRecoCoverage, getRecoTiming, getStaffPerformance,
 };

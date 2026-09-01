@@ -36,3 +36,6 @@ export const useAttachRate = (days = 30) =>
 
 export const useRecoPerformance = (days = 30) =>
   useQuery({ queryKey: ['insights', 'reco-performance', days], queryFn: get('/insights/reco-performance', { days }), ...common });
+
+export const useStaffPerformance = (days = 30) =>
+  useQuery({ queryKey: ['insights', 'staff', days], queryFn: get('/insights/staff', { days }), ...common });

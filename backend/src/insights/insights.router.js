@@ -42,4 +42,8 @@ router.get('/reco-performance', ...adminOnly, asyncHandler(async (req, res) => {
   res.json(await service.getRecoPerformance(req.user.restaurantId, req.query.days));
 }));
 
+router.get('/staff', ...adminOnly, asyncHandler(async (req, res) => {
+  res.json(await service.getStaffPerformance(req.user.restaurantId, req.query.days));
+}));
+
 module.exports = router;
